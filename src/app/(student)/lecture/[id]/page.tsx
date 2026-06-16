@@ -30,15 +30,26 @@ export default function LecturePage() {
   });
   const lecture = data?.data;
 
-  // Load attempt history for selected quiz
+  // Gate quiz = always the first quiz (loaded immediately for lock check)
+  const gateQuizId: string | null = lecture?.quizzes?.[0]?.id ?? null;
+
+  const { data: gateAttemptsData } = useQuery({
+    queryKey: ["quiz-attempts", gateQuizId],
+    queryFn:  () => fetchWithAuth(`/api/quizzes/${gateQuizId}/submit`),
+    enabled:  !!gateQuizId,
+  });
+
+  // Active quiz = whichever quiz the student opened (React Query dedupes if same as gate)
+  const activeQuizId = selectedQuizId ?? gateQuizId;
   const { data: attemptsData } = useQuery({
-    queryKey: ["quiz-attempts", selectedQuizId],
-    queryFn:  () => fetchWithAuth(`/api/quizzes/${selectedQuizId}/submit`),
-    enabled:  !!selectedQuizId,
+    queryKey: ["quiz-attempts", activeQuizId],
+    queryFn:  () => fetchWithAuth(`/api/quizzes/${activeQuizId}/submit`),
+    enabled:  !!activeQuizId,
   });
   const attemptHistory: QuizAttempt[] = attemptsData?.data?.attempts ?? [];
   const attemptsRemaining: number     = attemptsData?.data?.attemptsRemaining ?? 3;
-  const hasPassed: boolean            = attemptsData?.data?.hasPassed ?? false;
+  // hasPassed must come from the gate quiz, not whichever quiz is currently open
+  const hasPassed: boolean            = gateAttemptsData?.data?.hasPassed ?? false;
 
   const submitQuizMutation = useMutation({
     mutationFn: ({ quizId, answers }: { quizId: string; answers: Record<string, string> }) =>
