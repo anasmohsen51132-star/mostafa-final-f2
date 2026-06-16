@@ -1,0 +1,358 @@
+// ============================================================
+// MUSTAFA ACADEMY — Prisma Schema v3
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── ENUMS ──────────────────────────────────────────────────
+
+enum Role {
+  OWNER
+  ADMIN
+  STUDENT
+}
+
+enum AcademicLevel {
+  FIRST_SECONDARY
+  SECOND_SECONDARY
+  THIRD_SECONDARY
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+}
+
+// NEW: per-lecture quiz access requirement
+enum QuizRequirement {
+  NONE          // no quiz, open access
+  OPTIONAL      // quiz exists, lecture accessible without passing
+  MUST_PASS     // student must pass quiz to access lecture content
+}
+
+// ── USERS ──────────────────────────────────────────────────
+
+model User {
+  id             String         @id @default(cuid())
+  name           String
+  phone          String         @unique
+  passwordHash   String
+  role           Role           @default(STUDENT)
+  academicLevel  AcademicLevel?
+  avatar         String?
+  isActive       Boolean        @default(true)
+  joinedAt       DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  redeemedCodes      AccessCode[]       @relation("CodeRedeemer")
+  createdCodes       AccessCode[]       @relation("CodeCreator")
+  progress           Progress[]
+  quizSubmissions    QuizSubmission[]
+  homeworkSubmissions HomeworkSubmission[]
+
+  @@index([phone])
+  @@index([role])
+  @@index([academicLevel])
+}
+
+// ── COURSES ────────────────────────────────────────────────
+
+model Course {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  icon        String   @default("📚")
+  color       String   @default("#1A6B47")
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  lectures CourseLecture[]
+  codes    CourseOnCode[]
+  levels   CourseOnLevel[]
+
+  @@index([isPublished])
+}
+
+// ── COURSE-LEVEL JOIN ──────────────────────────────────────
+
+model CourseOnLevel {
+  courseId      String
+  academicLevel AcademicLevel
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, academicLevel])
+  @@index([academicLevel])
+}
+
+// ── LECTURES ───────────────────────────────────────────────
+
+model Lecture {
+  id               String          @id @default(cuid())
+  title            String
+  description      String?
+  order            Int             @default(0)
+  // Quiz gate: how strictly is the quiz enforced?
+  quizRequirement  QuizRequirement @default(NONE)
+  quizPassScore    Int             @default(60) // % needed to pass when MUST_PASS
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  courses  CourseLecture[]
+  videos   Video[]
+  pdfs     PDF[]
+  quizzes  Quiz[]
+  homework Homework[]
+  progress Progress[]
+}
+
+// ── COURSE-LECTURE JOIN ────────────────────────────────────
+
+model CourseLecture {
+  id        String   @id @default(cuid())
+  courseId  String
+  lectureId String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  course  Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lecture Lecture @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, lectureId])
+  @@index([courseId])
+  @@index([lectureId])
+}
+
+// ── VIDEOS ─────────────────────────────────────────────────
+
+model Video {
+  id        String   @id @default(cuid())
+  lectureId String
+  title     String
+  youtubeId String
+  order     Int      @default(0)
+  duration  String?
+  createdAt DateTime @default(now())
+
+  lecture  Lecture    @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+  progress Progress[]
+
+  @@index([lectureId])
+}
+
+// ── PDFs ───────────────────────────────────────────────────
+
+model PDF {
+  id        String   @id @default(cuid())
+  lectureId String
+  title     String
+  fileUrl   String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  lecture Lecture @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+
+  @@index([lectureId])
+}
+
+// ── QUIZZES ────────────────────────────────────────────────
+
+model Quiz {
+  id        String   @id @default(cuid())
+  lectureId String
+  title     String
+  timeLimit Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lecture     Lecture          @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+  questions   Question[]
+  submissions QuizSubmission[]
+
+  @@index([lectureId])
+}
+
+// ── HOMEWORK ───────────────────────────────────────────────
+
+model Homework {
+  id        String   @id @default(cuid())
+  lectureId String
+  title     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lecture     Lecture              @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+  questions   Question[]
+  submissions HomeworkSubmission[]
+
+  @@index([lectureId])
+}
+
+// ── QUESTIONS ──────────────────────────────────────────────
+
+model Question {
+  id         String       @id @default(cuid())
+  quizId     String?
+  homeworkId String?
+  text       String?
+  imageUrl   String?
+  type       QuestionType @default(MULTIPLE_CHOICE)
+  order      Int          @default(0)
+  createdAt  DateTime     @default(now())
+
+  quiz     Quiz?     @relation(fields: [quizId],     references: [id], onDelete: Cascade)
+  homework Homework? @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
+  choices  Choice[]
+
+  @@index([quizId])
+  @@index([homeworkId])
+}
+
+// ── CHOICES ────────────────────────────────────────────────
+
+model Choice {
+  id         String  @id @default(cuid())
+  questionId String
+  text       String?
+  imageUrl   String?
+  isCorrect  Boolean @default(false)
+  order      Int     @default(0)
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+}
+
+// ── ACCESS CODES ───────────────────────────────────────────
+
+model AccessCode {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  isActive    Boolean   @default(true)
+  expiresAt   DateTime?
+  note        String?
+  createdAt   DateTime  @default(now())
+
+  createdById String
+  createdBy   User   @relation("CodeCreator",  fields: [createdById], references: [id])
+
+  usedById    String?
+  usedAt      DateTime?
+  usedBy      User?   @relation("CodeRedeemer", fields: [usedById], references: [id])
+
+  courses     CourseOnCode[]
+
+  @@index([code])
+  @@index([isActive])
+  @@index([usedById])
+}
+
+// ── CODE-COURSE JOIN ───────────────────────────────────────
+
+model CourseOnCode {
+  codeId   String
+  courseId String
+
+  code   AccessCode @relation(fields: [codeId],   references: [id], onDelete: Cascade)
+  course Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@id([codeId, courseId])
+}
+
+// ── PROGRESS ───────────────────────────────────────────────
+
+model Progress {
+  id        String    @id @default(cuid())
+  userId    String
+  lectureId String
+  videoId   String?
+  completed Boolean   @default(false)
+  watchedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user    User    @relation(fields: [userId],    references: [id], onDelete: Cascade)
+  lecture Lecture @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+  video   Video?  @relation(fields: [videoId],   references: [id], onDelete: SetNull)
+
+  @@unique([userId, lectureId, videoId])
+  @@index([userId])
+  @@index([lectureId])
+}
+
+// ── QUIZ SUBMISSIONS (multi-attempt) ───────────────────────
+// Removed @@unique so multiple attempts are allowed (max 3 enforced in API)
+
+model QuizSubmission {
+  id           String   @id @default(cuid())
+  userId       String
+  quizId       String
+  attemptNumber Int     @default(1)  // 1, 2, or 3
+  score        Int
+  total        Int
+  percentage   Float
+  passed       Boolean
+  answers      Json
+  submittedAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  // One record per attempt (userId + quizId + attemptNumber)
+  @@unique([userId, quizId, attemptNumber])
+  @@index([userId])
+  @@index([quizId])
+}
+
+// ── HOMEWORK SUBMISSIONS (multi-attempt) ───────────────────
+
+model HomeworkSubmission {
+  id            String   @id @default(cuid())
+  userId        String
+  homeworkId    String
+  attemptNumber Int      @default(1)
+  answers       Json     // student text/file answers
+  grade         Int?     // admin grades manually 0-100
+  feedback      String?
+  submittedAt   DateTime @default(now())
+  gradedAt      DateTime?
+
+  user     User     @relation(fields: [userId],     references: [id], onDelete: Cascade)
+  homework Homework @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, homeworkId, attemptNumber])
+  @@index([userId])
+  @@index([homeworkId])
+}
+
+// ── SITE SETTINGS ──────────────────────────────────────────
+
+model SiteSettings {
+  id               String   @id @default("singleton")
+  heroTitle        String   @default("اتقن اللغة العربية")
+  heroSubtitle     String   @default("مع نخبة من أفضل الأساتذة")
+  heroDesc         String   @default("انضم إلى آلاف الطلاب في رحلة تعليمية استثنائية تجمع بين الأصالة والحداثة")
+  teacherName      String   @default("مستر مصطفى")
+  teacherTitle     String   @default("خبير تدريس اللغة العربية")
+  teacherBio       String   @default("معلم متميز بخبرة تزيد عن خمس عشرة عاماً في تدريس اللغة العربية لجميع المراحل الدراسية")
+  teacherStats     Json     @default("[{\"value\":\"١٥+\",\"label\":\"سنة خبرة\"},{\"value\":\"٥٠٠٠+\",\"label\":\"طالب مستفيد\"},{\"value\":\"٩٨٪\",\"label\":\"نسبة نجاح\"}]")
+  features         Json     @default("[{\"icon\":\"📖\",\"title\":\"محتوى شامل\",\"desc\":\"دروس متكاملة تغطي جميع جوانب اللغة العربية\"},{\"icon\":\"🎯\",\"title\":\"تعلم هادف\",\"desc\":\"منهج مدروس يضمن التقدم المستمر\"},{\"icon\":\"💡\",\"title\":\"أسلوب مبتكر\",\"desc\":\"طرق تدريس حديثة تجعل التعلم ممتعاً\"}]")
+  statsBar         Json     @default("[{\"value\":\"٥٠٠٠+\",\"label\":\"طالب مسجل\"},{\"value\":\"٢٠\",\"label\":\"دورة متاحة\"},{\"value\":\"١٥+\",\"label\":\"سنة خبرة\"},{\"value\":\"٩٨٪\",\"label\":\"نسبة الرضا\"}]")
+  platformName     String   @default("اكاديمية مستر مصطفى")
+  platformTagline  String   @default("لتدريس اللغة العربية")
+  primaryColor     String   @default("#C9A84C")
+  accentColor      String   @default("#1A6B47")
+  loginBgGradient  String   @default("135deg, #0D3D27 0%, #1A6B47 100%")
+  dashboardBanner  String?
+  dashboardWelcome String   @default("أهلاً وسهلاً بك في منصتك التعليمية")
+  footerText       String   @default("© ٢٠٢٤ اكاديمية مستر مصطفى — جميع الحقوق محفوظة")
+  updatedAt        DateTime @updatedAt
+}
