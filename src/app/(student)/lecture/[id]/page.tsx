@@ -33,7 +33,7 @@ export default function LecturePage() {
   // Gate quiz = always the first quiz (loaded immediately for lock check)
   const gateQuizId: string | null = lecture?.quizzes?.[0]?.id ?? null;
 
-  const { data: gateAttemptsData } = useQuery({
+  const { data: gateAttemptsData, isLoading: isGateLoading, isFetching: isGateFetching } = useQuery({
     queryKey: ["quiz-attempts", gateQuizId],
     queryFn:  () => fetchWithAuth(`/api/quizzes/${gateQuizId}/submit`),
     enabled:  !!gateQuizId,
@@ -77,7 +77,13 @@ export default function LecturePage() {
   const quizRequirement = lecture?.quizRequirement ?? "NONE";
   const isContentLocked = quizRequirement === "MUST_PASS" && !hasPassed;
 
-  if (isLoading) return (
+  // If this lecture requires passing a quiz, wait for the pass/fail check to
+  // resolve before showing anything — otherwise the page briefly renders
+  // "locked" (hasPassed defaults to false) before flipping to "unlocked"
+  // once the gate-quiz attempts finish loading.
+  const waitingOnGateCheck = quizRequirement === "MUST_PASS" && !!gateQuizId && (isGateLoading || isGateFetching) && !gateAttemptsData;
+
+  if (isLoading || waitingOnGateCheck) return (
     <div style={{ direction:"rtl" }}>
       <div className="skeleton rounded-3xl h-32 mb-6" />
       <div className="skeleton rounded-2xl h-64" />
