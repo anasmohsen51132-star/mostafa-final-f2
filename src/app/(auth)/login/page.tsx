@@ -32,12 +32,31 @@ export default function LoginPage() {
         transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 2 }}
       />
 
+      {/* Twinkling stars scattered around the card */}
+      {[
+        { top: "15%", left: "12%", delay: 0 },
+        { top: "70%", left: "8%",  delay: 0.8 },
+        { top: "25%", left: "88%", delay: 1.4 },
+        { top: "80%", left: "85%", delay: 0.4 },
+        { top: "48%", left: "5%",  delay: 2 },
+      ].map((star, i) => (
+        <motion.div
+          key={i}
+          className="absolute pointer-events-none"
+          style={{ top: star.top, left: star.left, fontSize: 14, color: "rgba(232,201,122,0.5)" }}
+          animate={{ opacity: [0.2, 1, 0.2], scale: [0.8, 1.2, 0.8] }}
+          transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut", delay: star.delay }}
+        >
+          ✦
+        </motion.div>
+      ))}
+
       {/* Card */}
       <motion.div
         initial={{ opacity: 0, y: 32, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.55, ease: "easeOut" }}
-        className="relative z-10 w-full max-w-md"
+        className="relative z-10 w-full max-w-md lux-shine-border"
         style={{
           background: "rgba(13,61,39,0.85)",
           backdropFilter: "blur(20px)",
@@ -61,7 +80,12 @@ export default function LoginPage() {
             transition={{ duration: 0.5, delay: 0.1, type: "spring", stiffness: 300 }}
             style={{ fontFamily: "Amiri,serif", color: "rgba(201,168,76,0.65)", fontSize: 34, marginBottom: 6 }}
           >
-            ﷽
+            <motion.span
+              animate={{ filter: ["drop-shadow(0 0 0px rgba(232,201,122,0))", "drop-shadow(0 0 10px rgba(232,201,122,0.6))", "drop-shadow(0 0 0px rgba(232,201,122,0))"] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            >
+              ﷽
+            </motion.span>
           </motion.div>
           <h1 style={{ fontFamily: "Amiri,serif", color: "#E8C97A", fontSize: 26, fontWeight: 700, marginBottom: 4 }}>
             اكاديمية مستر مصطفى
@@ -74,7 +98,13 @@ export default function LoginPage() {
         {/* Divider */}
         <div className="flex items-center gap-3 mb-8">
           <div style={{ flex: 1, height: 1, background: "rgba(201,168,76,0.2)" }} />
-          <span style={{ color: "rgba(201,168,76,0.4)", fontSize: 14 }}>✦</span>
+          <motion.span
+            style={{ color: "rgba(201,168,76,0.4)", fontSize: 14 }}
+            animate={{ opacity: [0.4, 1, 0.4], rotate: [0, 180, 360] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+          >
+            ✦
+          </motion.span>
           <div style={{ flex: 1, height: 1, background: "rgba(201,168,76,0.2)" }} />
         </div>
 
