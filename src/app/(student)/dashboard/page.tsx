@@ -74,16 +74,35 @@ export default function StudentDashboard() {
               }}
             />
             {/* Gold orb */}
-            <div
+            <motion.div
               className="absolute -top-8 -left-8 w-48 h-48 rounded-full pointer-events-none"
               style={{ background: "radial-gradient(circle,rgba(201,168,76,0.15),transparent 70%)" }}
+              animate={{ scale: [1, 1.15, 1] }}
+              transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+            />
+            {/* Diagonal shimmer sweep */}
+            <motion.div
+              aria-hidden
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: "linear-gradient(115deg, transparent 30%, rgba(232,201,122,0.10) 50%, transparent 70%)",
+              }}
+              animate={{ x: ["-30%", "30%"] }}
+              transition={{ duration: 5, repeat: Infinity, repeatDelay: 2, ease: "easeInOut" }}
             />
             <div className="relative z-10">
               <p style={{ fontFamily: "Cairo,sans-serif", color: "rgba(201,168,76,0.7)", fontSize: 14, marginBottom: 4 }}>
                 {greeting}، 👋
               </p>
-              <h1 style={{ fontFamily: "Amiri,serif", color: "#E8C97A", fontSize: "clamp(24px,4vw,40px)", marginBottom: 8 }}>
+              <h1 style={{ fontFamily: "Amiri,serif", color: "#E8C97A", fontSize: "clamp(24px,4vw,40px)", marginBottom: 8, display: "flex", alignItems: "center", gap: 10 }}>
                 {user?.name}
+                <motion.span
+                  style={{ fontSize: "0.5em", color: "rgba(201,168,76,0.6)" }}
+                  animate={{ opacity: [0.3, 1, 0.3], rotate: [0, 180, 360] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                >
+                  ✦
+                </motion.span>
               </h1>
               <p style={{ fontFamily: "Cairo,sans-serif", color: "rgba(250,247,240,0.65)", fontSize: 14 }}>
                 لديك{" "}
@@ -117,7 +136,7 @@ export default function StudentDashboard() {
             ].map((s, i) => (
             <StaggerItem key={i}>
               <motion.div
-                whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                whileHover={{ y: -4, boxShadow: `0 8px 24px ${s.color}30`, transition: { duration: 0.2 } }}
                 className="rounded-2xl p-5"
                 style={{
                   background: "#fff",
@@ -224,7 +243,7 @@ export default function StudentDashboard() {
 function CourseCard({ course, unlocked }: { course: Course; unlocked: boolean }) {
   return (
     <motion.div
-      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+      whileHover={{ y: -4, boxShadow: `0 10px 28px ${course.color}25`, transition: { duration: 0.2 } }}
       className="rounded-2xl overflow-hidden"
       style={{
         background: "#fff",
@@ -237,7 +256,12 @@ function CourseCard({ course, unlocked }: { course: Course; unlocked: boolean })
         className="h-24 flex items-center justify-center text-4xl relative"
         style={{ background: `${course.color}22`, borderBottom: `2px solid ${course.color}30` }}
       >
-        {course.icon}
+        <motion.span
+          animate={unlocked ? { scale: [1, 1.08, 1] } : {}}
+          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+        >
+          {course.icon}
+        </motion.span>
         {!unlocked && (
           <div
             className="absolute top-2 left-2 px-2 py-1 rounded-full text-xs font-semibold"
