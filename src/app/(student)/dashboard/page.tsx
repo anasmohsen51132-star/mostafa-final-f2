@@ -31,7 +31,7 @@ export default function StudentDashboard() {
     if (isFirst) setShowWelcome(true);
   }, [isFirst]);
 
-  const { data: coursesRes } = useQuery({
+  const { data: coursesRes, isLoading } = useQuery({
     queryKey: ["my-courses"],
     queryFn: () => fetchWithAuth("/api/courses"),
     enabled: !!user,
@@ -96,12 +96,25 @@ export default function StudentDashboard() {
 
         {/* ── Quick stats ── */}
         <StaggerContainer className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {[
-            { icon: "📚", value: myCourses.length,      label: "كورساتي",      color: "#C9A84C" },
-            { icon: "🎯", value: availableCourses.length, label: "كورسات متاحة", color: "#2D9E6B" },
-            { icon: "🎟️", value: "—",                   label: "استخدم كوداً",  color: "#C9A84C", link: "/redeem" },
-            { icon: "👤", value: "ملفي",                 label: "الإعدادات",    color: "#2D9E6B", link: "/profile" },
-          ].map((s, i) => (
+          {isLoading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="rounded-2xl p-5 animate-pulse"
+                style={{ background: "#fff", border: "1px solid rgba(201,168,76,0.15)" }}
+              >
+                <div className="w-10 h-10 rounded-xl mb-3" style={{ background: "rgba(201,168,76,0.12)" }} />
+                <div className="w-10 h-7 rounded mb-2" style={{ background: "rgba(122,110,90,0.12)" }} />
+                <div className="w-20 h-3 rounded" style={{ background: "rgba(122,110,90,0.1)" }} />
+              </div>
+            ))
+          ) : (
+            [
+              { icon: "📚", value: myCourses.length,      label: "كورساتي",      color: "#C9A84C" },
+              { icon: "🎯", value: availableCourses.length, label: "كورسات متاحة", color: "#2D9E6B" },
+              { icon: "🎟️", value: "—",                   label: "استخدم كوداً",  color: "#C9A84C", link: "/redeem" },
+              { icon: "👤", value: "ملفي",                 label: "الإعدادات",    color: "#2D9E6B", link: "/profile" },
+            ].map((s, i) => (
             <StaggerItem key={i}>
               <motion.div
                 whileHover={{ y: -4, transition: { duration: 0.2 } }}
@@ -128,7 +141,8 @@ export default function StudentDashboard() {
                 </div>
               </motion.div>
             </StaggerItem>
-          ))}
+            ))
+          )}
         </StaggerContainer>
 
         {/* ── My Courses ── */}
@@ -175,7 +189,7 @@ export default function StudentDashboard() {
         )}
 
         {/* Empty state */}
-        {myCourses.length === 0 && availableCourses.length === 0 && (
+        {!isLoading && myCourses.length === 0 && availableCourses.length === 0 && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
