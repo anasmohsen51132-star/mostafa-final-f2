@@ -1,4 +1,4 @@
-client";
+"use client";
 // src/app/(auth)/register/page.tsx
 import { motion } from "framer-motion";
 import Link from "next/link";
