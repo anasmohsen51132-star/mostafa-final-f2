@@ -7,26 +7,26 @@ import { RegisterForm } from "@/components/auth/RegisterForm";
 export default function RegisterPage() {
   return (
     <div
-      className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden"
-      style={{ background: "linear-gradient(135deg,#0D3D27 0%,#1A6B47 60%,#0D3D27 100%)" }}
+      className="min-h-screen flex items-center justify-center relative overflow-hidden"
+      style={{
+        background: "linear-gradient(135deg,#0D3D27 0%,#1A6B47 60%,#0D3D27 100%)",
+        padding: "16px",
+      }}
     >
       {/* Background pattern */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23C9A84C' fill-opacity='0.05'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E")`,
-        }}
-      />
+      <div className="absolute inset-0 pointer-events-none" style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23C9A84C' fill-opacity='0.05'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E")`,
+      }} />
 
       {/* Orbs */}
       <motion.div
-        className="absolute top-16 left-16 w-52 h-52 rounded-full pointer-events-none"
+        className="absolute top-16 left-10 sm:left-16 w-36 h-36 sm:w-52 sm:h-52 rounded-full pointer-events-none"
         style={{ background: "radial-gradient(circle,rgba(201,168,76,0.13),transparent 70%)" }}
         animate={{ scale: [1, 1.18, 1] }}
         transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
-        className="absolute bottom-16 right-16 w-44 h-44 rounded-full pointer-events-none"
+        className="absolute bottom-16 right-10 sm:right-16 w-28 h-28 sm:w-44 sm:h-44 rounded-full pointer-events-none"
         style={{ background: "radial-gradient(circle,rgba(45,158,107,0.1),transparent 70%)" }}
         animate={{ scale: [1, 1.25, 1] }}
         transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 3 }}
@@ -37,13 +37,14 @@ export default function RegisterPage() {
         initial={{ opacity: 0, y: 32, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.55, ease: "easeOut" }}
-        className="relative z-10 w-full max-w-md"
+        className="relative z-10 w-full lux-shine-border"
         style={{
-          background: "rgba(13,61,39,0.85)",
+          maxWidth: 440,
+          background: "rgba(13,61,39,0.88)",
           backdropFilter: "blur(20px)",
           border: "1px solid rgba(201,168,76,0.25)",
-          borderRadius: 28,
-          padding: 40,
+          borderRadius: 24,
+          padding: "clamp(24px,5vw,40px)",
           boxShadow: "0 24px 64px rgba(0,0,0,0.4)",
         }}
       >
@@ -54,16 +55,25 @@ export default function RegisterPage() {
         />
 
         {/* Brand header */}
-        <div className="text-center mb-8" style={{ direction: "rtl" }}>
+        <div className="text-center mb-6" style={{ direction: "rtl" }}>
           <motion.div
             initial={{ scale: 0.7, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.1, type: "spring", stiffness: 300 }}
-            style={{ fontFamily: "Amiri,serif", color: "rgba(201,168,76,0.65)", fontSize: 34, marginBottom: 6 }}
+            style={{
+              fontFamily: "Amiri,serif",
+              color: "rgba(201,168,76,0.8)",
+              fontSize: "clamp(22px,6vw,34px)",
+              marginBottom: 6,
+              lineHeight: 1.4,
+              overflow: "hidden",
+              whiteSpace: "nowrap",
+              textOverflow: "ellipsis",
+            }}
           >
             ﷽
           </motion.div>
-          <h1 style={{ fontFamily: "Amiri,serif", color: "#E8C97A", fontSize: 26, fontWeight: 700, marginBottom: 4 }}>
+          <h1 style={{ fontFamily: "Amiri,serif", color: "#E8C97A", fontSize: "clamp(20px,5vw,26px)", fontWeight: 700, marginBottom: 4 }}>
             انضم إلى الأكاديمية
           </h1>
           <p style={{ fontFamily: "Cairo,sans-serif", color: "rgba(250,247,240,0.5)", fontSize: 13 }}>
@@ -72,9 +82,15 @@ export default function RegisterPage() {
         </div>
 
         {/* Divider */}
-        <div className="flex items-center gap-3 mb-8">
+        <div className="flex items-center gap-3 mb-6">
           <div style={{ flex: 1, height: 1, background: "rgba(201,168,76,0.2)" }} />
-          <span style={{ color: "rgba(201,168,76,0.4)", fontSize: 14 }}>✦</span>
+          <motion.span
+            style={{ color: "rgba(201,168,76,0.4)", fontSize: 14 }}
+            animate={{ opacity: [0.4, 1, 0.4], rotate: [0, 180, 360] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+          >
+            ✦
+          </motion.span>
           <div style={{ flex: 1, height: 1, background: "rgba(201,168,76,0.2)" }} />
         </div>
 
@@ -82,7 +98,7 @@ export default function RegisterPage() {
         <RegisterForm />
 
         {/* Back to home */}
-        <div className="text-center mt-6">
+        <div className="text-center mt-4">
           <Link
             href="/"
             style={{ fontFamily: "Cairo,sans-serif", color: "rgba(250,247,240,0.3)", fontSize: 12, textDecoration: "none" }}
@@ -94,3 +110,6 @@ export default function RegisterPage() {
     </div>
   );
 }
+Output
+
+done
