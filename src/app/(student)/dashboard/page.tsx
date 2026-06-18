@@ -42,16 +42,12 @@ export default function StudentDashboard() {
     queryFn: () => fetchWithAuth("/api/customize"),
   });
 
-  const bannerUrl  = settingsRes?.data?.dashboardBanner as string | undefined;
-  const welcomeMsg = settingsRes?.data?.dashboardWelcome as string | undefined;
-
   const { data: settingsRes } = useQuery({
     queryKey: ["site-settings"],
     queryFn: () => fetchWithAuth("/api/customize"),
   });
 
-  const bannerUrl     = settingsRes?.data?.dashboardBanner as string | undefined;
-  const welcomeMsg    = settingsRes?.data?.dashboardWelcome as string | undefined;
+  const bannerUrl  = settingsRes?.data?.dashboardBanner as string | undefined;
 
   const courses: (Course & { unlocked: boolean })[] = coursesRes?.data ?? [];
   const myCourses = courses.filter((c) => c.unlocked);
