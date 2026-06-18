@@ -424,20 +424,34 @@ function QuizPlayer({
               </button>
             )}
             <div className="space-y-2">
-              {q.choices?.map((c) => (
-                <button key={c.id} onClick={() => onAnswer(q.id, c.id)}
-                  style={{ width:"100%", padding:"12px 16px", borderRadius:12, border:"1.5px solid",
-                    borderColor: answers[q.id]===c.id ? "#C9A84C" : "rgba(201,168,76,0.2)",
-                    background:  answers[q.id]===c.id ? "rgba(201,168,76,0.12)" : "rgba(250,247,240,0.5)",
-                    color:"#1A1208", fontFamily:"Cairo,sans-serif", fontSize:14, textAlign:"right",
-                    cursor:"pointer", transition:"all 0.15s", display:"flex", alignItems:"center", gap:10 }}>
-                  <span style={{ width:20, height:20, borderRadius:"50%", flexShrink:0, border:"2px solid",
-                    borderColor: answers[q.id]===c.id ? "#C9A84C" : "rgba(201,168,76,0.35)",
-                    background:  answers[q.id]===c.id ? "#C9A84C" : "transparent", transition:"all 0.15s" }} />
-                  {c.text}
-                  {c.imageUrl && <img src={c.imageUrl} alt="" className="h-12 object-contain rounded" />}
-                </button>
-              ))}
+              {q.choices?.map((c, ci) => {
+                const labels = ["أ", "ب", "ج", "د", "هـ", "و"];
+                const label  = labels[ci] ?? String(ci + 1);
+                const selected = answers[q.id] === c.id;
+                return (
+                  <button key={c.id} onClick={() => onAnswer(q.id, c.id)}
+                    style={{ width:"100%", padding:"12px 16px", borderRadius:12, border:"1.5px solid",
+                      borderColor: selected ? "#C9A84C" : "rgba(201,168,76,0.2)",
+                      background:  selected ? "rgba(201,168,76,0.12)" : "rgba(250,247,240,0.5)",
+                      color:"#1A1208", fontFamily:"Cairo,sans-serif", fontSize:14, textAlign:"right",
+                      cursor:"pointer", transition:"all 0.15s", display:"flex", alignItems:"center", gap:10 }}>
+                    <span style={{
+                      width:26, height:26, borderRadius:"50%", flexShrink:0,
+                      border:"2px solid",
+                      borderColor: selected ? "#C9A84C" : "rgba(201,168,76,0.35)",
+                      background:  selected ? "#C9A84C" : "transparent",
+                      color: selected ? "#1A1208" : "#8B6914",
+                      fontFamily:"Cairo,sans-serif", fontWeight:700, fontSize:13,
+                      display:"flex", alignItems:"center", justifyContent:"center",
+                      transition:"all 0.15s", flexDirection:"column",
+                    }}>
+                      {label}
+                    </span>
+                    {c.text}
+                    {c.imageUrl && <img src={c.imageUrl} alt="" className="h-12 object-contain rounded" />}
+                  </button>
+                );
+              })}
             </div>
           </div>
         ))}
