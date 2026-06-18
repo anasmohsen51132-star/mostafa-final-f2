@@ -42,11 +42,6 @@ export default function StudentDashboard() {
     queryFn: () => fetchWithAuth("/api/customize"),
   });
 
-  const { data: settingsRes } = useQuery({
-    queryKey: ["site-settings"],
-    queryFn: () => fetchWithAuth("/api/customize"),
-  });
-
   const bannerUrl  = settingsRes?.data?.dashboardBanner as string | undefined;
 
   const courses: (Course & { unlocked: boolean })[] = coursesRes?.data ?? [];
