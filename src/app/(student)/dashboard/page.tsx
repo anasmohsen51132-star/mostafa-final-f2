@@ -37,6 +37,22 @@ export default function StudentDashboard() {
     enabled: !!user,
   });
 
+  const { data: settingsRes } = useQuery({
+    queryKey: ["site-settings"],
+    queryFn: () => fetchWithAuth("/api/customize"),
+  });
+
+  const bannerUrl  = settingsRes?.data?.dashboardBanner as string | undefined;
+  const welcomeMsg = settingsRes?.data?.dashboardWelcome as string | undefined;
+
+  const { data: settingsRes } = useQuery({
+    queryKey: ["site-settings"],
+    queryFn: () => fetchWithAuth("/api/customize"),
+  });
+
+  const bannerUrl     = settingsRes?.data?.dashboardBanner as string | undefined;
+  const welcomeMsg    = settingsRes?.data?.dashboardWelcome as string | undefined;
+
   const courses: (Course & { unlocked: boolean })[] = coursesRes?.data ?? [];
   const myCourses = courses.filter((c) => c.unlocked);
   const availableCourses = courses.filter((c) => !c.unlocked && c.isPublished);
@@ -163,6 +179,25 @@ export default function StudentDashboard() {
             ))
           )}
         </StaggerContainer>
+
+        {/* ── Dashboard Banner ── */}
+        {bannerUrl && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="mb-6 rounded-2xl overflow-hidden"
+            style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}
+          >
+            <img
+              src={bannerUrl}
+              alt="بانر المنصة"
+              className="w-full object-cover"
+              style={{ maxHeight: 220, display: "block" }}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
+          </motion.div>
+        )}
 
         {/* ── My Courses ── */}
         {myCourses.length > 0 && (
