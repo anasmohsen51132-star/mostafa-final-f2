@@ -150,6 +150,7 @@ export const siteSettingsSchema = z
     primaryColor:     z.string().max(20).optional(),
     accentColor:      z.string().max(20).optional(),
     dashboardWelcome: z.string().max(200).optional(),
+    dashboardBanner:  z.string().url("رابط الصورة غير صحيح").max(500).optional().nullable(),
     footerText:       z.string().max(200).optional(),
   })
   .passthrough();
