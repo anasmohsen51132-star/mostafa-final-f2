@@ -299,6 +299,7 @@ function QuizPlayer({
   const answered = Object.keys(answers).length;
   const total    = quiz.questions?.length ?? 0;
   const noAttemptsLeft = attemptsRemaining <= 0 && !result;
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
 
   if (result) return (
     <motion.div initial={{ opacity:0, scale:0.95 }} animate={{ opacity:1, scale:1 }}
@@ -402,7 +403,26 @@ function QuizPlayer({
             <p style={{ fontFamily:"Cairo,sans-serif", color:"#1A1208", fontSize:15, fontWeight:600, marginBottom:12 }}>
               {qi+1}. {q.text}
             </p>
-            {q.imageUrl && <img src={q.imageUrl} alt="سؤال" className="rounded-xl mb-4 max-h-48 object-contain" draggable={false} onContextMenu={(e) => e.preventDefault()} />}
+            {q.imageUrl && (
+              <button
+                type="button"
+                onClick={() => setZoomedImage(q.imageUrl!)}
+                className="block w-full mb-4 cursor-zoom-in"
+                style={{ border: "none", background: "none", padding: 0 }}
+              >
+                <img
+                  src={q.imageUrl}
+                  alt="سؤال"
+                  className="rounded-xl w-full max-h-[420px] object-contain"
+                  style={{ background: "rgba(250,247,240,0.5)", border: "1px solid rgba(201,168,76,0.15)" }}
+                  draggable={false}
+                  onContextMenu={(e) => e.preventDefault()}
+                />
+                <span style={{ fontFamily:"Cairo,sans-serif", color:"#7A6E5A", fontSize:12, display:"block", marginTop:6 }}>
+                  🔍 اضغط للتكبير
+                </span>
+              </button>
+            )}
             <div className="space-y-2">
               {q.choices?.map((c) => (
                 <button key={c.id} onClick={() => onAnswer(q.id, c.id)}
@@ -415,7 +435,7 @@ function QuizPlayer({
                     borderColor: answers[q.id]===c.id ? "#C9A84C" : "rgba(201,168,76,0.35)",
                     background:  answers[q.id]===c.id ? "#C9A84C" : "transparent", transition:"all 0.15s" }} />
                   {c.text}
-                  {c.imageUrl && <img src={c.imageUrl} alt="" className="h-8 object-contain rounded" />}
+                  {c.imageUrl && <img src={c.imageUrl} alt="" className="h-12 object-contain rounded" />}
                 </button>
               ))}
             </div>
@@ -434,6 +454,39 @@ function QuizPlayer({
            answered<total ? `أجب على ${total-answered} سؤال متبقي` : "✅ تسليم الاختبار"}
         </button>
       </div>
+
+      {/* Fullscreen image lightbox */}
+      <AnimatePresence>
+        {zoomedImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setZoomedImage(null)}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "rgba(13,18,8,0.9)", cursor: "zoom-out" }}
+          >
+            <motion.img
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              src={zoomedImage}
+              alt="سؤال مكبر"
+              className="max-w-full max-h-full object-contain rounded-lg"
+              draggable={false}
+              onContextMenu={(e) => e.preventDefault()}
+              onClick={(e) => e.stopPropagation()}
+            />
+            <button
+              onClick={() => setZoomedImage(null)}
+              className="absolute top-4 left-4 w-10 h-10 rounded-full flex items-center justify-center"
+              style={{ background: "rgba(250,247,240,0.15)", color: "#FAF7F0", fontSize: 18, border: "none", cursor: "pointer" }}
+            >
+              ✕
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
