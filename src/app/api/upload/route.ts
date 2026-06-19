@@ -1,13 +1,8 @@
 // src/app/api/upload/route.ts
-// App Router file upload — accepts multipart/form-data
-// Returns a data-URL (works in dev without external storage)
-// In production: swap the buffer→dataUrl section for Vercel Blob / S3 / Cloudinary
 import { NextRequest } from "next/server";
+import { put } from "@vercel/blob";
 import { extractToken, verifyToken } from "@/lib/auth";
 import { success, error, unauthorized, forbidden } from "@/lib/utils";
-
-// NOTE: No `export const config` here — that's Pages Router only.
-// App Router handles body parsing automatically via request.formData()
 
 const MAX_IMAGE_SIZE = 5  * 1024 * 1024; // 5 MB
 const MAX_PDF_SIZE   = 20 * 1024 * 1024; // 20 MB
@@ -41,20 +36,20 @@ export async function POST(req: NextRequest) {
       return error(`نوع الملف غير مدعوم. المسموح: ${allowed.join(", ")}`);
     }
 
-    // ── Convert to base64 data-URL ──────────────────────────
-    // Works in dev/Vercel without external storage.
-    // For production with many images, replace with:
-    //   const { url } = await put(file.name, file, { access: "public" }); // Vercel Blob
-    const bytes   = await file.arrayBuffer();
-    const base64  = Buffer.from(bytes).toString("base64");
-    const dataUrl = `data:${file.type};base64,${base64}`;
+    // ── Upload to Vercel Blob ─────────────────────────────────
+    const safeName = `uploads/${Date.now()}-${file.name.replace(/[^a-z0-9.\-_]/gi, "_")}`;
+    const blob = await put(safeName, file, {
+      access: "public",
+      contentType: file.type,
+    });
 
     return success({
-      url:  dataUrl,
+      url:  blob.url,
       name: file.name,
       type: file.type,
       size: file.size,
     });
+
   } catch (e) {
     console.error("[upload POST]", e);
     return error("حدث خطأ أثناء رفع الملف", 500);
