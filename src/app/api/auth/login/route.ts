@@ -4,10 +4,18 @@ import { loginSchema } from "@/lib/validations";
 import { verifyPassword } from "@/lib/bcrypt";
 import { signToken, setAuthCookie } from "@/lib/auth";
 import { normalizePhone, success, error } from "@/lib/utils";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import prisma from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = getClientIp(req);
+    // 10 attempts / 5 minutes per IP, regardless of phone — blunts brute force & stuffing
+    const limited = rateLimit(`login:${ip}`, 10, 5 * 60 * 1000);
+    if (!limited.allowed) {
+      return error("محاولات كثيرة جداً، حاول مرة أخرى بعد قليل", 429);
+    }
+
     const body = await req.json();
     const parsed = loginSchema.safeParse(body);
     if (!parsed.success) {
@@ -16,6 +24,12 @@ export async function POST(req: NextRequest) {
 
     const phone = normalizePhone(parsed.data.phone);
     const { password } = parsed.data;
+
+    // Per-account limit too, to blunt distributed credential stuffing across many IPs
+    const accountLimited = rateLimit(`login-account:${phone}`, 10, 5 * 60 * 1000);
+    if (!accountLimited.allowed) {
+      return error("محاولات كثيرة جداً على هذا الحساب، حاول مرة أخرى بعد قليل", 429);
+    }
 
     const user = await prisma.user.findUnique({
       where: { phone },
@@ -36,7 +50,7 @@ export async function POST(req: NextRequest) {
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { passwordHash: _, ...safeUser } = user;
-    return success({ user: safeUser, token });
+    return success({ user: safeUser });
   } catch (e) {
     console.error("[login]", e);
     return error("حدث خطأ في الخادم", 500);

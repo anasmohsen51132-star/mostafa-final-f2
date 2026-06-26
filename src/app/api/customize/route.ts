@@ -7,11 +7,14 @@ import prisma from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const settings = await prisma.siteSettings.upsert({
-      where: { id: "singleton" },
-      create: { id: "singleton" },
-      update: {},
-    });
+    // PERF-003 FIX: GET previously ran an upsert on every single request —
+    // a write on every read, with no caching. We now do a plain read first;
+    // we only fall back to creating the singleton row the very first time
+    // it doesn't exist yet (effectively a one-time write, not a per-request one).
+    let settings = await prisma.siteSettings.findUnique({ where: { id: "singleton" } });
+    if (!settings) {
+      settings = await prisma.siteSettings.create({ data: { id: "singleton" } });
+    }
     return success(settings);
   } catch (e) {
     console.error("[customize GET]", e);

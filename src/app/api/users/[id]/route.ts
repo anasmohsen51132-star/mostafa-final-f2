@@ -2,6 +2,7 @@
 import { NextRequest } from "next/server";
 import { extractToken, verifyToken } from "@/lib/auth";
 import { success, error, unauthorized, forbidden, notFound } from "@/lib/utils";
+import { selfUpdateSchema, roleUpdateSchema, activeStatusUpdateSchema } from "@/lib/validations";
 import prisma from "@/lib/prisma";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -32,26 +33,52 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 }
 
+// SEC-009 FIX: every field is now validated against a strict, role-specific
+// zod schema instead of pulling arbitrary keys off the request body. Unknown
+// fields are rejected outright (.strict()), closing the door on any future
+// privilege-escalation field that gets added to the User model without an
+// explicit allowlist update here.
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const token = extractToken(req);
   const payload = token ? await verifyToken(token) : null;
   if (!payload) return unauthorized();
 
-  const body = await req.json();
-  const { role, isActive, name, avatar } = body;
-
-  // Role changes: only owner can change roles
-  if (role !== undefined && payload.role !== "OWNER") return forbidden("فقط المالك يمكنه تغيير الأدوار");
-  // Activation: only admin or owner
-  if (isActive !== undefined && payload.role !== "ADMIN" && payload.role !== "OWNER") return forbidden();
-
   try {
+    const body = await req.json();
     const updateData: Record<string, unknown> = {};
-    if (role !== undefined) updateData.role = role;
-    if (isActive !== undefined) updateData.isActive = isActive;
-    if (name !== undefined && payload.sub === id) updateData.name = name;
-    if (avatar !== undefined && payload.sub === id) updateData.avatar = avatar;
+
+    // Role changes: only owner can change roles, validated strictly
+    if (body.role !== undefined) {
+      if (payload.role !== "OWNER") return forbidden("فقط المالك يمكنه تغيير الأدوار");
+      const parsed = roleUpdateSchema.safeParse({ role: body.role });
+      if (!parsed.success) return error(parsed.error.errors[0]?.message || "بيانات غير صحيحة");
+      if (payload.sub === id) return error("لا يمكنك تغيير صلاحيتك الخاصة");
+      updateData.role = parsed.data.role;
+    }
+
+    // Activation: only admin or owner, validated strictly
+    if (body.isActive !== undefined) {
+      if (payload.role !== "ADMIN" && payload.role !== "OWNER") return forbidden();
+      const parsed = activeStatusUpdateSchema.safeParse({ isActive: body.isActive });
+      if (!parsed.success) return error(parsed.error.errors[0]?.message || "بيانات غير صحيحة");
+      updateData.isActive = parsed.data.isActive;
+    }
+
+    // Self profile edits (name/avatar): only the user themselves, validated strictly
+    if (body.name !== undefined || body.avatar !== undefined) {
+      if (payload.sub !== id) return forbidden();
+      const parsed = selfUpdateSchema.safeParse({
+        ...(body.name !== undefined && { name: body.name }),
+        ...(body.avatar !== undefined && { avatar: body.avatar }),
+      });
+      if (!parsed.success) return error(parsed.error.errors[0]?.message || "بيانات غير صحيحة");
+      Object.assign(updateData, parsed.data);
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return error("لا توجد بيانات صالحة للتحديث");
+    }
 
     const user = await prisma.user.update({
       where: { id },
@@ -62,7 +89,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       },
     });
     return success(user);
-  } catch {
+  } catch (e) {
+    console.error("[users PUT]", e);
     return error("فشل التحديث", 500);
   }
 }

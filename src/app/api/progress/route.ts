@@ -1,7 +1,8 @@
 // src/app/api/progress/route.ts
 import { NextRequest } from "next/server";
 import { extractToken, verifyToken } from "@/lib/auth";
-import { success, error, unauthorized } from "@/lib/utils";
+import { success, error, unauthorized, forbidden } from "@/lib/utils";
+import { userOwnsLecture } from "@/lib/access";
 import prisma from "@/lib/prisma";
 
 // GET /api/progress?lectureId=xxx
@@ -13,6 +14,9 @@ export async function GET(req: NextRequest) {
   const url       = new URL(req.url);
   const lectureId = url.searchParams.get("lectureId");
   if (!lectureId) return error("lectureId مطلوب");
+
+  const owns = await userOwnsLecture(payload.sub, payload.role, lectureId);
+  if (!owns) return forbidden("لا تملك صلاحية الوصول إلى هذه المحاضرة");
 
   try {
     const progress = await prisma.progress.findMany({
@@ -37,6 +41,9 @@ export async function POST(req: NextRequest) {
     const body      = await req.json();
     const { lectureId, videoId, completed } = body;
     if (!lectureId) return error("lectureId مطلوب");
+
+    const owns = await userOwnsLecture(payload.sub, payload.role, lectureId);
+    if (!owns) return forbidden("لا تملك صلاحية الوصول إلى هذه المحاضرة");
 
     // Upsert progress record — videoId can be null (lecture-level tracking)
     const record = await prisma.progress.upsert({

@@ -70,19 +70,7 @@ export default function AdminCodesPage() {
   const handleExcelExport = async () => {
     setIsExporting(true);
     try {
-      const res = await fetch("/api/export/codes", {
-        headers: {
-          Authorization: `Bearer ${
-            (() => {
-              try {
-                const raw = localStorage.getItem("mustafa-auth");
-                if (!raw) return "";
-                return JSON.parse(raw)?.state?.token ?? "";
-              } catch { return ""; }
-            })()
-          }`,
-        },
-      });
+      const res = await fetch("/api/export/codes", { credentials: "same-origin" });
       if (!res.ok) { toast.error("فشل التصدير"); return; }
       const blob = await res.blob();
       const url  = URL.createObjectURL(blob);

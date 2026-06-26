@@ -2,6 +2,7 @@
 import { NextRequest } from "next/server";
 import { extractToken, verifyToken } from "@/lib/auth";
 import { success, error, unauthorized, forbidden, notFound } from "@/lib/utils";
+import { userOwnsQuiz } from "@/lib/access";
 import prisma from "@/lib/prisma";
 
 // GET /api/quizzes/[id] — fetch a single quiz with questions
@@ -11,6 +12,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const token   = extractToken(req);
   const payload = token ? await verifyToken(token) : null;
   if (!payload) return unauthorized();
+
+  const owns = await userOwnsQuiz(payload.sub, payload.role, id);
+  if (!owns) return forbidden("لا تملك صلاحية الوصول إلى هذا الاختبار");
 
   try {
     const quiz = await prisma.quiz.findUnique({

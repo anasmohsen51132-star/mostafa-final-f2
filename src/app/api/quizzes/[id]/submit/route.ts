@@ -2,8 +2,10 @@
 // Supports up to 3 attempts per student per quiz
 import { NextRequest } from "next/server";
 import { extractToken, verifyToken } from "@/lib/auth";
-import { success, error, unauthorized } from "@/lib/utils";
+import { success, error, unauthorized, forbidden } from "@/lib/utils";
+import { userOwnsQuiz } from "@/lib/access";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 const MAX_ATTEMPTS = 3;
 
@@ -13,19 +15,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const payload = token ? await verifyToken(token) : null;
   if (!payload) return unauthorized();
 
+  // SEC-002 FIX: verify the student actually owns the course behind this quiz
+  // before accepting any submission.
+  const owns = await userOwnsQuiz(payload.sub, payload.role, quizId);
+  if (!owns) return forbidden("لا تملك صلاحية الوصول إلى هذا الاختبار");
+
   try {
     const { answers } = await req.json();
-
-    // Count existing attempts
-    const existingAttempts = await prisma.quizSubmission.count({
-      where: { userId: payload.sub, quizId },
-    });
-
-    if (existingAttempts >= MAX_ATTEMPTS) {
-      return error(`لقد استنفدت الحد الأقصى من المحاولات (${MAX_ATTEMPTS})`, 403);
-    }
-
-    const attemptNumber = existingAttempts + 1;
 
     const quiz = await prisma.quiz.findUnique({
       where: { id: quizId },
@@ -63,7 +59,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const total      = quiz.questions.length;
     const percentage = total > 0 ? Math.round((correct / total) * 100) : 0;
 
-    // Get the lecture's pass score requirement
     const lecture = await prisma.lecture.findUnique({
       where: { id: quiz.lectureId },
       select: { quizPassScore: true },
@@ -71,18 +66,43 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const passScore = lecture?.quizPassScore ?? 60;
     const passed    = percentage >= passScore;
 
-    await prisma.quizSubmission.create({
-      data: {
-        userId: payload.sub,
-        quizId,
-        attemptNumber,
-        score: correct,
-        total,
-        percentage,
-        passed,
-        answers,
-      },
-    });
+    // BUG-002 FIX: count() then create() raced — two parallel requests could both
+    // read count=2 and both insert attempt 3, exceeding MAX_ATTEMPTS. We now do the
+    // count + create inside one SERIALIZABLE transaction, so a concurrent attempt
+    // either serializes safely after this one or is rejected to retry.
+    let attemptNumber: number;
+    try {
+      attemptNumber = await prisma.$transaction(
+        async (tx) => {
+          const existingAttempts = await tx.quizSubmission.count({
+            where: { userId: payload.sub, quizId },
+          });
+          if (existingAttempts >= MAX_ATTEMPTS) {
+            throw new Error("MAX_ATTEMPTS_REACHED");
+          }
+          const nextAttempt = existingAttempts + 1;
+          await tx.quizSubmission.create({
+            data: {
+              userId: payload.sub,
+              quizId,
+              attemptNumber: nextAttempt,
+              score: correct,
+              total,
+              percentage,
+              passed,
+              answers,
+            },
+          });
+          return nextAttempt;
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      );
+    } catch (e: unknown) {
+      if (e instanceof Error && e.message === "MAX_ATTEMPTS_REACHED") {
+        return error(`لقد استنفدت الحد الأقصى من المحاولات (${MAX_ATTEMPTS})`, 403);
+      }
+      throw e;
+    }
 
     return success({
       score:             correct,
@@ -105,6 +125,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const token   = extractToken(req);
   const payload = token ? await verifyToken(token) : null;
   if (!payload) return unauthorized();
+
+  const owns = await userOwnsQuiz(payload.sub, payload.role, quizId);
+  if (!owns) return forbidden("لا تملك صلاحية الوصول إلى هذا الاختبار");
 
   try {
     const submissions = await prisma.quizSubmission.findMany({

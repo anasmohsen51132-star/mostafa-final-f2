@@ -31,7 +31,7 @@ export const courseSchema = z.object({
   title:       z.string().min(3, "العنوان 3 أحرف على الأقل").max(120),
   description: z.string().max(1000).optional(),
   icon:        z.string().max(10).default("📚"),
-  color:       z.string().max(20).default("#1A6B47"),
+  color:       z.string().max(20).regex(/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/, "صيغة اللون غير صحيحة").default("#1A6B47"),
   isPublished: z.boolean().default(false),
   levels:      z.array(z.enum(ACADEMIC_LEVELS)).default([]),
 });
@@ -137,6 +137,11 @@ export const redeemSchema = z.object({
 
 // ── Site Settings ─────────────────────────────────────────────
 
+const hexColor = z
+  .string()
+  .max(20)
+  .regex(/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/, "صيغة اللون غير صحيحة (يجب أن تكون hex مثل #1A6B47)");
+
 export const siteSettingsSchema = z
   .object({
     heroTitle:        z.string().max(100).optional(),
@@ -147,13 +152,28 @@ export const siteSettingsSchema = z
     teacherBio:       z.string().max(800).optional(),
     platformName:     z.string().max(80).optional(),
     platformTagline:  z.string().max(120).optional(),
-    primaryColor:     z.string().max(20).optional(),
-    accentColor:      z.string().max(20).optional(),
+    primaryColor:     hexColor.optional(),
+    accentColor:      hexColor.optional(),
     dashboardWelcome: z.string().max(200).optional(),
     dashboardBanner:  z.string().url("رابط الصورة غير صحيح").max(500).optional().nullable(),
     footerText:       z.string().max(200).optional(),
   })
-  .passthrough();
+  .strict();
+
+// ── Users (strict whitelist for profile/role updates) ──────────
+
+export const selfUpdateSchema = z.object({
+  name:   z.string().min(2, "الاسم يجب أن يكون حرفين على الأقل").max(60).optional(),
+  avatar: z.string().max(10).optional(),
+}).strict();
+
+export const roleUpdateSchema = z.object({
+  role: z.enum(["OWNER", "ADMIN", "STUDENT"]),
+}).strict();
+
+export const activeStatusUpdateSchema = z.object({
+  isActive: z.boolean(),
+}).strict();
 
 // ── Inferred types ────────────────────────────────────────────
 

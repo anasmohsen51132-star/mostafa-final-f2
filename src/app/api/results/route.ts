@@ -14,65 +14,75 @@ export async function GET(req: NextRequest) {
   const studentId = url.searchParams.get("studentId") ?? undefined;
   const courseId  = url.searchParams.get("courseId")  ?? undefined;
   const lectureId = url.searchParams.get("lectureId") ?? undefined;
+  const page      = Math.max(parseInt(url.searchParams.get("page") || "1"), 1);
+  const limit     = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "50"), 1), 100);
+  const skip      = (page - 1) * limit;
 
   try {
-    // Quiz submissions
-    const quizSubs = await prisma.quizSubmission.findMany({
-      where: {
-        ...(studentId && { userId: studentId }),
-        quiz: {
-          ...(lectureId && { lectureId }),
-          lecture: {
-            ...(courseId && {
-              courses: { some: { courseId } },
-            }),
-          },
+    const quizWhere = {
+      ...(studentId && { userId: studentId }),
+      quiz: {
+        ...(lectureId && { lectureId }),
+        lecture: {
+          ...(courseId && {
+            courses: { some: { courseId } },
+          }),
         },
       },
-      include: {
-        user: { select: { id: true, name: true, phone: true } },
-        quiz: {
-          include: {
-            lecture: {
-              include: {
-                courses: { include: { course: { select: { id: true, title: true } } }, take: 1 },
-              },
-            },
-          },
+    };
+    const hwWhere = {
+      ...(studentId && { userId: studentId }),
+      homework: {
+        ...(lectureId && { lectureId }),
+        lecture: {
+          ...(courseId && {
+            courses: { some: { courseId } },
+          }),
         },
       },
-      orderBy: { submittedAt: "desc" },
-      take: 500,
-    });
+    };
 
-    // Homework submissions
-    const hwSubs = await prisma.homeworkSubmission.findMany({
-      where: {
-        ...(studentId && { userId: studentId }),
-        homework: {
-          ...(lectureId && { lectureId }),
-          lecture: {
-            ...(courseId && {
-              courses: { some: { courseId } },
-            }),
-          },
-        },
-      },
-      include: {
-        user: { select: { id: true, name: true, phone: true } },
-        homework: {
-          include: {
-            lecture: {
-              include: {
-                courses: { include: { course: { select: { id: true, title: true } } }, take: 1 },
+    // BUG-007 FIX: real pagination (page/limit, capped at 100) with total
+    // counts returned, instead of a hardcoded take:500 that silently hid
+    // records beyond the 500th and risked oversized responses.
+    const [quizSubs, quizTotal, hwSubs, hwTotal] = await Promise.all([
+      prisma.quizSubmission.findMany({
+        where: quizWhere,
+        include: {
+          user: { select: { id: true, name: true, phone: true } },
+          quiz: {
+            include: {
+              lecture: {
+                include: {
+                  courses: { include: { course: { select: { id: true, title: true } } }, take: 1 },
+                },
               },
             },
           },
         },
-      },
-      orderBy: { submittedAt: "desc" },
-      take: 500,
-    });
+        orderBy: { submittedAt: "desc" },
+        skip, take: limit,
+      }),
+      prisma.quizSubmission.count({ where: quizWhere }),
+      prisma.homeworkSubmission.findMany({
+        where: hwWhere,
+        include: {
+          user: { select: { id: true, name: true, phone: true } },
+          homework: {
+            include: {
+              lecture: {
+                include: {
+                  courses: { include: { course: { select: { id: true, title: true } } }, take: 1 },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { submittedAt: "desc" },
+        skip, take: limit,
+      }),
+      prisma.homeworkSubmission.count({ where: hwWhere }),
+    ]);
 
     // Flatten quiz rows
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -111,7 +121,11 @@ export async function GET(req: NextRequest) {
       submittedAt:   s.submittedAt.toISOString(),
     }));
 
-    return success({ quizResults: quizRows, homeworkResults: hwRows });
+    return success({
+      quizResults: quizRows,
+      homeworkResults: hwRows,
+      pagination: { page, limit, quizTotal, hwTotal },
+    });
   } catch (e) {
     console.error("[results]", e);
     return error("حدث خطأ", 500);

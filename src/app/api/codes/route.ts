@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
     const page = parseInt(url.searchParams.get("page") || "1");
-    const limit = parseInt(url.searchParams.get("limit") || "50");
+    const limit = Math.min(parseInt(url.searchParams.get("limit") || "50"), 100);
     const skip = (page - 1) * limit;
 
     const [codes, total] = await Promise.all([
@@ -38,6 +38,14 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// BUG-005 / ARCH-004 FIX: the previous implementation ran `count` separate
+// prisma.accessCode.create() calls *inside* a single $transaction — for
+// count=500 that's 500 sequential round-trips to Neon inside one transaction,
+// which routinely exceeded Prisma's/Postgres's transaction timeout.
+//
+// We now pre-generate IDs locally and insert in two batched `createMany`
+// calls (codes, then their course links) chunked at 100 rows per statement —
+// a handful of round trips total instead of hundreds.
 export async function POST(req: NextRequest) {
   const token = extractToken(req);
   const payload = token ? await verifyToken(token) : null;
@@ -55,24 +63,38 @@ export async function POST(req: NextRequest) {
     const courses = await prisma.course.findMany({ where: { id: { in: courseIds } } });
     if (courses.length !== courseIds.length) return error("بعض الكورسات غير موجودة");
 
-    const codes = generateCodes(count);
+    const codeStrings = generateCodes(count);
+    const expiresAtDate = expiresAt ? new Date(expiresAt) : null;
 
-    const created = await prisma.$transaction(
-      codes.map((code) =>
-        prisma.accessCode.create({
-          data: {
-            code,
-            note,
-            expiresAt: expiresAt ? new Date(expiresAt) : null,
-            createdById: payload.sub,
-            courses: { create: courseIds.map((courseId) => ({ courseId })) },
-          },
-          include: {
-            courses: { include: { course: { select: { id: true, title: true, icon: true } } } },
-          },
-        })
-      )
+    const newCodes = codeStrings.map((code) => ({
+      id: crypto.randomUUID(),
+      code,
+      note: note ?? null,
+      expiresAt: expiresAtDate,
+      createdById: payload.sub,
+    }));
+
+    const courseLinks = newCodes.flatMap((c) =>
+      courseIds.map((courseId) => ({ codeId: c.id, courseId }))
     );
+
+    const CHUNK = 100;
+    await prisma.$transaction(async (tx) => {
+      for (let i = 0; i < newCodes.length; i += CHUNK) {
+        await tx.accessCode.createMany({ data: newCodes.slice(i, i + CHUNK) });
+      }
+      for (let i = 0; i < courseLinks.length; i += CHUNK) {
+        await tx.courseOnCode.createMany({ data: courseLinks.slice(i, i + CHUNK) });
+      }
+    });
+
+    const created = await prisma.accessCode.findMany({
+      where: { id: { in: newCodes.map((c) => c.id) } },
+      include: {
+        courses: { include: { course: { select: { id: true, title: true, icon: true } } } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
 
     return success({ codes: created, count: created.length });
   } catch (e) {

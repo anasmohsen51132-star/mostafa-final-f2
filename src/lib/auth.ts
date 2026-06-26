@@ -4,9 +4,13 @@ import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 import type { User } from "@/types";
 
-const SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "fallback-secret-change-in-production-please"
-);
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+  throw new Error(
+    "[auth] JWT_SECRET غير معرّف أو ضعيف (أقل من 32 حرف). أضف JWT_SECRET قوي في متغيرات البيئة على Vercel قبل التشغيل."
+  );
+}
+
+const SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
 export interface JWTPayload {
   sub: string;       // user id

@@ -30,24 +30,26 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const courses = await prisma.course.findMany({
-      where,
-      include: {
-        _count: { select: { lectures: true } },
-        levels: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const [courses, codes] = await Promise.all([
+      prisma.course.findMany({
+        where,
+        include: {
+          _count: { select: { lectures: true } },
+          levels: true,
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      payload?.role === "STUDENT"
+        ? prisma.accessCode.findMany({
+            where: { usedById: payload.sub },
+            include: { courses: { select: { courseId: true } } },
+          })
+        : Promise.resolve([]),
+    ]);
 
-    // Determine which courses are unlocked for this student
-    let unlockedCourseIds: string[] = [];
-    if (payload?.role === "STUDENT") {
-      const codes = await prisma.accessCode.findMany({
-        where: { usedById: payload.sub },
-        include: { courses: { select: { courseId: true } } },
-      });
-      unlockedCourseIds = codes.flatMap((c: { courses: { courseId: string }[] }) => c.courses.map((cc: { courseId: string }) => cc.courseId));
-    }
+    const unlockedCourseIds: string[] = codes.flatMap((c: { courses: { courseId: string }[] }) =>
+      c.courses.map((cc: { courseId: string }) => cc.courseId)
+    );
 
     const result = courses.map((c: { id: string; [key: string]: unknown }) => ({
       ...c,

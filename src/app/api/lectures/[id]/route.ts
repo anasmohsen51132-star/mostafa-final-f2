@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { extractToken, verifyToken } from "@/lib/auth";
 import { success, error, unauthorized, forbidden, notFound } from "@/lib/utils";
 import { lectureSchema } from "@/lib/validations";
+import { userOwnsLecture } from "@/lib/access";
 import prisma from "@/lib/prisma";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -10,6 +11,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const token = extractToken(req);
   const payload = token ? await verifyToken(token) : null;
   if (!payload) return unauthorized();
+
+  // SEC-001 FIX: students must own an AccessCode unlocking a course that
+  // contains this lecture before any content (videos/pdfs/quizzes/homework) is returned.
+  const owns = await userOwnsLecture(payload.sub, payload.role, id);
+  if (!owns) return forbidden("لا تملك صلاحية الوصول إلى هذه المحاضرة");
 
   try {
     const lecture = await prisma.lecture.findUnique({

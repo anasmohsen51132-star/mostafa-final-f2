@@ -107,13 +107,28 @@ export function buildYouTubeEmbedUrl(rawId: string, origin: string): string {
 }
 
 // ---- Access code generation ----
+// SEC-012 FIX: Math.random() is not cryptographically secure and is predictable.
+// We now use the Web Crypto API (available in both Node 18+ and Edge runtimes)
+// to pick each character via a uniformly-distributed secure random index.
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+function secureRandomIndex(max: number): number {
+  // Rejection sampling to avoid modulo bias
+  const range = 256 - (256 % max);
+  const buf = new Uint8Array(1);
+  let x: number;
+  do {
+    crypto.getRandomValues(buf);
+    x = buf[0];
+  } while (x >= range);
+  return x % max;
+}
 
 export function generateCode(length = 10): string {
   let code = "";
   for (let i = 0; i < length; i++) {
     if (i > 0 && i % 4 === 0) code += "-";
-    code += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+    code += CODE_CHARS[secureRandomIndex(CODE_CHARS.length)];
   }
   return code;
 }
