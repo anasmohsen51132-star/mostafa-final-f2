@@ -265,6 +265,7 @@ model CourseOnCode {
   course Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@id([codeId, courseId])
+  @@index([courseId])
 }
 
 // ── PROGRESS ───────────────────────────────────────────────
