@@ -49,7 +49,8 @@ export async function DELETE(req: NextRequest) {
     if (!id) return error("id مطلوب");
     await prisma.video.delete({ where: { id } });
     return success({ deleted: true });
-  } catch {
+  } catch (e) {
+    console.error("[videos DELETE]", e);
     return error("فشل الحذف", 500);
   }
 }

@@ -3,6 +3,7 @@
 import { NextRequest } from "next/server";
 import { extractToken, verifyToken } from "@/lib/auth";
 import { success, error, unauthorized, forbidden } from "@/lib/utils";
+import { lectureSettingsSchema } from "@/lib/validations";
 import prisma from "@/lib/prisma";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -14,27 +15,29 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   try {
     const body = await req.json();
-    const { quizRequirement, quizPassScore } = body;
-
-    const allowed = ["NONE", "OPTIONAL", "MUST_PASS"];
-    if (quizRequirement && !allowed.includes(quizRequirement)) {
-      return error("quizRequirement غير صحيح");
+    // SEC-004 / BUG-007 FIX: previously quizPassScore went through a raw
+    // Number() cast after only a string-membership check on quizRequirement —
+    // Number("abc") = NaN could land in the DB and permanently lock the quiz
+    // gate for every student (percentage >= NaN is always false). Now both
+    // fields are validated by a strict zod schema before touching the DB.
+    const parsed = lectureSettingsSchema.safeParse(body);
+    if (!parsed.success) {
+      return error(parsed.error.errors[0]?.message || "بيانات غير صحيحة");
     }
+    const { quizRequirement, quizPassScore } = parsed.data;
 
     const lecture = await prisma.lecture.update({
       where: { id },
       data: {
         ...(quizRequirement !== undefined && { quizRequirement }),
-        ...(quizPassScore   !== undefined && {
-          quizPassScore: Math.max(1, Math.min(100, Number(quizPassScore))),
-        }),
+        ...(quizPassScore   !== undefined && { quizPassScore }),
       },
       select: { id: true, quizRequirement: true, quizPassScore: true },
     });
 
     return success(lecture);
   } catch (e) {
-    console.error("[lecture settings]", e);
+    console.error("[lecture settings PUT]", id, e);
     return error("فشل التحديث", 500);
   }
 }

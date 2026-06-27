@@ -20,6 +20,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         id: true, name: true, phone: true, role: true,
         avatar: true, joinedAt: true, isActive: true,
         redeemedCodes: {
+          take: 20,
+          orderBy: { usedAt: "desc" },
           include: {
             courses: { include: { course: { select: { id: true, title: true, icon: true } } } },
           },
@@ -28,7 +30,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     });
     if (!user) return notFound("المستخدم غير موجود");
     return success(user);
-  } catch {
+  } catch (e) {
+    console.error("[users GET]", id, e);
     return error("حدث خطأ", 500);
   }
 }
@@ -106,7 +109,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   try {
     await prisma.user.delete({ where: { id } });
     return success({ deleted: true });
-  } catch {
+  } catch (e) {
+    console.error("[users DELETE]", id, e);
     return error("فشل الحذف", 500);
   }
 }

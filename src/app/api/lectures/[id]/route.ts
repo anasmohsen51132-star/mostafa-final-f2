@@ -45,10 +45,30 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     if (!lecture) return notFound("المحاضرة غير موجودة");
 
+    // BUG-008 FIX: hasPassed used to be resolved by a *separate* client-side
+    // query (GET /api/quizzes/[gateQuizId]/submit) fired only after the
+    // lecture itself had already loaded and gateQuizId was derived from it.
+    // That waterfall created a one-frame window where the page had
+    // `quizRequirement === "MUST_PASS"` but no hasPassed value yet, defaulting
+    // to "locked" before flipping open. We now resolve it here, in the exact
+    // same request, so the client gets quizRequirement and hasPassed together
+    // and never renders an inconsistent in-between state.
+    let hasPassed = true;
+    if (payload.role === "STUDENT" && lecture.quizRequirement === "MUST_PASS") {
+      const gateQuizId = lecture.quizzes[0]?.id;
+      hasPassed = gateQuizId
+        ? !!(await prisma.quizSubmission.findFirst({
+            where: { userId: payload.sub, quizId: gateQuizId, passed: true },
+            select: { id: true },
+          }))
+        : true; // no quiz exists to gate on — don't lock content with nothing to pass
+    }
+
     // For student: hide isCorrect from choices
     if (payload.role === "STUDENT") {
       const sanitized = {
         ...lecture,
+        hasPassed,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         quizzes: lecture.quizzes.map((q: any) => ({
           ...q,
@@ -71,7 +91,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return success(sanitized);
     }
 
-    return success(lecture);
+    return success({ ...lecture, hasPassed });
   } catch (e) {
     console.error("[lecture GET]", e);
     return error("حدث خطأ", 500);
@@ -126,7 +146,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   try {
     await prisma.lecture.delete({ where: { id } });
     return success({ deleted: true });
-  } catch {
+  } catch (e) {
+    console.error("[lecture DELETE]", id, e);
     return error("فشل الحذف", 500);
   }
 }

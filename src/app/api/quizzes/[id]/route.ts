@@ -61,7 +61,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   try {
     await prisma.quiz.delete({ where: { id } });
     return success({ deleted: true });
-  } catch {
+  } catch (e) {
+    console.error("[quiz DELETE]", id, e);
     return error("فشل الحذف", 500);
   }
 }

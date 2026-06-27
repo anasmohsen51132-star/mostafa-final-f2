@@ -42,19 +42,25 @@ export async function GET(req: NextRequest) {
       },
     };
 
-    // BUG-007 FIX: real pagination (page/limit, capped at 100) with total
-    // counts returned, instead of a hardcoded take:500 that silently hid
-    // records beyond the 500th and risked oversized responses.
+    // BUG-005 FIX: the previous `include` chains pulled every scalar column
+    // at each nesting level (full quiz row, full lecture row, full course
+    // row, full user row) just to read a handful of fields. Explicit
+    // `select` trims the join to only the columns actually used below,
+    // cutting payload size and DB I/O per row.
     const [quizSubs, quizTotal, hwSubs, hwTotal] = await Promise.all([
       prisma.quizSubmission.findMany({
         where: quizWhere,
-        include: {
+        select: {
+          id: true, attemptNumber: true, score: true, total: true,
+          percentage: true, passed: true, submittedAt: true,
           user: { select: { id: true, name: true, phone: true } },
           quiz: {
-            include: {
+            select: {
+              title: true, lectureId: true,
               lecture: {
-                include: {
-                  courses: { include: { course: { select: { id: true, title: true } } }, take: 1 },
+                select: {
+                  title: true,
+                  courses: { select: { course: { select: { title: true } } }, take: 1 },
                 },
               },
             },
@@ -66,13 +72,16 @@ export async function GET(req: NextRequest) {
       prisma.quizSubmission.count({ where: quizWhere }),
       prisma.homeworkSubmission.findMany({
         where: hwWhere,
-        include: {
+        select: {
+          id: true, attemptNumber: true, grade: true, submittedAt: true,
           user: { select: { id: true, name: true, phone: true } },
           homework: {
-            include: {
+            select: {
+              title: true, lectureId: true,
               lecture: {
-                include: {
-                  courses: { include: { course: { select: { id: true, title: true } } }, take: 1 },
+                select: {
+                  title: true,
+                  courses: { select: { course: { select: { title: true } } }, take: 1 },
                 },
               },
             },

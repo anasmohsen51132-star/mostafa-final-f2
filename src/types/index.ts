@@ -42,7 +42,7 @@ export interface User {
   isActive: boolean;
 }
 
-export interface AuthResponse { user: User; token: string; }
+export interface AuthResponse { user: User; }
 
 // ── COURSES ─────────────────────────────────────────────────
 
@@ -72,6 +72,9 @@ export interface Lecture {
   quizRequirement: QuizRequirement;
   quizPassScore: number;
   createdAt: string;
+  // BUG-008: resolved server-side, atomically, alongside the lecture itself —
+  // only present for STUDENT role responses (see /api/lectures/[id] route).
+  hasPassed?: boolean;
   courses?: { course: { id: string; title: string; icon: string } }[];
   videos?: Video[];
   pdfs?: PDF[];

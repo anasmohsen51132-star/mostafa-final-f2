@@ -7,10 +7,22 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // ============================================================
-// YouTube ID obfuscation
-// Multi-layer: XOR cipher + hex + reverse + base64url
-// encode runs server-side only (Node Buffer OK)
-// decode runs client + server — uses browser-safe atob/btoa path
+// YouTube ID "obfuscation" — NOT a security control
+// SEC-005: this XOR+hex+reverse+base64url scheme runs decodeYouTubeId()
+// client-side (see VideoPlayer.tsx), and XOR_KEY ships in the client bundle.
+// Anyone can read the key and decode any ID from devtools — this layer
+// provides ZERO real protection on its own and should never be relied upon
+// as one. We keep it only so already-stored encoded `youtubeId` values in
+// the DB keep working without a data migration.
+//
+// The ACTUAL protection against students reaching video IDs they haven't
+// paid for is the server-side ownership check (userOwnsLecture / SEC-001)
+// enforced in /api/lectures/[id] before any video row — encoded or not —
+// is ever sent to the browser. If you want IDs to be genuinely
+// unextractable even by an authorized viewer (e.g. to prevent screen-record
+// + ID reuse elsewhere), that requires a server-only signed/short-lived
+// embed URL instead of shipping the raw or encoded ID to the client at all
+// — a larger change than this obfuscation layer can ever provide.
 // ============================================================
 
 const XOR_KEY = [0x4d, 0x75, 0x73, 0x74, 0x61, 0x66, 0x61]; // "Mustafa"

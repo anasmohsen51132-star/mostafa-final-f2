@@ -1,7 +1,7 @@
 // src/app/api/auth/login/route.ts
 import { NextRequest } from "next/server";
 import { loginSchema } from "@/lib/validations";
-import { verifyPassword } from "@/lib/bcrypt";
+import { verifyPassword, DUMMY_HASH } from "@/lib/bcrypt";
 import { signToken, setAuthCookie } from "@/lib/auth";
 import { normalizePhone, success, error } from "@/lib/utils";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
@@ -39,11 +39,16 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    if (!user) return error("رقم الهاتف أو كلمة المرور غير صحيحة", 401);
-    if (!user.isActive) return error("حسابك موقوف، تواصل مع الإدارة", 403);
+    // SEC-008 FIX: previously we returned immediately when the phone wasn't
+    // found, skipping the ~100-200ms bcrypt comparison that runs on the
+    // "wrong password" path — the timing difference let an attacker
+    // enumerate which phone numbers are registered. We now always run a
+    // bcrypt comparison (against the real hash, or a dummy one of the same
+    // cost if no user exists) before returning the identical rejection.
+    const valid = await verifyPassword(password, user?.passwordHash ?? DUMMY_HASH);
 
-    const valid = await verifyPassword(password, user.passwordHash);
-    if (!valid) return error("رقم الهاتف أو كلمة المرور غير صحيحة", 401);
+    if (!user || !valid) return error("رقم الهاتف أو كلمة المرور غير صحيحة", 401);
+    if (!user.isActive) return error("حسابك موقوف، تواصل مع الإدارة", 403);
 
     const token = await signToken({ sub: user.id, phone: user.phone, role: user.role, name: user.name });
     await setAuthCookie(token);

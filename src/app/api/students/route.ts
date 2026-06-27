@@ -13,8 +13,11 @@ export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
     const search = url.searchParams.get("search") || "";
-    const page = parseInt(url.searchParams.get("page") || "1");
-    const limit = parseInt(url.searchParams.get("limit") || "20");
+    const page = Math.max(parseInt(url.searchParams.get("page") || "1"), 1);
+    // SEC-006 FIX: `limit` was parsed with no upper bound — an admin (or a
+    // compromised admin session) could request limit=100000 and force a
+    // full-table response in one invocation.
+    const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "20"), 1), 100);
     const skip = (page - 1) * limit;
 
     const where = search
@@ -36,6 +39,8 @@ export async function GET(req: NextRequest) {
           id: true, name: true, phone: true, role: true,
           avatar: true, joinedAt: true, isActive: true,
           redeemedCodes: {
+            take: 20,
+            orderBy: { usedAt: "desc" },
             include: {
               courses: { include: { course: { select: { id: true, title: true } } } },
             },

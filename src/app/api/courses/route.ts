@@ -30,9 +30,18 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // BUG-004 FIX: this had no cap at all. A real academy course catalog is
+    // small (tens, not thousands), so we keep the flat-array response shape
+    // the frontend already expects, but cap it defensively at 200 so the
+    // route can never return an unbounded/oversized payload if the catalog
+    // grows far beyond expectations. If the catalog ever needs to exceed
+    // this, add real page/limit pagination + matching frontend UI then.
+    const COURSE_LIST_CAP = 200;
+
     const [courses, codes] = await Promise.all([
       prisma.course.findMany({
         where,
+        take: COURSE_LIST_CAP,
         include: {
           _count: { select: { lectures: true } },
           levels: true,

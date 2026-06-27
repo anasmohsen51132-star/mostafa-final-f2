@@ -175,6 +175,36 @@ export const activeStatusUpdateSchema = z.object({
   isActive: z.boolean(),
 }).strict();
 
+// ── Lecture settings (SEC-004 / BUG-007) ────────────────────
+
+export const lectureSettingsSchema = z
+  .object({
+    quizRequirement: z.enum(["NONE", "OPTIONAL", "MUST_PASS"]).optional(),
+    quizPassScore: z.coerce
+      .number({ invalid_type_error: "quizPassScore يجب أن يكون رقمًا" })
+      .int("quizPassScore يجب أن يكون عدد صحيح")
+      .min(1, "quizPassScore يجب أن يكون 1 على الأقل")
+      .max(100, "quizPassScore يجب أن لا يتجاوز 100")
+      .optional(),
+  })
+  .strict();
+
+// ── Progress updates (BUG-006) ───────────────────────────────
+
+export const progressSchema = z
+  .object({
+    lectureId: z.string().min(1),
+    videoId: z.string().min(1).optional(),
+    completed: z.boolean().optional(),
+  })
+  .strict();
+
+// ── Quiz submission answers (BUG-010) ────────────────────────
+
+export const quizAnswersSchema = z.object({
+  answers: z.record(z.string(), z.string()).default({}),
+});
+
 // ── Inferred types ────────────────────────────────────────────
 
 export type RegisterInput     = z.infer<typeof registerSchema>;

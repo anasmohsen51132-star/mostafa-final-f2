@@ -15,6 +15,24 @@
 // under concurrent serverless load (see ARCH-001).
 import { PrismaClient } from "@prisma/client";
 
+// INFRA-003 FIX: the pooler requirement was only a code comment, with
+// nothing actually checking it at runtime — a direct (non-pooled) Neon URL
+// would silently exhaust the connection limit under concurrent load with no
+// warning until it happened in production. We warn loudly at startup if the
+// configured URL doesn't look like Neon's pooled endpoint. This is a warning
+// rather than a hard crash because other Postgres providers (or local dev)
+// won't match this pattern and shouldn't be blocked from running.
+const dbUrl = process.env.DATABASE_URL || "";
+const looksLikeNeon = dbUrl.includes("neon.tech");
+const looksPooled   = dbUrl.includes("pgbouncer=true") || dbUrl.includes("-pooler.");
+if (looksLikeNeon && !looksPooled && process.env.NODE_ENV === "production") {
+  console.error(
+    "[prisma] تحذير: DATABASE_URL يبدو أنه يشير إلى Neon لكن بدون pooler " +
+    "(لا يحتوي على '-pooler.' أو 'pgbouncer=true'). هذا قد يستهلك اتصالات Neon " +
+    "بسرعة تحت الحمل. استخدم 'Pooled connection' من Neon Dashboard."
+  );
+}
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };

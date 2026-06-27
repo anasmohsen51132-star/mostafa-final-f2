@@ -73,7 +73,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       },
     });
     return success(course);
-  } catch {
+  } catch (e) {
+    console.error("[course PUT]", id, e);
     return error("فشل التحديث", 500);
   }
 }
@@ -87,7 +88,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   try {
     await prisma.course.delete({ where: { id } });
     return success({ deleted: true });
-  } catch {
+  } catch (e) {
+    console.error("[course DELETE]", id, e);
     return error("فشل الحذف", 500);
   }
 }

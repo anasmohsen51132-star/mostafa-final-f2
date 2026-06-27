@@ -19,6 +19,13 @@ import prisma from "@/lib/prisma";
 // rows into memory in one serverless invocation. For larger catalogs, export
 // in batches using `?unused=1` plus date-range filters, or move this to a
 // background job (see ARCH-004 recommendation for bulk operations generally).
+// BUG-001 FIX: Vercel's default serverless timeout is 10s. Building a 2000-row
+// ExcelJS workbook (plus the cold-start cost of dynamically importing exceljs)
+// can exceed that, causing the export to silently 504 with no file delivered.
+// 60s requires a Vercel Pro/Enterprise plan — on Hobby the max is 10s; if
+// you're on Hobby, lower MAX_EXPORT_ROWS below instead, or upgrade your plan.
+export const maxDuration = 60;
+
 const MAX_EXPORT_ROWS = 2000;
 
 export async function GET(req: NextRequest) {

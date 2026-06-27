@@ -30,14 +30,8 @@ export default function LecturePage() {
   });
   const lecture = data?.data;
 
-  // Gate quiz = always the first quiz (loaded immediately for lock check)
+  // Gate quiz = always the first quiz (used for opening the quiz tab by default)
   const gateQuizId: string | null = lecture?.quizzes?.[0]?.id ?? null;
-
-  const { data: gateAttemptsData, isLoading: isGateLoading, isFetching: isGateFetching } = useQuery({
-    queryKey: ["quiz-attempts", gateQuizId],
-    queryFn:  () => fetchWithAuth(`/api/quizzes/${gateQuizId}/submit`),
-    enabled:  !!gateQuizId,
-  });
 
   // Active quiz = whichever quiz the student opened (React Query dedupes if same as gate)
   const activeQuizId = selectedQuizId ?? gateQuizId;
@@ -48,8 +42,14 @@ export default function LecturePage() {
   });
   const attemptHistory: QuizAttempt[] = attemptsData?.data?.attempts ?? [];
   const attemptsRemaining: number     = attemptsData?.data?.attemptsRemaining ?? 3;
-  // hasPassed must come from the gate quiz, not whichever quiz is currently open
-  const hasPassed: boolean            = gateAttemptsData?.data?.hasPassed ?? false;
+  // BUG-008 FIX: hasPassed now comes directly from the lecture query itself
+  // (resolved server-side, atomically, in /api/lectures/[id] — see SEC-001/
+  // BUG-008 comments there) instead of a second client-side query that only
+  // started after the lecture had already loaded. That waterfall caused a
+  // one-frame flash of "locked" content before flipping open. Now
+  // quizRequirement and hasPassed arrive together in the same response, so
+  // there's never an inconsistent in-between render.
+  const hasPassed: boolean = lecture?.hasPassed ?? false;
 
   const submitQuizMutation = useMutation({
     mutationFn: ({ quizId, answers }: { quizId: string; answers: Record<string, string> }) =>
@@ -77,13 +77,10 @@ export default function LecturePage() {
   const quizRequirement = lecture?.quizRequirement ?? "NONE";
   const isContentLocked = quizRequirement === "MUST_PASS" && !hasPassed;
 
-  // If this lecture requires passing a quiz, wait for the pass/fail check to
-  // resolve before showing anything — otherwise the page briefly renders
-  // "locked" (hasPassed defaults to false) before flipping to "unlocked"
-  // once the gate-quiz attempts finish loading.
-  const waitingOnGateCheck = quizRequirement === "MUST_PASS" && !!gateQuizId && (isGateLoading || isGateFetching) && !gateAttemptsData;
-
-  if (isLoading || waitingOnGateCheck) return (
+  // BUG-008 FIX: no separate gate-check wait is needed anymore — hasPassed
+  // arrives in the same response as the lecture itself (see above), so the
+  // only loading state left to guard on is the lecture query itself.
+  if (isLoading) return (
     <div style={{ direction:"rtl" }}>
       <div className="skeleton rounded-3xl h-32 mb-6" />
       <div className="skeleton rounded-2xl h-64" />

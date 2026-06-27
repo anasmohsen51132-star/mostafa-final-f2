@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { extractToken, verifyToken } from "@/lib/auth";
 import { success, error, unauthorized, forbidden } from "@/lib/utils";
 import { userOwnsQuiz } from "@/lib/access";
+import { quizAnswersSchema } from "@/lib/validations";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 
@@ -21,7 +22,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!owns) return forbidden("لا تملك صلاحية الوصول إلى هذا الاختبار");
 
   try {
-    const { answers } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    // BUG-010 FIX: `answers` was used unchecked (answers[question.id]) — an
+    // empty/missing/malformed body threw a TypeError that surfaced as an
+    // opaque 500 to the student. Now validated as Record<string,string>.
+    const parsed = quizAnswersSchema.safeParse(body);
+    if (!parsed.success) return error("صيغة الإجابات غير صحيحة");
+    const { answers } = parsed.data;
 
     const quiz = await prisma.quiz.findUnique({
       where: { id: quizId },

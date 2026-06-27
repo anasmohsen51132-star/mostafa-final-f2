@@ -14,21 +14,31 @@ export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
     const courseId = url.searchParams.get("courseId");
+    const page  = Math.max(parseInt(url.searchParams.get("page")  || "1"), 1);
+    const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "50"), 1), 100);
+    const skip  = (page - 1) * limit;
 
-    const lectures = await prisma.lecture.findMany({
-      where: courseId
-        ? { courses: { some: { courseId } } }
-        : undefined,
-      include: {
-        courses: {
-          include: { course: { select: { id: true, title: true, icon: true } } },
+    const where = courseId ? { courses: { some: { courseId } } } : undefined;
+
+    // BUG-003 FIX: this previously returned the entire lectures table with
+    // no pagination at all — fine at low volume, but a guaranteed oversized
+    // response (and slow admin panel) once lecture count grows.
+    const [lectures, total] = await Promise.all([
+      prisma.lecture.findMany({
+        where,
+        skip, take: limit,
+        include: {
+          courses: {
+            include: { course: { select: { id: true, title: true, icon: true } } },
+          },
+          _count: { select: { videos: true, pdfs: true, quizzes: true, homework: true } },
         },
-        _count: { select: { videos: true, pdfs: true, quizzes: true, homework: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.lecture.count({ where }),
+    ]);
 
-    return success(lectures);
+    return success({ lectures, total, page, limit });
   } catch (e) {
     console.error("[lectures GET]", e);
     return error("حدث خطأ", 500);

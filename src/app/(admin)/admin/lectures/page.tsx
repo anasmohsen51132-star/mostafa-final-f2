@@ -25,10 +25,10 @@ export default function AdminLecturesPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-lectures"],
-    queryFn:  () => fetchWithAuth("/api/lectures"),
+    queryFn:  () => fetchWithAuth("/api/lectures?limit=100"),
   });
 
-  const lectures: LectureRow[] = data?.data ?? [];
+  const lectures: LectureRow[] = data?.data?.lectures ?? [];
   const filtered = lectures.filter(
     (l) => search === "" || l.title.includes(search)
   );

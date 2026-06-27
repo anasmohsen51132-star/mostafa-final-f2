@@ -68,7 +68,8 @@ export async function DELETE(req: NextRequest) {
     const { id } = await req.json();
     await prisma.quiz.delete({ where: { id } });
     return success({ deleted: true });
-  } catch {
+  } catch (e) {
+    console.error("[quizzes DELETE]", e);
     return error("فشل الحذف", 500);
   }
 }
