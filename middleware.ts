@@ -12,8 +12,30 @@ const PUBLIC_PATHS = [
   "/api/customize",
 ];
 
+// SEC-007 FIX: next.config.mjs sets CORS response headers on /api/:path*, but
+// Next.js App Router does NOT auto-answer the OPTIONS preflight Vercel
+// receives before any real cross-origin request — without this, every
+// cross-origin call (mobile app, partner integration) gets a 405 on its
+// preflight and never even reaches the real handler.
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+function corsPreflightResponse() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": appUrl,
+      "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Allow-Credentials": "true",
+    },
+  });
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  if (req.method === "OPTIONS" && pathname.startsWith("/api/")) {
+    return corsPreflightResponse();
+  }
 
   // Allow public paths
   if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith("/api/auth/"))) {
