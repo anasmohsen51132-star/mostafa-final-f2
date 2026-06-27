@@ -61,26 +61,37 @@ export async function POST(req: NextRequest) {
       return forbidden("لا تملك صلاحية الوصول إلى هذه المحاضرة");
     }
 
-    const record = await prisma.progress.upsert({
+    const existing = await prisma.progress.findFirst({
       where: {
-        userId_lectureId_videoId: {
-          userId: payload.sub,
-          lectureId,
-          videoId: videoId ?? undefined,
-        },
-      },
-      create: {
         userId: payload.sub,
         lectureId,
-        videoId: videoId ?? undefined,
-        completed: completed ?? false,
-        watchedAt: new Date(),
-      },
-      update: {
-        ...(completed !== undefined ? { completed } : {}),
-        watchedAt: new Date(),
+        videoId: videoId ?? null,
       },
     });
+
+    let record;
+
+    if (existing) {
+      record = await prisma.progress.update({
+        where: {
+          id: existing.id,
+        },
+        data: {
+          ...(completed !== undefined ? { completed } : {}),
+          watchedAt: new Date(),
+        },
+      });
+    } else {
+      record = await prisma.progress.create({
+        data: {
+          userId: payload.sub,
+          lectureId,
+          videoId: videoId ?? null,
+          completed: completed ?? false,
+          watchedAt: new Date(),
+        },
+      });
+    }
 
     return success(record);
   } catch (e) {
