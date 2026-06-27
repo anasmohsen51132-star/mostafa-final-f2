@@ -253,6 +253,7 @@ model AccessCode {
   @@index([code])
   @@index([isActive])
   @@index([usedById])
+  @@index([createdAt])
 }
 
 // ── CODE-COURSE JOIN ───────────────────────────────────────
@@ -307,7 +308,10 @@ model QuizSubmission {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
 
-  // One record per attempt (userId + quizId + attemptNumber)
+  // INFRA-002: the unique constraint below already provides a composite
+  // btree index with userId as its leading column, so WHERE userId=? AND
+  // quizId=? (the attempt-count lookup in the submit transaction) already
+  // uses an index scan — no separate @@index([userId, quizId]) needed.
   @@unique([userId, quizId, attemptNumber])
   @@index([userId])
   @@index([quizId])
@@ -329,6 +333,8 @@ model HomeworkSubmission {
   user     User     @relation(fields: [userId],     references: [id], onDelete: Cascade)
   homework Homework @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
 
+  // INFRA-002: same as QuizSubmission — the unique constraint's leading
+  // (userId, homeworkId) prefix already serves this lookup pattern.
   @@unique([userId, homeworkId, attemptNumber])
   @@index([userId])
   @@index([homeworkId])
