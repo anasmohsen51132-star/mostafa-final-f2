@@ -9,11 +9,13 @@ import type { SiteSettings } from "@/types";
 
 async function getSettings(): Promise<Partial<SiteSettings> | null> {
   try {
-    const s = await prisma.siteSettings.upsert({
-      where: { id: "singleton" },
-      create: { id: "singleton" },
-      update: {},
-    });
+    // Same fix as the customize route's PERF-003: read first, only create
+    // the singleton row the very first time it doesn't exist, instead of
+    // running a write on every single landing page view.
+    let s = await prisma.siteSettings.findUnique({ where: { id: "singleton" } });
+    if (!s) {
+      s = await prisma.siteSettings.create({ data: { id: "singleton" } });
+    }
     return s as unknown as Partial<SiteSettings>;
   } catch {
     return null;

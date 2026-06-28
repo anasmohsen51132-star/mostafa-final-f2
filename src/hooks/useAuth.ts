@@ -20,7 +20,7 @@ export async function fetchWithAuth(url: string, options?: RequestInit) {
 }
 
 export function useAuth() {
-  const { user, setAuth, clearAuth } = useAuthStore();
+  const { user, isHydrated, setAuth, clearAuth } = useAuthStore();
   const toast = useToast();
   const router = useRouter();
   const qc = useQueryClient();
@@ -73,6 +73,7 @@ export function useAuth() {
 
   return {
     user,
+    isHydrated,
     isAuthenticated: !!user,
     isOwner: user?.role === "OWNER",
     isAdmin: user?.role === "ADMIN" || user?.role === "OWNER",

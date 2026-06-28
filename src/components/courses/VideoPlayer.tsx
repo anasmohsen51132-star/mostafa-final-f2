@@ -10,12 +10,11 @@
 //  - Loading shimmer, thumbnail preview
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { decodeYouTubeId } from "@/lib/utils";
 import { fetchWithAuth } from "@/hooks/useAuth";
 import { useAuth } from "@/hooks/useAuth";
 
 interface Props {
-  youtubeId:  string;   // multi-layer encoded YouTube ID
+  youtubeId:  string;   // SEC-005: server already resolves this to the real YouTube ID
   title:      string;
   lectureId?: string;   // for progress tracking
   videoId?:   string;   // DB video record id
@@ -121,7 +120,9 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
   const trackedCompleteRef             = useRef(false);
   const lastEventRef                   = useRef<string>("");
 
-  const rawId  = decodeYouTubeId(youtubeId);
+  // SEC-005 FIX: youtubeId arrives already decoded from /api/lectures/[id]
+  // for students — no client-side decode logic needed (or shipped) anymore.
+  const rawId  = youtubeId;
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const embedUrl = rawId ? buildEmbedUrl(rawId, origin) : "";
 

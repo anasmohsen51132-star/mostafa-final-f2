@@ -48,7 +48,7 @@ export default function LectureEditPage() {
   });
 
   const deleteVideo = useMutation({
-    mutationFn: (videoId: string) => fetchWithAuth("/api/videos", { method: "DELETE", body: JSON.stringify({ id: videoId }) }),
+    mutationFn: (videoId: string) => fetchWithAuth(`/api/videos?id=${videoId}`, { method: "DELETE" }),
     onSuccess: () => { toast.success("✅ تم الحذف"); qc.invalidateQueries({ queryKey: ["admin-lecture", id] }); },
   });
 
@@ -63,8 +63,8 @@ export default function LectureEditPage() {
     },
   });
 
-  const deletePDF    = useMutation({ mutationFn: (pdfId: string) => fetchWithAuth("/api/pdfs", { method: "DELETE", body: JSON.stringify({ id: pdfId }) }), onSuccess: () => { toast.success("✅ تم الحذف"); qc.invalidateQueries({ queryKey: ["admin-lecture", id] }); } });
-  const deleteQuiz   = useMutation({ mutationFn: (qId: string)   => fetchWithAuth("/api/quizzes", { method: "DELETE", body: JSON.stringify({ id: qId }) }), onSuccess: () => { toast.success("✅ تم الحذف"); qc.invalidateQueries({ queryKey: ["admin-lecture", id] }); } });
+  const deletePDF    = useMutation({ mutationFn: (pdfId: string) => fetchWithAuth(`/api/pdfs?id=${pdfId}`, { method: "DELETE" }), onSuccess: () => { toast.success("✅ تم الحذف"); qc.invalidateQueries({ queryKey: ["admin-lecture", id] }); } });
+  const deleteQuiz   = useMutation({ mutationFn: (qId: string)   => fetchWithAuth(`/api/quizzes?id=${qId}`, { method: "DELETE" }), onSuccess: () => { toast.success("✅ تم الحذف"); qc.invalidateQueries({ queryKey: ["admin-lecture", id] }); } });
 
   const updateSettings = useMutation({
     mutationFn: (body: { quizRequirement: QuizRequirement; quizPassScore: number }) =>

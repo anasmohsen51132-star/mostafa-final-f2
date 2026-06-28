@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { ToastContainer } from "@/components/ui/Toast";
+import { FullScreenSpinner } from "@/components/ui/FullScreenSpinner";
 import { useAuth } from "@/hooks/useAuth";
 import type { SidebarItem } from "@/components/layout/Sidebar";
 
@@ -20,7 +21,7 @@ const OWNER_NAV: SidebarItem[] = [
 ];
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
-  const { user, isAuthenticated, isOwner, logout } = useAuth();
+  const { user, isHydrated, isAuthenticated, isOwner, logout } = useAuth();
   const router   = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -28,12 +29,14 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
   useEffect(() => {
+    if (!isHydrated) return;
     if (!isAuthenticated) { router.replace("/login"); return; }
     if (!isOwner)          { router.replace("/dashboard"); }
-  }, [isAuthenticated, isOwner, router]);
+  }, [isHydrated, isAuthenticated, isOwner, router]);
 
   const handleClose = useCallback(() => setSidebarOpen(false), []);
 
+  if (!isHydrated) return <FullScreenSpinner />;
   if (!isAuthenticated || !user || !isOwner) return null;
 
   return (

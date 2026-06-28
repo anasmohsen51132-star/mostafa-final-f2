@@ -42,6 +42,19 @@ export default function LecturePage() {
   });
   const attemptHistory: QuizAttempt[] = attemptsData?.data?.attempts ?? [];
   const attemptsRemaining: number     = attemptsData?.data?.attemptsRemaining ?? 3;
+
+  // PERF-002 FIX: previously /api/lectures/[id] eagerly included every
+  // question + choice for every quiz/homework in the lecture, even though
+  // only one quiz is ever open at a time. The lecture query now only
+  // returns a lightweight _count for each quiz/homework; full content for
+  // the one quiz the student actually opened is fetched here, on demand,
+  // via the already ownership-gated GET /api/quizzes/[id].
+  const { data: activeQuizData, isLoading: isQuizContentLoading } = useQuery({
+    queryKey: ["quiz-detail", activeQuizId],
+    queryFn:  () => fetchWithAuth(`/api/quizzes/${activeQuizId}`),
+    enabled:  !!activeQuizId,
+  });
+  const activeQuiz: Quiz | undefined = activeQuizData?.data;
   // BUG-008 FIX: hasPassed now comes directly from the lecture query itself
   // (resolved server-side, atomically, in /api/lectures/[id] — see SEC-001/
   // BUG-008 comments there) instead of a second client-side query that only
@@ -216,9 +229,16 @@ export default function LecturePage() {
                     );
                   })}
                 </div>
+              ) : !activeQuiz || isQuizContentLoading ? (
+                <div className="flex items-center justify-center py-16">
+                  <div
+                    className="w-8 h-8 rounded-full border-4 animate-spin"
+                    style={{ borderColor: "rgba(201,168,76,0.25)", borderTopColor: "#C9A84C" }}
+                  />
+                </div>
               ) : (
                 <QuizPlayer
-                  quiz={lecture.quizzes?.find((q: Quiz) => q.id === selectedQuizId)!}
+                  quiz={activeQuiz}
                   answers={quizAnswers}
                   onAnswer={(qId, cId) => setQuizAnswers((a) => ({ ...a, [qId]: cId }))}
                   onSubmit={() => submitQuizMutation.mutate({ quizId: selectedQuizId, answers: quizAnswers })}

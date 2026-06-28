@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { extractToken, verifyToken } from "@/lib/auth";
 import { success, error, unauthorized, forbidden } from "@/lib/utils";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
   const token   = extractToken(req);
@@ -47,55 +48,66 @@ export async function GET(req: NextRequest) {
     // row, full user row) just to read a handful of fields. Explicit
     // `select` trims the join to only the columns actually used below,
     // cutting payload size and DB I/O per row.
-    const [quizSubs, quizTotal, hwSubs, hwTotal] = await Promise.all([
-      prisma.quizSubmission.findMany({
-        where: quizWhere,
+    //
+    // TS-001 FIX: these `select` shapes are pulled out as named consts so
+    // Prisma.{Quiz,Homework}SubmissionGetPayload can derive the exact result
+    // type below — no `any` casts, and the type automatically stays correct
+    // if the select shape ever changes.
+    const quizSelect = {
+      id: true, attemptNumber: true, score: true, total: true,
+      percentage: true, passed: true, submittedAt: true,
+      user: { select: { id: true, name: true, phone: true } },
+      quiz: {
         select: {
-          id: true, attemptNumber: true, score: true, total: true,
-          percentage: true, passed: true, submittedAt: true,
-          user: { select: { id: true, name: true, phone: true } },
-          quiz: {
+          title: true, lectureId: true,
+          lecture: {
             select: {
-              title: true, lectureId: true,
-              lecture: {
-                select: {
-                  title: true,
-                  courses: { select: { course: { select: { title: true } } }, take: 1 },
-                },
-              },
+              title: true,
+              courses: { select: { course: { select: { title: true } } }, take: 1 },
             },
           },
         },
+      },
+    } satisfies Prisma.QuizSubmissionSelect;
+
+    const homeworkSelect = {
+      id: true, attemptNumber: true, grade: true, submittedAt: true,
+      user: { select: { id: true, name: true, phone: true } },
+      homework: {
+        select: {
+          title: true, lectureId: true,
+          lecture: {
+            select: {
+              title: true,
+              courses: { select: { course: { select: { title: true } } }, take: 1 },
+            },
+          },
+        },
+      },
+    } satisfies Prisma.HomeworkSubmissionSelect;
+
+    const [quizSubs, quizTotal, hwSubs, hwTotal] = await Promise.all([
+      prisma.quizSubmission.findMany({
+        where: quizWhere,
+        select: quizSelect,
         orderBy: { submittedAt: "desc" },
         skip, take: limit,
       }),
       prisma.quizSubmission.count({ where: quizWhere }),
       prisma.homeworkSubmission.findMany({
         where: hwWhere,
-        select: {
-          id: true, attemptNumber: true, grade: true, submittedAt: true,
-          user: { select: { id: true, name: true, phone: true } },
-          homework: {
-            select: {
-              title: true, lectureId: true,
-              lecture: {
-                select: {
-                  title: true,
-                  courses: { select: { course: { select: { title: true } } }, take: 1 },
-                },
-              },
-            },
-          },
-        },
+        select: homeworkSelect,
         orderBy: { submittedAt: "desc" },
         skip, take: limit,
       }),
       prisma.homeworkSubmission.count({ where: hwWhere }),
     ]);
 
+    type QuizSubRow = Prisma.QuizSubmissionGetPayload<{ select: typeof quizSelect }>;
+    type HwSubRow   = Prisma.HomeworkSubmissionGetPayload<{ select: typeof homeworkSelect }>;
+
     // Flatten quiz rows
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const quizRows = quizSubs.map((s: any) => ({
+    const quizRows = quizSubs.map((s: QuizSubRow) => ({
       type:          "quiz" as const,
       id:            s.id,
       studentId:     s.user.id,
@@ -114,8 +126,7 @@ export async function GET(req: NextRequest) {
     }));
 
     // Flatten homework rows
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const hwRows = hwSubs.map((s: any) => ({
+    const hwRows = hwSubs.map((s: HwSubRow) => ({
       type:          "homework" as const,
       id:            s.id,
       studentId:     s.user.id,

@@ -3,6 +3,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 import type { User } from "@/types";
+import { AUTH_COOKIE_NAME } from "@/lib/cookie-name";
 
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
   throw new Error(
@@ -48,7 +49,7 @@ export function extractToken(req: NextRequest): string | null {
     return authHeader.slice(7);
   }
   // 2. Cookie
-  const cookieToken = req.cookies.get("auth_token")?.value;
+  const cookieToken = req.cookies.get(AUTH_COOKIE_NAME)?.value;
   if (cookieToken) return cookieToken;
   return null;
 }
@@ -57,7 +58,7 @@ export function extractToken(req: NextRequest): string | null {
 export async function getCurrentUser(): Promise<JWTPayload | null> {
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get("auth_token")?.value;
+    const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
     if (!token) return null;
     return verifyToken(token);
   } catch {
@@ -68,7 +69,7 @@ export async function getCurrentUser(): Promise<JWTPayload | null> {
 // ---- Set auth cookie ----
 export async function setAuthCookie(token: string) {
   const cookieStore = await cookies();
-  cookieStore.set("auth_token", token, {
+  cookieStore.set(AUTH_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -80,7 +81,7 @@ export async function setAuthCookie(token: string) {
 // ---- Clear auth cookie ----
 export async function clearAuthCookie() {
   const cookieStore = await cookies();
-  cookieStore.delete("auth_token");
+  cookieStore.delete(AUTH_COOKIE_NAME);
 }
 
 // ---- Role guards ----

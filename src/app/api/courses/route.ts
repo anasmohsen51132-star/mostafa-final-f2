@@ -4,6 +4,7 @@ import { extractToken, verifyToken } from "@/lib/auth";
 import { courseSchema } from "@/lib/validations";
 import { success, error, unauthorized, forbidden } from "@/lib/utils";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import type { AcademicLevel } from "@/types";
 
 export async function GET(req: NextRequest) {
@@ -13,8 +14,7 @@ export async function GET(req: NextRequest) {
     const isAdmin = payload && (payload.role === "ADMIN" || payload.role === "OWNER");
 
     // Build course filter
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = isAdmin ? {} : { isPublished: true };
+    const where: Prisma.CourseWhereInput = isAdmin ? {} : { isPublished: true };
 
     // Level filter: students see courses for their level OR courses with no levels set
     if (payload?.role === "STUDENT") {
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
     // this, add real page/limit pagination + matching frontend UI then.
     const COURSE_LIST_CAP = 200;
 
-    const [courses, codes] = await Promise.all([
+    const [courses, unlockedRows] = await Promise.all([
       prisma.course.findMany({
         where,
         take: COURSE_LIST_CAP,
@@ -48,21 +48,24 @@ export async function GET(req: NextRequest) {
         },
         orderBy: { createdAt: "desc" },
       }),
+      // PERF-004 FIX: previously fetched every AccessCode the student owns
+      // with a full nested `courses` relation, then flattened it in JS.
+      // Querying CourseOnCode directly for `{ courseId }` only does the
+      // join at the DB level and returns just the flat list we actually
+      // need — no per-code allocations, no nested objects to walk in JS.
       payload?.role === "STUDENT"
-        ? prisma.accessCode.findMany({
-            where: { usedById: payload.sub },
-            include: { courses: { select: { courseId: true } } },
+        ? prisma.courseOnCode.findMany({
+            where: { code: { usedById: payload.sub } },
+            select: { courseId: true },
           })
         : Promise.resolve([]),
     ]);
 
-    const unlockedCourseIds: string[] = codes.flatMap((c: { courses: { courseId: string }[] }) =>
-      c.courses.map((cc: { courseId: string }) => cc.courseId)
-    );
+    const unlockedCourseIds = new Set(unlockedRows.map((r: { courseId: string }) => r.courseId));
 
     const result = courses.map((c: { id: string; [key: string]: unknown }) => ({
       ...c,
-      unlocked: isAdmin ? true : unlockedCourseIds.includes(c.id),
+      unlocked: isAdmin ? true : unlockedCourseIds.has(c.id),
     }));
 
     return success(result);

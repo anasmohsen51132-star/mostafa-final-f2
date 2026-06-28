@@ -74,8 +74,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Step 3: Return the unlocked courses ───────────────────────
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const courses = accessCode.courses.map((c: any) => c.course);
+    const courses = accessCode.courses.map((c) => c.course);
     return success({ courses, message: `تم تفعيل ${courses.length} كورس بنجاح! 🎉` });
 
   } catch (e) {

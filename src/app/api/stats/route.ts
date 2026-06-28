@@ -37,11 +37,17 @@ export async function GET(req: NextRequest) {
           codesAvailable: totalCodes - codesUsed,
         },
       },
-      // PERF-001 FIX: 5 COUNT queries ran on every single dashboard load with
-      // no caching at all. A short s-maxage lets Vercel's edge cache serve
-      // repeat loads within the window without hitting Neon, while
-      // stale-while-revalidate keeps it fresh in the background.
-      { headers: { "Cache-Control": "private, s-maxage=30, stale-while-revalidate=60" } }
+      // SCALE-002 FIX: this data (totalStudents, totalCourses, ...) is
+      // identical for every admin who requests it — it was marked `private`,
+      // which tells shared/edge caches to ignore `s-maxage` entirely,
+      // defeating the caching this header was added for. `public` is correct
+      // here since nothing user-specific is in the payload. Note: because
+      // this route reads the auth cookie to authorize the request, Next.js
+      // treats it as dynamic, so the practical benefit today is mostly
+      // browser-level re-use on back/forward nav — full Vercel Edge caching
+      // of an authenticated dynamic route depends on platform behavior, but
+      // there's no reason to ship the wrong directive regardless.
+      { headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" } }
     );
   } catch (e) {
     console.error("[stats]", e);

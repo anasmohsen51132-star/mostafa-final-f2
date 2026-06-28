@@ -57,7 +57,8 @@ export async function DELETE(req: NextRequest) {
   if (payload.role !== "ADMIN" && payload.role !== "OWNER") return forbidden();
 
   try {
-    const { id } = await req.json();
+    // API-001 FIX: see videos/route.ts DELETE for context.
+    const id = new URL(req.url).searchParams.get("id");
     if (!id) return error("id مطلوب");
     await prisma.homework.delete({ where: { id } });
     return success({ deleted: true });

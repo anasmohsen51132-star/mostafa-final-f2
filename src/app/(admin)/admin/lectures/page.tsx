@@ -13,6 +13,7 @@ interface LectureRow {
   title: string;
   description?: string | null;
   createdAt: string;
+  isPublished: boolean;
   courses: { course: { id: string; title: string; icon: string } }[];
   _count: { videos: number; pdfs: number; quizzes: number; homework: number };
 }
@@ -45,6 +46,21 @@ export default function AdminLecturesPage() {
         toast.error(res.error ?? "فشل الحذف");
       }
       setDeleteTarget(null);
+    },
+  });
+
+  // API-004 FIX: lets admins actually use the new isPublished field — draft
+  // a lecture while building it, then publish when it's ready for students.
+  const togglePublish = useMutation({
+    mutationFn: ({ id, isPublished }: { id: string; isPublished: boolean }) =>
+      fetchWithAuth(`/api/lectures/${id}`, { method: "PUT", body: JSON.stringify({ isPublished }) }),
+    onSuccess: (res) => {
+      if (res.success) {
+        toast.success(res.data.isPublished ? "✅ تم النشر للطلاب" : "📦 تم التحويل إلى مسودة");
+        qc.invalidateQueries({ queryKey: ["admin-lectures"] });
+      } else {
+        toast.error(res.error ?? "فشل التحديث");
+      }
     },
   });
 
@@ -129,9 +145,20 @@ export default function AdminLecturesPage() {
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <h3 style={{ fontFamily: "Cairo,sans-serif", color: "#1A1208", fontSize: 15, fontWeight: 700, marginBottom: 3 }}>
-                    {lec.title}
-                  </h3>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 style={{ fontFamily: "Cairo,sans-serif", color: "#1A1208", fontSize: 15, fontWeight: 700 }}>
+                      {lec.title}
+                    </h3>
+                    {!lec.isPublished && (
+                      <span style={{
+                        padding: "1px 8px", borderRadius: 6, fontSize: 10.5, fontWeight: 700,
+                        background: "rgba(120,113,108,0.12)", color: "#78716C",
+                        border: "1px solid rgba(120,113,108,0.25)", fontFamily: "Cairo,sans-serif",
+                      }}>
+                        مسودة 📦
+                      </span>
+                    )}
+                  </div>
                   {lec.description && (
                     <p className="line-clamp-1" style={{ fontFamily: "Cairo,sans-serif", color: "#7A6E5A", fontSize: 13, marginBottom: 6 }}>
                       {lec.description}
@@ -165,6 +192,19 @@ export default function AdminLecturesPage() {
 
                 {/* Actions */}
                 <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => togglePublish.mutate({ id: lec.id, isPublished: !lec.isPublished })}
+                    disabled={togglePublish.isPending}
+                    style={{
+                      padding: "6px 14px", borderRadius: 9,
+                      border: lec.isPublished ? "1px solid rgba(120,113,108,0.3)" : "1px solid rgba(26,107,71,0.3)",
+                      color: lec.isPublished ? "#78716C" : "#1A6B47",
+                      fontFamily: "Cairo,sans-serif",
+                      fontSize: 12, fontWeight: 600, background: "none", cursor: "pointer",
+                    }}
+                  >
+                    {lec.isPublished ? "📦 تحويل لمسودة" : "🚀 نشر"}
+                  </button>
                   <Link
                     href={`/admin/lectures/${lec.id}`}
                     style={{

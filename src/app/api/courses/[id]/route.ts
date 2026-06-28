@@ -11,12 +11,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const token = extractToken(req);
     const payload = token ? await verifyToken(token) : null;
+    const isStaff = payload?.role === "ADMIN" || payload?.role === "OWNER";
 
     const course = await prisma.course.findUnique({
       where: { id },
       include: {
         levels: true,
         lectures: {
+          // API-004 FIX: students were seeing draft/unpublished lecture
+          // titles and counts before the admin actually published them.
+          // Staff still see everything (drafts included) for editing.
+          where: isStaff ? undefined : { lecture: { isPublished: true } },
           include: {
             lecture: {
               include: {
@@ -26,7 +31,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           },
           orderBy: { order: "asc" },
         },
-        _count: { select: { lectures: true } },
+        _count: {
+          select: {
+            lectures: isStaff ? true : { where: { lecture: { isPublished: true } } },
+          },
+        },
       },
     });
 

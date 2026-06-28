@@ -43,6 +43,7 @@ export const lectureSchema = z.object({
   description:      z.string().max(1000).optional(),
   courseIds:        z.array(z.string()).min(1, "اختر كورساً واحداً على الأقل"),
   order:            z.number().int().default(0),
+  isPublished:      z.boolean().default(true),
   quizRequirement:  z.enum(["NONE", "OPTIONAL", "MUST_PASS"]).optional(),
   quizPassScore:    z.number().int().min(1).max(100).optional(),
 });
@@ -50,6 +51,7 @@ export const lectureSchema = z.object({
 // ── Videos ────────────────────────────────────────────────────
 
 export const videoSchema = z.object({
+  lectureId:  z.string().min(1, "lectureId مطلوب"),
   title:      z.string().min(2).max(120),
   youtubeUrl: z.string().min(1, "أدخل رابط يوتيوب"),
   duration:   z.string().optional(),
@@ -142,6 +144,19 @@ const hexColor = z
   .max(20)
   .regex(/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/, "صيغة اللون غير صحيحة (يجب أن تكون hex مثل #1A6B47)");
 
+// A single { value, label } stat tile, used by teacherStats and statsBar
+const statTileSchema = z.object({
+  value: z.string().max(20),
+  label: z.string().max(60),
+});
+
+// A single { icon, title, desc } feature card
+const featureCardSchema = z.object({
+  icon:  z.string().max(10),
+  title: z.string().max(80),
+  desc:  z.string().max(200),
+});
+
 export const siteSettingsSchema = z
   .object({
     heroTitle:        z.string().max(100).optional(),
@@ -150,6 +165,14 @@ export const siteSettingsSchema = z
     teacherName:      z.string().max(80).optional(),
     teacherTitle:     z.string().max(120).optional(),
     teacherBio:       z.string().max(800).optional(),
+    // SEC-004 FIX: these four fields exist on the SiteSettings model but were
+    // missing from this strict schema, so the owner could never actually
+    // update them via the API — they silently stayed at their DB defaults
+    // forever, with zod dropping them rather than erroring.
+    teacherStats:     z.array(statTileSchema).max(10).optional(),
+    features:         z.array(featureCardSchema).max(10).optional(),
+    statsBar:         z.array(statTileSchema).max(10).optional(),
+    loginBgGradient:  z.string().max(200).optional(),
     platformName:     z.string().max(80).optional(),
     platformTagline:  z.string().max(120).optional(),
     primaryColor:     hexColor.optional(),
@@ -199,10 +222,34 @@ export const progressSchema = z
   })
   .strict();
 
-// ── Quiz submission answers (BUG-010) ────────────────────────
+// ── Quiz / Homework submission answers (SEC-001 / BUG-010 / DB-003) ──
+//
+// DB-003 FIX: Prisma's Json column type has no size ceiling at the DB level —
+// nothing stopped a malicious or buggy client from submitting a huge JSON
+// blob that grows storage unboundedly. We cap the serialized size of
+// `answers` at the application layer (50KB is generous for even a 200-
+// question quiz/homework with free-text answers).
+const MAX_ANSWERS_BYTES = 50_000;
+
+function answersSizeRefine(answers: Record<string, string>) {
+  return JSON.stringify(answers).length <= MAX_ANSWERS_BYTES;
+}
 
 export const quizAnswersSchema = z.object({
   answers: z.record(z.string(), z.string()).default({}),
+}).refine((v) => answersSizeRefine(v.answers), {
+  message: "حجم الإجابات أكبر من المسموح",
+  path: ["answers"],
+});
+
+// SEC-001 FIX: homework `answers` previously had no schema at all — arbitrary
+// JSON from req.json() landed straight in the DB. Validated the same way as
+// quiz answers, plus the same size guard (DB-003).
+export const homeworkAnswersSchema = z.object({
+  answers: z.record(z.string(), z.string()).default({}),
+}).refine((v) => answersSizeRefine(v.answers), {
+  message: "حجم الإجابات أكبر من المسموح",
+  path: ["answers"],
 });
 
 // ── Inferred types ────────────────────────────────────────────

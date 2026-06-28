@@ -34,10 +34,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (payload.role === "STUDENT") {
       const sanitized = {
         ...quiz,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        questions: quiz.questions.map((q: any) => ({
+        // TS-001 FIX: no `any` cast needed — Prisma already infers `q`'s
+        // exact type from the `include` above.
+        questions: quiz.questions.map((q) => ({
           ...q,
-          choices: q.choices.map(({ isCorrect: _ic, ...c }: { isCorrect: boolean; [key: string]: unknown }) => c),
+          choices: q.choices.map(({ isCorrect: _ic, ...c }) => c),
         })),
       };
       return success(sanitized);

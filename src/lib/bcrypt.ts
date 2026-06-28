@@ -17,7 +17,14 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 
 // SEC-008 FIX: used by login when no user matches the phone number, so we
 // still pay the same bcrypt.compare() cost as a real "wrong password" check
-// instead of short-circuiting and leaking timing information. This is a
-// fixed hash of a random string at the same cost factor — it never matches
-// any real password.
-export const DUMMY_HASH = bcrypt.hashSync("not-a-real-password-timing-decoy", BCRYPT_COST);
+// instead of short-circuiting and leaking timing information.
+//
+// PERF-001 FIX: this used to be `bcrypt.hashSync(...)` computed at module
+// load time — a synchronous bcrypt hash blocks Node's event loop for
+// ~300ms, which stalled every concurrent request on every cold start before
+// any request could even be handled. A bcrypt hash of a fixed string at a
+// fixed cost factor is itself a fixed value, so there's no reason to compute
+// it at runtime at all — it's hardcoded here once and never recomputed.
+// (Generated via `bcrypt.hashSync("not-a-real-password-timing-decoy", 10)`;
+// it never matches any real password and isn't tied to any real account.)
+export const DUMMY_HASH = "$2b$10$XJZZdFuiHwwP13YnoIS.feQ6xrtuoTgnhgYbYoqbEQTTf/VC5S46O";

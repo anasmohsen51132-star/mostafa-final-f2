@@ -3,6 +3,7 @@
 // Used ONLY by middleware.ts
 import { jwtVerify } from "jose";
 import { NextRequest } from "next/server";
+import { AUTH_COOKIE_NAME } from "@/lib/cookie-name";
 
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
   throw new Error(
@@ -33,5 +34,5 @@ export async function verifyTokenEdge(token: string): Promise<JWTPayload | null>
 export function extractTokenEdge(req: NextRequest): string | null {
   const authHeader = req.headers.get("authorization");
   if (authHeader?.startsWith("Bearer ")) return authHeader.slice(7);
-  return req.cookies.get("auth_token")?.value ?? null;
+  return req.cookies.get(AUTH_COOKIE_NAME)?.value ?? null;
 }

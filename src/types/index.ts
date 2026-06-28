@@ -105,7 +105,7 @@ export interface PDF {
 
 export interface Quiz {
   id: string; lectureId: string; title: string;
-  timeLimit?: number | null; questions: Question[];
+  timeLimit?: number | null; questions?: Question[];
   _count?: { questions: number };
   // student's own submissions for this quiz
   mySubmissions?: QuizAttempt[];
@@ -125,7 +125,7 @@ export interface Choice {
 // ── HOMEWORK ────────────────────────────────────────────────
 
 export interface Homework {
-  id: string; lectureId: string; title: string; questions: Question[];
+  id: string; lectureId: string; title: string; questions?: Question[];
   _count?: { questions: number };
   mySubmissions?: HomeworkAttempt[];
 }

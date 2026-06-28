@@ -4,6 +4,7 @@ import { extractToken, verifyToken } from "@/lib/auth";
 import { success, error, unauthorized, forbidden, notFound } from "@/lib/utils";
 import { lectureSchema } from "@/lib/validations";
 import { userOwnsLecture } from "@/lib/access";
+import { decodeYouTubeId } from "@/lib/utils";
 import prisma from "@/lib/prisma";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -24,26 +25,36 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         courses: { include: { course: { select: { id: true, title: true, icon: true } } } },
         videos: { orderBy: { order: "asc" } },
         pdfs: { orderBy: { order: "asc" } },
+        // PERF-002 FIX: this used to eagerly include every question and
+        // every choice for every quiz/homework attached to the lecture —
+        // unbounded payload growth as content was added, most of which the
+        // student never opens in a given visit. Only a lightweight count is
+        // needed here; full content for whichever single quiz/homework the
+        // student actually opens is fetched on demand via the existing
+        // ownership-gated GET /api/quizzes/[id] and /api/homework/[id].
         quizzes: {
-          include: {
-            questions: {
-              include: { choices: { orderBy: { order: "asc" } } },
-              orderBy: { order: "asc" },
-            },
+          select: {
+            id: true, title: true, timeLimit: true,
+            _count: { select: { questions: true } },
           },
         },
         homework: {
-          include: {
-            questions: {
-              include: { choices: { orderBy: { order: "asc" } } },
-              orderBy: { order: "asc" },
-            },
+          select: {
+            id: true, title: true,
+            _count: { select: { questions: true } },
           },
         },
       },
     });
 
     if (!lecture) return notFound("المحاضرة غير موجودة");
+
+    // API-004 FIX: a student could otherwise still reach an unpublished
+    // (draft) lecture directly by ID even though it's hidden from the
+    // course listing, as long as they own the course it belongs to.
+    if (payload.role === "STUDENT" && !lecture.isPublished) {
+      return notFound("المحاضرة غير موجودة");
+    }
 
     // BUG-008 FIX: hasPassed used to be resolved by a *separate* client-side
     // query (GET /api/quizzes/[gateQuizId]/submit) fired only after the
@@ -69,24 +80,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       const sanitized = {
         ...lecture,
         hasPassed,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        quizzes: lecture.quizzes.map((q: any) => ({
-          ...q,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          questions: q.questions.map((qu: any) => ({
-            ...qu,
-            choices: qu.choices.map(({ isCorrect: _ic, ...c }: { isCorrect: boolean; [key: string]: unknown }) => c),
-          })),
-        })),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        homework: lecture.homework.map((hw: any) => ({
-          ...hw,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          questions: hw.questions.map((qu: any) => ({
-            ...qu,
-            choices: qu.choices.map(({ isCorrect: _ic, ...c }: { isCorrect: boolean; [key: string]: unknown }) => c),
-          })),
-        })),
+        // SEC-005 FIX: decode here, server-side, instead of shipping the
+        // encoded value to the browser and decoding with a client-bundled
+        // key (see utils.ts comment for full context — this obfuscation
+        // never provided real protection; the real gate is userOwnsLecture
+        // above). The client no longer needs decodeYouTubeId at all.
+        videos: lecture.videos.map((v) => ({ ...v, youtubeId: decodeYouTubeId(v.youtubeId) })),
+        // SEC-002 FIX: students get our own gated proxy URL, never the raw
+        // permanent public blob URL — see /api/pdfs/[id]/view for why.
+        pdfs: lecture.pdfs.map((p) => ({ ...p, fileUrl: `/api/pdfs/${p.id}/view` })),
+        // No question/choice sanitization needed here anymore — quizzes and
+        // homework are now lightweight ({id, title, _count}) per PERF-002.
+        // isCorrect stripping happens in /api/quizzes/[id] and
+        // /api/homework/[id] when the student actually opens one.
       };
       return success(sanitized);
     }
@@ -109,6 +115,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const body = await req.json();
     const parsed = lectureSchema.partial().safeParse(body);
     if (!parsed.success) return error(parsed.error.errors[0]?.message || "بيانات غير صحيحة");
+    // API-003 FIX: .partial() makes every field optional, so an empty body
+    // `{}` previously passed validation and triggered a pointless DB write
+    // (and an unnecessary cache-invalidating update for nothing).
+    if (Object.keys(parsed.data).length === 0) {
+      return error("لا توجد بيانات للتحديث");
+    }
 
     const { courseIds, ...rest } = parsed.data;
 

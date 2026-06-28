@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { ToastContainer } from "@/components/ui/Toast";
+import { FullScreenSpinner } from "@/components/ui/FullScreenSpinner";
 import { useAuth } from "@/hooks/useAuth";
 import type { SidebarItem } from "@/components/layout/Sidebar";
 
@@ -16,7 +17,7 @@ const STUDENT_NAV: SidebarItem[] = [
 ];
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isHydrated, isAuthenticated, logout } = useAuth();
   const router   = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -25,11 +26,17 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
   useEffect(() => {
+    // ARCH-003 FIX: wait for the persisted store to finish rehydrating
+    // before deciding whether to redirect — otherwise the very first render
+    // (before localStorage is read) would see user=null and redirect an
+    // already-logged-in student to /login for a frame.
+    if (!isHydrated) return;
     if (!isAuthenticated) router.replace("/login");
-  }, [isAuthenticated, router]);
+  }, [isHydrated, isAuthenticated, router]);
 
   const handleClose = useCallback(() => setSidebarOpen(false), []);
 
+  if (!isHydrated) return <FullScreenSpinner />;
   if (!isAuthenticated || !user) return null;
 
   return (

@@ -17,10 +17,11 @@ export async function POST(req: NextRequest) {
     const parsed = videoSchema.safeParse(body);
     if (!parsed.success) return error(parsed.error.errors[0]?.message || "بيانات غير صحيحة");
 
-    const { lectureId } = body;
-    if (!lectureId) return error("lectureId مطلوب");
-
-    const { title, youtubeUrl, duration, order } = parsed.data;
+    // API-002 FIX: lectureId was destructured from the raw `body` instead of
+    // the validated `parsed.data` — it bypassed zod entirely, so a malformed
+    // or oversized lectureId reached Prisma unchecked. `lectureId` is now
+    // part of videoSchema (see validations.ts) and sourced from parsed.data.
+    const { lectureId, title, youtubeUrl, duration, order } = parsed.data;
 
     const rawId = extractYouTubeId(youtubeUrl);
     if (!rawId) return error("رابط يوتيوب غير صالح");
@@ -45,7 +46,10 @@ export async function DELETE(req: NextRequest) {
   if (payload.role !== "ADMIN" && payload.role !== "OWNER") return forbidden();
 
   try {
-    const { id } = await req.json();
+    // API-001 FIX: id was read from a DELETE request body — non-standard
+    // and silently stripped by some proxies/CDNs (DELETE bodies are widely
+    // unsupported in practice). A URL query param works everywhere.
+    const id = new URL(req.url).searchParams.get("id");
     if (!id) return error("id مطلوب");
     await prisma.video.delete({ where: { id } });
     return success({ deleted: true });

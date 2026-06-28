@@ -33,6 +33,22 @@ if (looksLikeNeon && !looksPooled && process.env.NODE_ENV === "production") {
   );
 }
 
+// SCALE-001 FIX: previously connection_limit was only ever a comment telling
+// ops to put it in the URL — nothing in code actually enforced it, so a
+// DATABASE_URL without that query param let each PrismaClient default to up
+// to 10 connections. In a serverless environment where many warm instances
+// each hold their own client, that multiplies fast and exhausts Neon's
+// connection cap. We now append a safe default ourselves whenever the URL
+// doesn't already specify one, so the limit is enforced in code regardless
+// of whether ops remembered to add it to the env var.
+function withConnectionLimit(url: string): string {
+  if (!url || url.includes("connection_limit=")) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}connection_limit=3`;
+}
+
+const effectiveDbUrl = withConnectionLimit(dbUrl);
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
@@ -41,6 +57,7 @@ export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+    ...(effectiveDbUrl ? { datasources: { db: { url: effectiveDbUrl } } } : {}),
   });
 
 globalForPrisma.prisma = prisma;

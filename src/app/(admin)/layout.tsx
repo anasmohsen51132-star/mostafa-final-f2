@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { ToastContainer } from "@/components/ui/Toast";
+import { FullScreenSpinner } from "@/components/ui/FullScreenSpinner";
 import { useAuth } from "@/hooks/useAuth";
 import type { SidebarItem } from "@/components/layout/Sidebar";
 
@@ -18,7 +19,7 @@ const ADMIN_NAV: SidebarItem[] = [
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, isAuthenticated, isAdmin, logout } = useAuth();
+  const { user, isHydrated, isAuthenticated, isAdmin, logout } = useAuth();
   const router   = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -26,12 +27,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
   useEffect(() => {
+    if (!isHydrated) return;
     if (!isAuthenticated) { router.replace("/login"); return; }
     if (!isAdmin)          { router.replace("/dashboard"); }
-  }, [isAuthenticated, isAdmin, router]);
+  }, [isHydrated, isAuthenticated, isAdmin, router]);
 
   const handleClose = useCallback(() => setSidebarOpen(false), []);
 
+  if (!isHydrated) return <FullScreenSpinner />;
   if (!isAuthenticated || !user || !isAdmin) return null;
 
   return (

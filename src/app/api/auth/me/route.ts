@@ -19,7 +19,13 @@ export async function GET(req: NextRequest) {
       },
     });
     if (!user || !user.isActive) return unauthorized("الحساب غير نشط");
-    return success({ user });
+    // PERF-006 FIX: this response carries the current user's session data —
+    // without an explicit no-store, an intermediate shared cache could
+    // serve one user's session data to a different user.
+    return Response.json(
+      { success: true, data: { user } },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (e) {
     console.error("[me]", e);
     return error("حدث خطأ", 500);
