@@ -100,6 +100,11 @@ model Lecture {
   title            String
   description      String?
   order            Int             @default(0)
+  // API-004 FIX: there was no way to keep a lecture in draft while building
+  // it — every lecture was visible to any student who owned its course the
+  // moment it was created. Defaults to true so existing lectures keep their
+  // current (visible) behavior; new lectures can be created as drafts.
+  isPublished      Boolean         @default(true)
   // Quiz gate: how strictly is the quiz enforced?
   quizRequirement  QuizRequirement @default(NONE)
   quizPassScore    Int             @default(60) // % needed to pass when MUST_PASS
@@ -112,6 +117,8 @@ model Lecture {
   quizzes  Quiz[]
   homework Homework[]
   progress Progress[]
+
+  @@index([isPublished])
 }
 
 // ── COURSE-LECTURE JOIN ────────────────────────────────────
@@ -254,6 +261,7 @@ model AccessCode {
   @@index([isActive])
   @@index([usedById])
   @@index([createdAt])
+  @@index([expiresAt])
 }
 
 // ── CODE-COURSE JOIN ───────────────────────────────────────
@@ -288,6 +296,7 @@ model Progress {
   @@unique([userId, lectureId, videoId])
   @@index([userId])
   @@index([lectureId])
+  @@index([videoId])
 }
 
 // ── QUIZ SUBMISSIONS (multi-attempt) ───────────────────────
