@@ -30,7 +30,18 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const parsed = siteSettingsSchema.safeParse(body);
+
+    // BUGFIX: the customize page loads the full GET response into its form
+    // state (including system-managed fields like `id` and `updatedAt`) and
+    // sends the whole thing back on save. Since siteSettingsSchema is
+    // `.strict()` (SEC-010 fix — intentionally rejects unknown fields to
+    // stop arbitrary data injection), those two leaked fields caused EVERY
+    // save to fail validation. We strip known non-editable fields here
+    // before validating, regardless of what the client sends, instead of
+    // relying on the frontend to never include them.
+    const { id: _id, updatedAt: _updatedAt, ...editableBody } = body ?? {};
+
+    const parsed = siteSettingsSchema.safeParse(editableBody);
     if (!parsed.success) return error(parsed.error.errors[0]?.message || "بيانات غير صحيحة");
 
     const settings = await prisma.siteSettings.upsert({

@@ -31,7 +31,12 @@ export default function CustomizePage() {
 
   useEffect(() => {
     if (data?.data) {
-      setForm(data.data);
+      // BUGFIX: id/updatedAt are system-managed (not part of the editable
+      // schema) — keeping them out of form state means they can never be
+      // sent back on save, which is what broke every save after
+      // siteSettingsSchema became `.strict()` (SEC-010 fix).
+      const { id: _id, updatedAt: _updatedAt, ...editable } = data.data;
+      setForm(editable);
       setIsDirty(false);
     }
   }, [data]);
