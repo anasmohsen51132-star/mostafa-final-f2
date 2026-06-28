@@ -18,28 +18,19 @@ const appOrigin = new URL(appUrl).host;
 
 // SEC-002 FIX: previously only CORS headers existed (for /api/:path* only) — no
 // clickjacking/MIME-sniffing/referrer/HSTS protection existed for any HTML page.
+//
+// NEXT-003 FIX: Content-Security-Policy used to live here as a static header
+// with 'unsafe-inline' in script-src, which defeats CSP's main purpose — any
+// injected <script> runs exactly as freely as Next's own hydration scripts.
+// CSP needs a fresh nonce per request, which a static config file can't
+// generate, so it now lives in middleware.ts (see buildCsp there) and is
+// applied dynamically alongside the other headers below.
 const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-  {
-    key: "Content-Security-Policy",
-    value: [
-      "default-src 'self'",
-      // Next.js needs 'unsafe-inline' for its hydration scripts and 'unsafe-eval' in dev
-      `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV !== "production" ? " 'unsafe-eval'" : ""}`,
-      "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://img.youtube.com https://i.ytimg.com https://*.public.blob.vercel-storage.com",
-      "font-src 'self' data:",
-      "frame-src https://www.youtube-nocookie.com",
-      "connect-src 'self'",
-      "object-src 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-    ].join("; "),
-  },
 ];
 
 const nextConfig = {
