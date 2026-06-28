@@ -60,27 +60,54 @@ export async function POST(req: NextRequest) {
     const owns = await userOwnsLecture(payload.sub, payload.role, lectureId);
     if (!owns) return forbidden("لا تملك صلاحية الوصول إلى هذه المحاضرة");
 
-    // Upsert progress record — videoId can be null (lecture-level tracking)
-    const record = await prisma.progress.upsert({
-      where: {
-        userId_lectureId_videoId: {
-          userId:    payload.sub,
-          lectureId,
-          videoId:   videoId ?? null,
+    // Upsert progress record.
+    // NOTE: `videoId` is nullable (lecture-level progress with no specific
+    // video). Prisma's generated WhereUniqueInput for the compound
+    // @@unique([userId, lectureId, videoId]) requires a non-null videoId —
+    // Postgres treats NULL as distinct from every other NULL inside a
+    // unique index, so the constraint can't reliably identify "the" row
+    // when videoId is null. We branch: a real videoId uses the fast atomic
+    // upsert; lecture-level (no videoId) falls back to find-then-write.
+    let record;
+    if (videoId) {
+      record = await prisma.progress.upsert({
+        where: {
+          userId_lectureId_videoId: { userId: payload.sub, lectureId, videoId },
         },
-      },
-      create: {
-        userId:    payload.sub,
-        lectureId,
-        videoId:   videoId ?? null,
-        completed: completed ?? false,
-        watchedAt: new Date(),
-      },
-      update: {
-        ...(completed !== undefined && { completed }),
-        watchedAt: new Date(),
-      },
-    });
+        create: {
+          userId: payload.sub,
+          lectureId,
+          videoId,
+          completed: completed ?? false,
+          watchedAt: new Date(),
+        },
+        update: {
+          ...(completed !== undefined && { completed }),
+          watchedAt: new Date(),
+        },
+      });
+    } else {
+      const existing = await prisma.progress.findFirst({
+        where: { userId: payload.sub, lectureId, videoId: null },
+      });
+      record = existing
+        ? await prisma.progress.update({
+            where: { id: existing.id },
+            data: {
+              ...(completed !== undefined && { completed }),
+              watchedAt: new Date(),
+            },
+          })
+        : await prisma.progress.create({
+            data: {
+              userId: payload.sub,
+              lectureId,
+              videoId: null,
+              completed: completed ?? false,
+              watchedAt: new Date(),
+            },
+          });
+    }
 
     return success(record);
   } catch (e) {
