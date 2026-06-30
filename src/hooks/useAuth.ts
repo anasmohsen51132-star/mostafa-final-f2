@@ -16,7 +16,35 @@ export async function fetchWithAuth(url: string, options?: RequestInit) {
     ...(options?.headers as Record<string, string> ?? {}),
   };
   const res = await fetch(url, { ...options, headers, credentials: "same-origin" });
-  return res.json();
+
+  // BUGFIX: this used to call res.json() unconditionally. If the server
+  // ever returns a non-JSON body — a Vercel platform error page, a 504
+  // gateway timeout, an uncaught exception that bypassed the route's own
+  // try/catch — res.json() throws a SyntaxError, which every caller's
+  // mutation onError handler then displays as the same generic, unhelpful
+  // "حدث خطأ في الاتصال" regardless of what actually happened. We now parse
+  // defensively and always resolve to a structured {success, error} object
+  // carrying the real HTTP status, so the UI can show something specific
+  // and the next time this happens it's actually diagnosable.
+  const text = await res.text();
+  let parsed: unknown;
+  try {
+    parsed = text ? JSON.parse(text) : null;
+  } catch {
+    return {
+      success: false,
+      error: `خطأ غير متوقع من الخادم (HTTP ${res.status})`,
+      status: res.status,
+    };
+  }
+
+  if (parsed && typeof parsed === "object") return parsed;
+
+  return {
+    success: false,
+    error: `استجابة غير صالحة من الخادم (HTTP ${res.status})`,
+    status: res.status,
+  };
 }
 
 export function useAuth() {
