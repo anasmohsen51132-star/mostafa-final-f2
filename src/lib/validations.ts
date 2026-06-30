@@ -97,12 +97,14 @@ export const questionSchema = z.object({
 );
 
 export const quizSchema = z.object({
+  lectureId: z.string().min(1, "lectureId مطلوب"),
   title:     z.string().min(3).max(120),
   timeLimit: z.number().int().positive().optional().nullable(),
   questions: z.array(questionSchema).min(1, "سؤال واحد على الأقل"),
 });
 
 export const homeworkSchema = z.object({
+  lectureId: z.string().min(1, "lectureId مطلوب"),
   title:     z.string().min(3).max(120),
   questions: z.array(
     // Homework questions don't need isCorrect validation

@@ -20,10 +20,18 @@ interface DisplayUser {
 interface AuthState {
   user: User | null;
   isHydrated: boolean;
+  // NEXT-001 FIX: rehydrated `user` only ever has {name, avatar} (see
+  // partialize below) — `role` is undefined until SessionSync's fetch to
+  // /api/auth/me resolves. Without this flag, a layout's role-guard sees
+  // isAdmin=false during that gap and immediately redirects a legitimate
+  // admin/owner away from their own dashboard. Layouts must wait for
+  // isHydrated && isSessionVerified before evaluating role-based redirects.
+  isSessionVerified: boolean;
   setAuth: (user: User) => void;
   clearAuth: () => void;
   setUser: (user: User) => void;
   setHydrated: () => void;
+  setSessionVerified: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -31,10 +39,12 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       isHydrated: false,
-      setAuth: (user) => set({ user }),
-      clearAuth: () => set({ user: null }),
-      setUser: (user) => set({ user }),
+      isSessionVerified: false,
+      setAuth: (user) => set({ user, isSessionVerified: true }),
+      clearAuth: () => set({ user: null, isSessionVerified: true }),
+      setUser: (user) => set({ user, isSessionVerified: true }),
       setHydrated: () => set({ isHydrated: true }),
+      setSessionVerified: () => set({ isSessionVerified: true }),
     }),
     {
       name: "mustafa-auth",

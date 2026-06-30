@@ -49,3 +49,17 @@ export function getClientIp(req: Request): string {
   if (fwd) return fwd.split(",")[0].trim();
   return req.headers.get("x-real-ip") || "unknown";
 }
+
+// SEC-005 FIX: rateLimit() always computed retryAfterMs, but every call site
+// discarded it and returned a plain error() with no Retry-After header at
+// all — clients had no standard way to know how long to back off, so naive
+// retry loops just hammered the endpoint again immediately.
+export function rateLimitResponse(message: string, retryAfterMs: number) {
+  return Response.json(
+    { success: false, error: message },
+    {
+      status: 429,
+      headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) },
+    }
+  );
+}

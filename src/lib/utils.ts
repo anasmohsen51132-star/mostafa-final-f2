@@ -6,34 +6,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// ============================================================
-// YouTube ID "obfuscation" — NOT a security control
-// SEC-005: this XOR+hex+reverse+base64url scheme runs decodeYouTubeId()
-// client-side (see VideoPlayer.tsx), and XOR_KEY ships in the client bundle.
-// Anyone can read the key and decode any ID from devtools — this layer
-// provides ZERO real protection on its own and should never be relied upon
-// as one. We keep it only so already-stored encoded `youtubeId` values in
-// the DB keep working without a data migration.
-//
-// The ACTUAL protection against students reaching video IDs they haven't
-// paid for is the server-side ownership check (userOwnsLecture / SEC-001)
-// enforced in /api/lectures/[id] before any video row — encoded or not —
-// is ever sent to the browser. If you want IDs to be genuinely
-// unextractable even by an authorized viewer (e.g. to prevent screen-record
-// + ID reuse elsewhere), that requires a server-only signed/short-lived
-// embed URL instead of shipping the raw or encoded ID to the client at all
-// — a larger change than this obfuscation layer can ever provide.
-// ============================================================
-
-const XOR_KEY = [0x4d, 0x75, 0x73, 0x74, 0x61, 0x66, 0x61]; // "Mustafa"
-
-function xorBytes(input: string): number[] {
-  return input.split("").map((c, i) => c.charCodeAt(0) ^ XOR_KEY[i % XOR_KEY.length]);
-}
-function unxorBytes(bytes: number[]): string {
-  return bytes.map((b, i) => String.fromCharCode(b ^ XOR_KEY[i % XOR_KEY.length])).join("");
-}
-
 export function extractYouTubeId(url: string): string | null {
   const patterns = [
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
@@ -44,58 +16,6 @@ export function extractYouTubeId(url: string): string | null {
     if (m) return m[1];
   }
   return null;
-}
-
-// Server-only encoder (uses Node Buffer)
-export function encodeYouTubeId(videoId: string): string {
-  const xored = xorBytes(videoId);
-  const hex   = xored.map((b) => b.toString(16).padStart(2, "0")).join("");
-  const rev   = hex.split("").reverse().join("");
-  // Use Buffer on server, fallback to btoa for safety
-  if (typeof Buffer !== "undefined") {
-    return Buffer.from(rev).toString("base64url");
-  }
-  return btoa(rev).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
-}
-
-// Browser + server safe decoder
-export function decodeYouTubeId(encoded: string): string {
-  try {
-    // Normalise base64url → base64
-    const b64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
-    // Padding
-    const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
-
-    let rev: string;
-    if (typeof Buffer !== "undefined") {
-      rev = Buffer.from(padded, "base64").toString("utf8");
-    } else {
-      rev = atob(padded);
-    }
-
-    const hex   = rev.split("").reverse().join("");
-    const bytes: number[] = [];
-    for (let i = 0; i < hex.length; i += 2) {
-      bytes.push(parseInt(hex.slice(i, i + 2), 16));
-    }
-    const result = unxorBytes(bytes);
-    // Validate: YouTube IDs are exactly 11 chars [a-zA-Z0-9_-]
-    if (/^[a-zA-Z0-9_-]{11}$/.test(result)) return result;
-
-    // Fallback: maybe it was stored as plain base64
-    throw new Error("invalid");
-  } catch {
-    try {
-      // Plain base64 fallback for rows stored by older code
-      const b64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
-      if (typeof Buffer !== "undefined") {
-        return Buffer.from(b64, "base64").toString("utf8");
-      }
-      return atob(b64);
-    } catch {
-      return encoded;
-    }
-  }
 }
 
 // ---- YouTube embed URL (browser-safe, no Buffer) ----
