@@ -1,6 +1,6 @@
 "use client";
 // src/components/landing/HeroSection.tsx
-import { motion } from "framer-motion";
+import { m as motion } from "framer-motion";
 import Link from "next/link";
 import type { SiteSettings } from "@/types";
 

@@ -1,6 +1,6 @@
 "use client";
 // src/components/ui/StatCard.tsx
-import { motion, useMotionValue, useTransform, animate as motionAnimate } from "framer-motion";
+import { m as motion, useMotionValue, useTransform, animate as motionAnimate } from "framer-motion";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 

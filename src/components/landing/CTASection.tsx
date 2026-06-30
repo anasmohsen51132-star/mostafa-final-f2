@@ -1,6 +1,6 @@
 "use client";
 // src/components/landing/CTASection.tsx
-import { motion, useInView } from "framer-motion";
+import { m as motion, useInView } from "framer-motion";
 import Link from "next/link";
 import { useRef } from "react";
 

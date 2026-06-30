@@ -1,6 +1,6 @@
 "use client";
 // src/components/landing/TeacherSection.tsx
-import { motion, useInView } from "framer-motion";
+import { m as motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import type { SiteSettings } from "@/types";
 

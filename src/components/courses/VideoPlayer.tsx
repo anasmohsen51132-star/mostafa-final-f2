@@ -9,7 +9,7 @@
 //  - Speed controls via postMessage API
 //  - Loading shimmer, thumbnail preview
 import { useState, useRef, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m as motion, AnimatePresence } from "framer-motion";
 import { fetchWithAuth } from "@/hooks/useAuth";
 import { useAuth } from "@/hooks/useAuth";
 

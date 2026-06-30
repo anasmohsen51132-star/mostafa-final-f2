@@ -1,7 +1,7 @@
 "use client";
 // src/components/auth/RegisterForm.tsx
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { m as motion } from "framer-motion";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { ACADEMIC_LEVEL_LABELS, ACADEMIC_LEVELS, type AcademicLevel } from "@/types";

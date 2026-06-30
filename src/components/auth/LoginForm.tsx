@@ -1,7 +1,7 @@
 "use client";
 // src/components/auth/LoginForm.tsx
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { m as motion } from "framer-motion";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 

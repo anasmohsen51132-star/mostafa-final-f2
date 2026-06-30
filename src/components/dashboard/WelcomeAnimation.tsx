@@ -1,6 +1,6 @@
 "use client";
 // src/components/dashboard/WelcomeAnimation.tsx
-import { motion, AnimatePresence } from "framer-motion";
+import { m as motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 
 interface Props {

@@ -1,6 +1,6 @@
 "use client";
 // src/components/layout/Sidebar.tsx
-import { motion, AnimatePresence } from "framer-motion";
+import { m as motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";

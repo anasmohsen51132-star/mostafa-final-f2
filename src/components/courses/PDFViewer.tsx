@@ -1,7 +1,7 @@
 "use client";
 // src/components/courses/PDFViewer.tsx
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { m as motion } from "framer-motion";
 import type { PDF } from "@/types";
 
 interface Props {
