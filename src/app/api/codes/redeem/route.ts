@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import { extractToken, verifyToken } from "@/lib/auth";
 import { redeemSchema } from "@/lib/validations";
 import { success, error, unauthorized } from "@/lib/utils";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import prisma from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   // Throttle code-guessing attempts per logged-in user
   const limited = rateLimit(`redeem:${payload.sub}`, 20, 5 * 60 * 1000);
   if (!limited.allowed) {
-    return error("محاولات كثيرة جداً، حاول مرة أخرى بعد قليل", 429);
+    return rateLimitResponse("محاولات كثيرة جداً، حاول مرة أخرى بعد قليل", limited.retryAfterMs);
   }
 
   try {

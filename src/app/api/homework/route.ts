@@ -16,13 +16,12 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { lectureId } = body;
-    if (!lectureId) return error("lectureId مطلوب");
-
     const parsed = homeworkSchema.safeParse(body);
     if (!parsed.success) return error(parsed.error.errors[0]?.message ?? "بيانات غير صحيحة");
 
-    const { title, questions } = parsed.data;
+    // SEC-001 / API-001 FIX: same issue as quizzes/route.ts — lectureId now
+    // comes from validated parsed.data instead of the raw body.
+    const { lectureId, title, questions } = parsed.data;
 
     const hw = await prisma.homework.create({
       data: {

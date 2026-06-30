@@ -19,7 +19,7 @@ const ADMIN_NAV: SidebarItem[] = [
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, isHydrated, isAuthenticated, isAdmin, logout } = useAuth();
+  const { user, isHydrated, isSessionVerified, isAuthenticated, isAdmin, logout } = useAuth();
   const router   = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -27,14 +27,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
   useEffect(() => {
-    if (!isHydrated) return;
+    // NEXT-001 FIX: wait for the authoritative role from /api/auth/me, not
+    // just localStorage rehydration — right after rehydration, `user` only
+    // has {name, avatar} (no role at all), so isAdmin would briefly read
+    // false for a real admin/owner and redirect them away before
+    // SessionSync's fetch had a chance to resolve.
+    if (!isHydrated || !isSessionVerified) return;
     if (!isAuthenticated) { router.replace("/login"); return; }
     if (!isAdmin)          { router.replace("/dashboard"); }
-  }, [isHydrated, isAuthenticated, isAdmin, router]);
+  }, [isHydrated, isSessionVerified, isAuthenticated, isAdmin, router]);
 
   const handleClose = useCallback(() => setSidebarOpen(false), []);
 
-  if (!isHydrated) return <FullScreenSpinner />;
+  if (!isHydrated || !isSessionVerified) return <FullScreenSpinner />;
   if (!isAuthenticated || !user || !isAdmin) return null;
 
   return (

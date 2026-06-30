@@ -1,6 +1,6 @@
 "use client";
 // src/app/(auth)/login/page.tsx
-import { motion } from "framer-motion";
+import { m as motion } from "framer-motion";
 import Link from "next/link";
 import { LoginForm } from "@/components/auth/LoginForm";
 

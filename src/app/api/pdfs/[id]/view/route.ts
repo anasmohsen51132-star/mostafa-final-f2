@@ -17,6 +17,14 @@ import { unauthorized, forbidden, error } from "@/lib/utils";
 import { userOwnsLecture } from "@/lib/access";
 import prisma from "@/lib/prisma";
 
+// SEC-002 FIX: this proxy streamed the entire upstream blob with no size
+// limit at all — a single oversized (or malicious) blob could hold a
+// concurrent request's memory open indefinitely. We reject upfront based on
+// Content-Length when the upstream provides one (cheap, no bytes read), and
+// — since that header can be missing or wrong — also enforce the same cap
+// while actually streaming, aborting if the real byte count exceeds it.
+const MAX_PDF_BYTES = 50 * 1024 * 1024; // 50MB — generous for course PDFs
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const token   = extractToken(req);
@@ -39,7 +47,29 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return error("تعذر تحميل الملف", 502);
     }
 
-    return new Response(upstream.body, {
+    const declaredLength = Number(upstream.headers.get("content-length") ?? "0");
+    if (declaredLength > MAX_PDF_BYTES) {
+      console.error("[pdf view] file exceeds size cap", id, declaredLength);
+      return error("الملف أكبر من الحد المسموح", 413);
+    }
+
+    // Defend against a missing/incorrect Content-Length by counting actual
+    // bytes as they stream and aborting if the real size exceeds the cap.
+    let streamed = 0;
+    const guarded = upstream.body.pipeThrough(
+      new TransformStream<Uint8Array, Uint8Array>({
+        transform(chunk, controller) {
+          streamed += chunk.byteLength;
+          if (streamed > MAX_PDF_BYTES) {
+            controller.error(new Error("PDF_TOO_LARGE"));
+            return;
+          }
+          controller.enqueue(chunk);
+        },
+      })
+    );
+
+    return new Response(guarded, {
       headers: {
         "Content-Type": upstream.headers.get("content-type") || "application/pdf",
         "Content-Disposition": `inline; filename="${encodeURIComponent(pdf.title)}.pdf"`,

@@ -1,7 +1,7 @@
 "use client";
 // src/app/(admin)/admin/results/page.tsx
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { m as motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { fetchWithAuth } from "@/hooks/useAuth";
 import { formatDate } from "@/lib/utils";

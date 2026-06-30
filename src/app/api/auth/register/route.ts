@@ -4,7 +4,7 @@ import { registerSchema } from "@/lib/validations";
 import { hashPassword } from "@/lib/bcrypt";
 import { signToken, setAuthCookie } from "@/lib/auth";
 import { normalizePhone, success, error } from "@/lib/utils";
-import { rateLimit, getClientIp } from "@/lib/rate-limit";
+import { rateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 import prisma from "@/lib/prisma";
 import type { Role, AcademicLevel } from "@/types";
 import { Prisma } from "@prisma/client";
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     const ip = getClientIp(req);
     const limited = rateLimit(`register:${ip}`, 10, 10 * 60 * 1000);
     if (!limited.allowed) {
-      return error("محاولات كثيرة جداً، حاول مرة أخرى بعد قليل", 429);
+      return rateLimitResponse("محاولات كثيرة جداً، حاول مرة أخرى بعد قليل", limited.retryAfterMs);
     }
 
     const body = await req.json();

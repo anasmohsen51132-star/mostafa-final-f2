@@ -30,6 +30,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!parsed.success) return error("صيغة الإجابات غير صحيحة");
     const { answers } = parsed.data;
 
+    // PERF-001 FIX: quiz and lecture.quizPassScore used to be two sequential
+    // round-trips (findUnique, then a second findUnique once we knew
+    // quiz.lectureId). Pulling quizPassScore through the same query via the
+    // lecture relation gets both in one round-trip instead.
     const quiz = await prisma.quiz.findUnique({
       where: { id: quizId },
       include: {
@@ -37,6 +41,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           include: { choices: true },
           orderBy: { order: "asc" },
         },
+        lecture: { select: { quizPassScore: true } },
       },
     });
 
@@ -66,11 +71,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const total      = quiz.questions.length;
     const percentage = total > 0 ? Math.round((correct / total) * 100) : 0;
 
-    const lecture = await prisma.lecture.findUnique({
-      where: { id: quiz.lectureId },
-      select: { quizPassScore: true },
-    });
-    const passScore = lecture?.quizPassScore ?? 60;
+    const passScore = quiz.lecture?.quizPassScore ?? 60;
     const passed    = percentage >= passScore;
 
     // BUG-002 FIX: count() then create() raced — two parallel requests could both

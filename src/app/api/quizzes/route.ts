@@ -13,13 +13,14 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { lectureId } = body;
-    if (!lectureId) return error("lectureId مطلوب");
-
     const parsed = quizSchema.safeParse(body);
     if (!parsed.success) return error(parsed.error.errors[0]?.message || "بيانات غير صحيحة");
 
-    const { title, timeLimit, questions } = parsed.data;
+    // SEC-001 / API-001 FIX: lectureId used to be destructured from the raw
+    // `body` before validation ran at all — a malformed/oversized value
+    // reached Prisma unchecked. It's now part of quizSchema (see
+    // validations.ts) and sourced from parsed.data like everything else.
+    const { lectureId, title, timeLimit, questions } = parsed.data;
 
     const quiz = await prisma.quiz.create({
       data: {

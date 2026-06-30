@@ -37,17 +37,16 @@ export async function GET(req: NextRequest) {
           codesAvailable: totalCodes - codesUsed,
         },
       },
-      // SCALE-002 FIX: this data (totalStudents, totalCourses, ...) is
-      // identical for every admin who requests it — it was marked `private`,
-      // which tells shared/edge caches to ignore `s-maxage` entirely,
-      // defeating the caching this header was added for. `public` is correct
-      // here since nothing user-specific is in the payload. Note: because
-      // this route reads the auth cookie to authorize the request, Next.js
-      // treats it as dynamic, so the practical benefit today is mostly
-      // browser-level re-use on back/forward nav — full Vercel Edge caching
-      // of an authenticated dynamic route depends on platform behavior, but
-      // there's no reason to ship the wrong directive regardless.
-      { headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" } }
+      // SEC-004 FIX (reverts a round-3 mistake): this endpoint requires auth,
+      // so its response must never be cached by a SHARED cache (CDN, corporate
+      // proxy, Vercel Edge) — a cache doesn't know which caller is allowed to
+      // see it, so a `public` response can be replayed to a different,
+      // unauthorized requester within the cache window. `private` restricts
+      // reuse to the browser's own cache only, which already went through
+      // the auth check to get the response in the first place. The data
+      // being identical across admins doesn't matter — the endpoint itself
+      // isn't, so it can't be `public`.
+      { headers: { "Cache-Control": "private, max-age=30" } }
     );
   } catch (e) {
     console.error("[stats]", e);

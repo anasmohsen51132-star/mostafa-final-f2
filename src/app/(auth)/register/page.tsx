@@ -1,6 +1,6 @@
 "use client";
 // src/app/(auth)/register/page.tsx
-import { motion } from "framer-motion";
+import { m as motion } from "framer-motion";
 import Link from "next/link";
 import { RegisterForm } from "@/components/auth/RegisterForm";
 

@@ -21,7 +21,7 @@ const OWNER_NAV: SidebarItem[] = [
 ];
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
-  const { user, isHydrated, isAuthenticated, isOwner, logout } = useAuth();
+  const { user, isHydrated, isSessionVerified, isAuthenticated, isOwner, logout } = useAuth();
   const router   = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -29,14 +29,16 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
   useEffect(() => {
-    if (!isHydrated) return;
+    // NEXT-001 FIX: see (admin)/layout.tsx for full context — wait for the
+    // authoritative role from /api/auth/me before redirect decisions.
+    if (!isHydrated || !isSessionVerified) return;
     if (!isAuthenticated) { router.replace("/login"); return; }
     if (!isOwner)          { router.replace("/dashboard"); }
-  }, [isHydrated, isAuthenticated, isOwner, router]);
+  }, [isHydrated, isSessionVerified, isAuthenticated, isOwner, router]);
 
   const handleClose = useCallback(() => setSidebarOpen(false), []);
 
-  if (!isHydrated) return <FullScreenSpinner />;
+  if (!isHydrated || !isSessionVerified) return <FullScreenSpinner />;
   if (!isAuthenticated || !user || !isOwner) return null;
 
   return (

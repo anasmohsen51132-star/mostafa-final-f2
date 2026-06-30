@@ -1,7 +1,7 @@
 "use client";
 // src/app/(admin)/admin/students/page.tsx
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { m as motion } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchWithAuth } from "@/hooks/useAuth";
 import { useToast } from "@/store/uiStore";
@@ -11,7 +11,7 @@ import type { User } from "@/types";
 
 interface StudentRow extends User {
   redeemedCodes: {
-    courses: { course: { id: string; title: string } }[];
+    courses: { courseId: string }[];
   }[];
 }
 
@@ -83,7 +83,7 @@ export default function AdminStudentsPage() {
 
           {students.map((student, i) => {
             const courseCount = new Set(
-              student.redeemedCodes.flatMap((c) => c.courses.map((cc) => cc.course.id))
+              student.redeemedCodes.flatMap((c) => c.courses.map((cc) => cc.courseId))
             ).size;
 
             return (

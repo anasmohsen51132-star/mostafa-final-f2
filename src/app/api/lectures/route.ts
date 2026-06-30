@@ -56,13 +56,16 @@ export async function POST(req: NextRequest) {
     const parsed = lectureSchema.safeParse(body);
     if (!parsed.success) return error(parsed.error.errors[0]?.message || "بيانات غير صحيحة");
 
-    const { courseIds, title, description, order } = parsed.data;
+    const { courseIds, title, description, order, isPublished, quizRequirement, quizPassScore } = parsed.data;
 
     const lecture = await prisma.lecture.create({
       data: {
         title,
         description,
         order: order ?? 0,
+        isPublished,
+        ...(quizRequirement !== undefined && { quizRequirement }),
+        ...(quizPassScore   !== undefined && { quizPassScore }),
         courses: {
           create: courseIds.map((courseId) => ({ courseId })),
         },

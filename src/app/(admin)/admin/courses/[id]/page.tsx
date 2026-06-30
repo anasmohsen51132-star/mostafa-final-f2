@@ -1,7 +1,7 @@
 "use client";
 // src/app/(admin)/admin/courses/[id]/page.tsx
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { m as motion } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";

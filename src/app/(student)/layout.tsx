@@ -17,7 +17,7 @@ const STUDENT_NAV: SidebarItem[] = [
 ];
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
-  const { user, isHydrated, isAuthenticated, logout } = useAuth();
+  const { user, isHydrated, isSessionVerified, isAuthenticated, logout } = useAuth();
   const router   = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -30,13 +30,18 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     // before deciding whether to redirect — otherwise the very first render
     // (before localStorage is read) would see user=null and redirect an
     // already-logged-in student to /login for a frame.
-    if (!isHydrated) return;
+    //
+    // NEXT-001 FIX: also wait for isSessionVerified — rehydrated `user` only
+    // has {name, avatar} until /api/auth/me resolves, so any student page
+    // reading user.role (or other fields) before that would see stale/
+    // missing data for a frame.
+    if (!isHydrated || !isSessionVerified) return;
     if (!isAuthenticated) router.replace("/login");
-  }, [isHydrated, isAuthenticated, router]);
+  }, [isHydrated, isSessionVerified, isAuthenticated, router]);
 
   const handleClose = useCallback(() => setSidebarOpen(false), []);
 
-  if (!isHydrated) return <FullScreenSpinner />;
+  if (!isHydrated || !isSessionVerified) return <FullScreenSpinner />;
   if (!isAuthenticated || !user) return null;
 
   return (

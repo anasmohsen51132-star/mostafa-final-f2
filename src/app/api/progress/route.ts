@@ -4,8 +4,9 @@ import { extractToken, verifyToken } from "@/lib/auth";
 import { success, error, unauthorized, forbidden } from "@/lib/utils";
 import { userOwnsLecture } from "@/lib/access";
 import { progressSchema } from "@/lib/validations";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 // GET /api/progress?lectureId=xxx
 export async function GET(req: NextRequest) {
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
   // bursting to 10, is comfortably enough for legitimate playback tracking.
   const limited = rateLimit(`progress:${payload.sub}`, 10, 10 * 1000);
   if (!limited.allowed) {
-    return error("طلبات كثيرة جداً، انتظر لحظة", 429);
+    return rateLimitResponse("طلبات كثيرة جداً، انتظر لحظة", limited.retryAfterMs);
   }
 
   try {
@@ -66,8 +67,7 @@ export async function POST(req: NextRequest) {
     // @@unique([userId, lectureId, videoId]) requires a non-null videoId —
     // Postgres treats NULL as distinct from every other NULL inside a
     // unique index, so the constraint can't reliably identify "the" row
-    // when videoId is null. We branch: a real videoId uses the fast atomic
-    // upsert; lecture-level (no videoId) falls back to find-then-write.
+    // when videoId is null. A real videoId uses the fast atomic upsert.
     let record;
     if (videoId) {
       record = await prisma.progress.upsert({
@@ -87,26 +87,52 @@ export async function POST(req: NextRequest) {
         },
       });
     } else {
-      const existing = await prisma.progress.findFirst({
-        where: { userId: payload.sub, lectureId, videoId: null },
-      });
-      record = existing
-        ? await prisma.progress.update({
-            where: { id: existing.id },
-            data: {
-              ...(completed !== undefined && { completed }),
-              watchedAt: new Date(),
-            },
-          })
-        : await prisma.progress.create({
-            data: {
-              userId: payload.sub,
-              lectureId,
-              videoId: null,
-              completed: completed ?? false,
-              watchedAt: new Date(),
-            },
-          });
+      // PERF-004 FIX: a plain findFirst → create/update here let two
+      // concurrent requests (e.g. two rapid-fire "mark lecture complete"
+      // clicks) both pass the findFirst before either had written anything,
+      // so both proceeded to create() — leaving two Progress rows for the
+      // same (user, lecture, no-video) pair instead of one. Wrapped in a
+      // Serializable transaction (same pattern as quiz/homework attempt
+      // counting elsewhere in this codebase): Postgres aborts the losing
+      // transaction with a serialization conflict instead of letting both
+      // commit, and we retry it once — the retry's findFirst then correctly
+      // sees the row the winner just created.
+      const writeNullVideoProgress = () =>
+        prisma.$transaction(
+          async (tx) => {
+            const existing = await tx.progress.findFirst({
+              where: { userId: payload.sub, lectureId, videoId: null },
+            });
+            return existing
+              ? tx.progress.update({
+                  where: { id: existing.id },
+                  data: {
+                    ...(completed !== undefined && { completed }),
+                    watchedAt: new Date(),
+                  },
+                })
+              : tx.progress.create({
+                  data: {
+                    userId: payload.sub,
+                    lectureId,
+                    videoId: null,
+                    completed: completed ?? false,
+                    watchedAt: new Date(),
+                  },
+                });
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+        );
+
+      try {
+        record = await writeNullVideoProgress();
+      } catch (e: unknown) {
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2034") {
+          record = await writeNullVideoProgress();
+        } else {
+          throw e;
+        }
+      }
     }
 
     return success(record);

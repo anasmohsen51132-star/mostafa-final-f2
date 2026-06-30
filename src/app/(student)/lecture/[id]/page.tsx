@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
+import { m as motion, AnimatePresence } from "framer-motion";
 import { fetchWithAuth } from "@/hooks/useAuth";
 import { VideoPlayer } from "@/components/courses/VideoPlayer";
 import { useToast } from "@/store/uiStore";

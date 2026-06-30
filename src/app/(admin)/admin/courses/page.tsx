@@ -1,7 +1,7 @@
 "use client";
 // src/app/(admin)/admin/courses/page.tsx
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m as motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { fetchWithAuth } from "@/hooks/useAuth";

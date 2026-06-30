@@ -1,6 +1,6 @@
 "use client";
 // src/app/(student)/profile/page.tsx
-import { motion } from "framer-motion";
+import { m as motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { ACADEMIC_LEVEL_LABELS } from "@/types";
 import { formatDate } from "@/lib/utils";

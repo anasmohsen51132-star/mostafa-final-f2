@@ -2,7 +2,7 @@
 // src/app/(student)/courses/[id]/page.tsx
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
+import { m as motion } from "framer-motion";
 import Link from "next/link";
 import { fetchWithAuth } from "@/hooks/useAuth";
 import { StaggerContainer, StaggerItem } from "@/components/layout/PageTransition";

@@ -39,10 +39,15 @@ export async function GET(req: NextRequest) {
           id: true, name: true, phone: true, role: true,
           avatar: true, joinedAt: true, isActive: true,
           redeemedCodes: {
-            take: 20,
-            orderBy: { usedAt: "desc" },
-            include: {
-              courses: { include: { course: { select: { id: true, title: true } } } },
+            // PERF-003 FIX: this used to be
+            // `include: { redeemedCodes: { include: { courses: { include: { course } } } } }`
+            // — a full nested course object for every redeemed code of every
+            // student on the page. The admin students list only ever computes
+            // a *distinct course count* from this (see
+            // src/app/(admin)/admin/students/page.tsx), so we now select just
+            // the flat list of courseIds via the join, with nothing nested.
+            select: {
+              courses: { select: { courseId: true } },
             },
           },
         },

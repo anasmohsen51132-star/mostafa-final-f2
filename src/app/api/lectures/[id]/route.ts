@@ -4,7 +4,7 @@ import { extractToken, verifyToken } from "@/lib/auth";
 import { success, error, unauthorized, forbidden, notFound } from "@/lib/utils";
 import { lectureSchema } from "@/lib/validations";
 import { userOwnsLecture } from "@/lib/access";
-import { decodeYouTubeId } from "@/lib/utils";
+import { decodeYouTubeId } from "@/lib/youtube-codec";
 import prisma from "@/lib/prisma";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -97,7 +97,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return success(sanitized);
     }
 
-    return success({ ...lecture, hasPassed });
+    // SEC-003 FOLLOW-UP: decode for admin/owner too (used only for the
+    // thumbnail preview in the lecture editor) — this was the last
+    // remaining caller of decodeYouTubeId on the client; now that the
+    // server always resolves it, the codec never needs to ship to any
+    // browser bundle at all (see src/lib/youtube-codec.ts).
+    return success({
+      ...lecture,
+      hasPassed,
+      videos: lecture.videos.map((v) => ({ ...v, youtubeId: decodeYouTubeId(v.youtubeId) })),
+    });
   } catch (e) {
     console.error("[lecture GET]", e);
     return error("حدث خطأ", 500);

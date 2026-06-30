@@ -1,7 +1,7 @@
 "use client";
 // src/app/(student)/dashboard/page.tsx
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { m as motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";

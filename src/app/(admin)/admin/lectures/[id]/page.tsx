@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
+import { m as motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { fetchWithAuth } from "@/hooks/useAuth";
 import { useToast } from "@/store/uiStore";
-import { decodeYouTubeId, extractYouTubeId } from "@/lib/utils";
+import { extractYouTubeId } from "@/lib/utils";
 import { QUIZ_REQUIREMENT_LABELS } from "@/types";
 import type { Video, PDF, Quiz, Homework, Course, QuizRequirement } from "@/types";
 
@@ -170,7 +170,7 @@ export default function LectureEditPage() {
                     <motion.div key={v.id} initial={{ opacity:0, x:10 }} animate={{ opacity:1, x:0 }} transition={{ delay:i*0.05 }}
                       className="flex items-center gap-4 p-4 rounded-2xl"
                       style={{ background:"#fff", border:"1px solid rgba(201,168,76,0.12)" }}>
-                      <img src={`https://img.youtube.com/vi/${decodeYouTubeId(v.youtubeId)}/mqdefault.jpg`}
+                      <img src={`https://img.youtube.com/vi/${v.youtubeId}/mqdefault.jpg`}
                         alt={v.title} className="w-20 h-14 rounded-xl object-cover flex-shrink-0"
                         onError={(e) => { (e.target as HTMLImageElement).style.display="none"; }} />
                       <div className="flex-1 min-w-0">

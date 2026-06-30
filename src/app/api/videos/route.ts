@@ -3,7 +3,8 @@ import { NextRequest } from "next/server";
 import { extractToken, verifyToken } from "@/lib/auth";
 import { videoSchema } from "@/lib/validations";
 import { success, error, unauthorized, forbidden } from "@/lib/utils";
-import { extractYouTubeId, encodeYouTubeId } from "@/lib/utils";
+import { extractYouTubeId } from "@/lib/utils";
+import { encodeYouTubeId } from "@/lib/youtube-codec";
 import prisma from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {

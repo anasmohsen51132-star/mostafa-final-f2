@@ -1,6 +1,6 @@
 "use client";
 // src/app/(owner)/owner/settings/page.tsx
-import { motion } from "framer-motion";
+import { m as motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { formatDate } from "@/lib/utils";
 
