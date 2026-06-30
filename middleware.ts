@@ -50,7 +50,10 @@ function buildCsp(nonce: string) {
     // attributes and <style> tags with no nonce support today. This is a
     // far smaller XSS surface than script-src (CSS can't run arbitrary JS).
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://img.youtube.com https://i.ytimg.com https://*.public.blob.vercel-storage.com",
+    // Cloudinary added: the owner uses Cloudinary URLs for images like the
+    // dashboard banner (siteSettings.dashboardBanner) — without this, CSP
+    // silently blocks the image from loading in the browser.
+    "img-src 'self' data: blob: https://img.youtube.com https://i.ytimg.com https://*.public.blob.vercel-storage.com https://res.cloudinary.com",
     "font-src 'self' data:",
     "frame-src https://www.youtube-nocookie.com",
     "connect-src 'self'",
