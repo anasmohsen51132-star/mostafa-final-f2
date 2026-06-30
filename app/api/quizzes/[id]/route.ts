@@ -1,0 +1,69 @@
+// src/app/api/quizzes/[id]/route.ts
+import { NextRequest } from "next/server";
+import { extractToken, verifyToken } from "@/lib/auth";
+import { success, error, unauthorized, forbidden, notFound } from "@/lib/utils";
+import { userOwnsQuiz } from "@/lib/access";
+import prisma from "@/lib/prisma";
+
+// GET /api/quizzes/[id] — fetch a single quiz with questions
+// Students get choices without isCorrect; admins see full data
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const token   = extractToken(req);
+  const payload = token ? await verifyToken(token) : null;
+  if (!payload) return unauthorized();
+
+  const owns = await userOwnsQuiz(payload.sub, payload.role, id);
+  if (!owns) return forbidden("لا تملك صلاحية الوصول إلى هذا الاختبار");
+
+  try {
+    const quiz = await prisma.quiz.findUnique({
+      where: { id },
+      include: {
+        questions: {
+          include: { choices: { orderBy: { order: "asc" } } },
+          orderBy: { order: "asc" },
+        },
+        _count: { select: { submissions: true } },
+      },
+    });
+
+    if (!quiz) return notFound("الاختبار غير موجود");
+
+    // Students: strip isCorrect from choices
+    if (payload.role === "STUDENT") {
+      const sanitized = {
+        ...quiz,
+        // TS-001 FIX: no `any` cast needed — Prisma already infers `q`'s
+        // exact type from the `include` above.
+        questions: quiz.questions.map((q) => ({
+          ...q,
+          choices: q.choices.map(({ isCorrect: _ic, ...c }) => c),
+        })),
+      };
+      return success(sanitized);
+    }
+
+    return success(quiz);
+  } catch (e) {
+    console.error("[quiz GET]", e);
+    return error("حدث خطأ", 500);
+  }
+}
+
+// DELETE /api/quizzes/[id] — admin/owner only
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const token   = extractToken(req);
+  const payload = token ? await verifyToken(token) : null;
+  if (!payload) return unauthorized();
+  if (payload.role !== "ADMIN" && payload.role !== "OWNER") return forbidden();
+
+  try {
+    await prisma.quiz.delete({ where: { id } });
+    return success({ deleted: true });
+  } catch (e) {
+    console.error("[quiz DELETE]", id, e);
+    return error("فشل الحذف", 500);
+  }
+}
