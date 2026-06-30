@@ -317,13 +317,9 @@ export default function QuizBuilderPage() {
         toast.error(`السؤال ${qi + 1}: أضف نصاً أو صورة`);
         return;
       }
-      for (let ci = 0; ci < q.choices.length; ci++) {
-        const c = q.choices[ci];
-        if (!c.text?.trim() && !c.imageUrl?.trim()) {
-          toast.error(`السؤال ${qi + 1}، الخيار ${ci + 1}: أضف نصاً أو صورة`);
-          return;
-        }
-      }
+      // NOTE: previously also required every choice to have text or an
+      // image here. Removed on request — choices can now be left empty,
+      // identified only by their أ/ب/ج/د label on the student side.
       if (type === "quiz" && !q.choices.some((c) => c.isCorrect)) {
         toast.error(`السؤال ${qi + 1}: حدد الإجابة الصحيحة`);
         return;
