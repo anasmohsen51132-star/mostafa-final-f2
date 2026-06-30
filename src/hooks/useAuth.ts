@@ -10,7 +10,8 @@ import type { LoginForm, RegisterForm } from "@/types";
 // SEC-007/SEC-008 FIX: auth no longer relies on a Bearer token kept in JS-readable
 // state. The httpOnly `auth_token` cookie is sent automatically by the browser on
 // same-origin requests, so no Authorization header is needed here.
-export async function fetchWithAuth(url: string, options?: RequestInit) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function fetchWithAuth(url: string, options?: RequestInit): Promise<any> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options?.headers as Record<string, string> ?? {}),
