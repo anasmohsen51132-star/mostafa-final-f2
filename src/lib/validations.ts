@@ -77,10 +77,11 @@ export const choiceSchema = z.object({
   imageUrl:  nonEmptyString,
   isCorrect: z.boolean(),
   order:     z.number().int().default(0),
-}).refine(
-  (c) => c.text !== undefined || c.imageUrl !== undefined,
-  { message: "الخيار يجب أن يحتوي على نص أو صورة" }
-);
+});
+// NOTE: previously had a .refine() requiring every choice to carry text or
+// an image. Removed on request — choices are already labeled أ/ب/ج/د
+// regardless of content (see the student quiz UI), so a teacher can now
+// leave a choice's text empty and rely on the letter alone.
 
 export const questionSchema = z.object({
   text:     nonEmptyString,
