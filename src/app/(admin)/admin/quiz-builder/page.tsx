@@ -7,7 +7,8 @@
 //  - Image answer choices (file upload)
 //  - Live image preview with error handling
 //  - Multi-choice correct-answer selection
-//  - Homework mode (no correct answer required)
+//  - Quiz and homework behave identically (auto-graded, multi-choice,
+//    3 attempts) — the only difference between them is the label shown.
 
 import { useState, useRef, useCallback } from "react";
 import { m as motion, AnimatePresence } from "framer-motion";
@@ -317,10 +318,11 @@ export default function QuizBuilderPage() {
         toast.error(`السؤال ${qi + 1}: أضف نصاً أو صورة`);
         return;
       }
-      // NOTE: previously also required every choice to have text or an
-      // image here. Removed on request — choices can now be left empty,
-      // identified only by their أ/ب/ج/د label on the student side.
-      if (type === "quiz" && !q.choices.some((c) => c.isCorrect)) {
+      // NOTE: a choice's text/image is still optional (letter labels
+      // أ/ب/ج/د identify it on the student side regardless), but every
+      // question — quiz or homework — must now have a correct answer
+      // marked, since homework auto-grades exactly like quiz does.
+      if (!q.choices.some((c) => c.isCorrect)) {
         toast.error(`السؤال ${qi + 1}: حدد الإجابة الصحيحة`);
         return;
       }
@@ -471,7 +473,7 @@ export default function QuizBuilderPage() {
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <label style={{ fontFamily: "Cairo,sans-serif", color: "#4A3F2A", fontSize: 13, fontWeight: 600 }}>
-                      الخيارات{type === "quiz" ? " — اضغط الدائرة لتحديد الإجابة الصحيحة" : ""}
+                      الخيارات — اضغط الدائرة لتحديد الإجابة الصحيحة
                     </label>
                     <button type="button" onClick={() => addChoice(qi)}
                       style={{ padding: "4px 12px", borderRadius: 8, border: "1px solid rgba(201,168,76,0.3)", color: "#8B6914", background: "none", fontFamily: "Cairo,sans-serif", fontSize: 12, cursor: "pointer" }}>
@@ -485,23 +487,21 @@ export default function QuizBuilderPage() {
                       const cLoading = cImgLoading[cKey] ?? false;
                       return (
                         <div key={ci} className="rounded-xl p-3"
-                          style={{ border: `1.5px solid ${c.isCorrect && type === "quiz" ? "rgba(45,158,107,0.4)" : "rgba(201,168,76,0.15)"}`,
-                            background: c.isCorrect && type === "quiz" ? "rgba(45,158,107,0.04)" : "rgba(250,247,240,0.4)",
+                          style={{ border: `1.5px solid ${c.isCorrect ? "rgba(45,158,107,0.4)" : "rgba(201,168,76,0.15)"}`,
+                            background: c.isCorrect ? "rgba(45,158,107,0.04)" : "rgba(250,247,240,0.4)",
                             transition: "all 0.15s" }}>
                           <div className="flex items-start gap-3">
-                            {/* Correct answer radio */}
-                            {type === "quiz" && (
-                              <button type="button" onClick={() => setCorrect(qi, ci)}
-                                className="mt-1 flex-shrink-0"
-                                style={{ width: 22, height: 22, borderRadius: "50%", border: "2px solid",
-                                  borderColor: c.isCorrect ? "#2D9E6B" : "rgba(201,168,76,0.35)",
-                                  background: c.isCorrect ? "#2D9E6B" : "transparent",
-                                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                                  color: "#fff", fontSize: 13, transition: "all 0.15s" }}
-                                title="الإجابة الصحيحة">
-                                {c.isCorrect ? "✓" : ""}
-                              </button>
-                            )}
+                            {/* Correct answer radio — shown for both quiz and homework now */}
+                            <button type="button" onClick={() => setCorrect(qi, ci)}
+                              className="mt-1 flex-shrink-0"
+                              style={{ width: 22, height: 22, borderRadius: "50%", border: "2px solid",
+                                borderColor: c.isCorrect ? "#2D9E6B" : "rgba(201,168,76,0.35)",
+                                background: c.isCorrect ? "#2D9E6B" : "transparent",
+                                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                                color: "#fff", fontSize: 13, transition: "all 0.15s" }}
+                              title="الإجابة الصحيحة">
+                              {c.isCorrect ? "✓" : ""}
+                            </button>
 
                             <div style={{ flex: 1 }}>
                               {/* Choice text */}
@@ -510,9 +510,9 @@ export default function QuizBuilderPage() {
                                 onChange={(e) => updateC(qi, ci, "text", e.target.value)}
                                 placeholder={`نص الخيار ${ci + 1}`}
                                 style={{ ...fieldStyle, width: "100%", marginBottom: 6,
-                                  borderColor: c.isCorrect && type === "quiz" ? "rgba(45,158,107,0.4)" : "rgba(201,168,76,0.25)" }}
+                                  borderColor: c.isCorrect ? "rgba(45,158,107,0.4)" : "rgba(201,168,76,0.25)" }}
                                 onFocus={(e) => (e.target.style.borderColor = c.isCorrect ? "rgba(45,158,107,0.6)" : "rgba(201,168,76,0.6)")}
-                                onBlur={(e)  => (e.target.style.borderColor = c.isCorrect && type === "quiz" ? "rgba(45,158,107,0.4)" : "rgba(201,168,76,0.25)")}
+                                onBlur={(e)  => (e.target.style.borderColor = c.isCorrect ? "rgba(45,158,107,0.4)" : "rgba(201,168,76,0.25)")}
                               />
 
                               {/* Choice image */}
