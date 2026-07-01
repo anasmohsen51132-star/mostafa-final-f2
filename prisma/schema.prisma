@@ -334,19 +334,24 @@ model QuizSubmission {
 }
 
 // ── HOMEWORK SUBMISSIONS (multi-attempt) ───────────────────
+// Mirrors QuizSubmission exactly — homework is now auto-graded the same way
+// quizzes are (same scoring logic, same 3-attempt limit). The manual
+// grade/feedback/gradedAt fields that used to live here are gone; there's
+// nothing left for an admin to manually grade.
 
 model HomeworkSubmission {
   id            String   @id @default(cuid())
   userId        String
   homeworkId    String
   attemptNumber Int      @default(1)
-  answers       Json     // student text/file answers
+  score         Int
+  total         Int
+  percentage    Float
+  passed        Boolean
+  answers       Json     // student-selected choice IDs per question
   // DB-001: same DB-level size-cap gap as QuizSubmission.answers above — see
   // prisma/optional-db-constraints.sql for the optional enforcement script.
-  grade         Int?     // admin grades manually 0-100
-  feedback      String?
   submittedAt   DateTime @default(now())
-  gradedAt      DateTime?
 
   user     User     @relation(fields: [userId],     references: [id], onDelete: Cascade)
   homework Homework @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
