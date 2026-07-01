@@ -143,12 +143,15 @@ export interface QuizAttempt {
 }
 
 // ── HOMEWORK ATTEMPT ─────────────────────────────────────────
+// Mirrors QuizAttempt exactly — homework is graded the same way quizzes
+// are now, so there's nothing left to manually grade (grade/feedback/
+// gradedAt are gone).
 
 export interface HomeworkAttempt {
   id: string; userId: string; homeworkId: string;
-  attemptNumber: number; answers: Record<string, string>;
-  grade?: number | null; feedback?: string | null;
-  submittedAt: string; gradedAt?: string | null;
+  attemptNumber: number; score: number; total: number;
+  percentage: number; passed: boolean; submittedAt: string;
+  answers: Record<string, string>;
   user?: Pick<User, "id" | "name" | "phone">;
   homework?: Pick<Homework, "id" | "title"> & { lecture?: Pick<Lecture, "id" | "title"> };
 }
