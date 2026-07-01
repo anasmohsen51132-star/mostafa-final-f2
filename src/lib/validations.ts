@@ -107,24 +107,10 @@ export const quizSchema = z.object({
 export const homeworkSchema = z.object({
   lectureId: z.string().min(1, "lectureId مطلوب"),
   title:     z.string().min(3).max(120),
-  questions: z.array(
-    // Homework questions don't need isCorrect validation
-    z.object({
-      text:     nonEmptyString,
-      imageUrl: nonEmptyString,
-      type:     z.enum(["MULTIPLE_CHOICE", "TRUE_FALSE"]).default("MULTIPLE_CHOICE"),
-      order:    z.number().int().default(0),
-      choices:  z.array(z.object({
-        text:      nonEmptyString,
-        imageUrl:  nonEmptyString,
-        isCorrect: z.boolean().default(false),
-        order:     z.number().int().default(0),
-      })).min(2),
-    }).refine(
-      (q) => q.text !== undefined || q.imageUrl !== undefined,
-      { message: "السؤال يجب أن يحتوي على نص أو صورة" }
-    )
-  ).min(1),
+  // Homework now shares the exact same question schema as quiz (requires a
+  // correct answer marked per question) — homework is auto-graded the same
+  // way quizzes are, so this validation must match.
+  questions: z.array(questionSchema).min(1, "سؤال واحد على الأقل"),
 });
 
 // ── Access Codes ──────────────────────────────────────────────
