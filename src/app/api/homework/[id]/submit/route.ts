@@ -1,4 +1,10 @@
 // src/app/api/homework/[id]/submit/route.ts
+//
+// Mirrors src/app/api/quizzes/[id]/submit/route.ts exactly — homework is now
+// auto-graded the same way quizzes are (multiple-choice, compared against
+// each question's correct choice, same 3-attempt limit). The only
+// difference between this file and the quiz one is which model/relation
+// names it touches and the Arabic labels in error messages.
 import { NextRequest } from "next/server";
 import { extractToken, verifyToken } from "@/lib/auth";
 import { success, error, unauthorized, forbidden } from "@/lib/utils";
@@ -15,43 +21,82 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const payload = token ? await verifyToken(token) : null;
   if (!payload) return unauthorized();
 
-  // SEC-002 FIX: verify ownership before accepting a homework submission.
   const owns = await userOwnsHomework(payload.sub, payload.role, homeworkId);
   if (!owns) return forbidden("لا تملك صلاحية الوصول إلى هذا الواجب");
 
   try {
     const body = await req.json().catch(() => ({}));
-    // SEC-001 FIX: `answers` was read straight off req.json() with no schema
-    // at all — malformed or oversized JSON landed directly in the DB.
     const parsed = homeworkAnswersSchema.safeParse(body);
     if (!parsed.success) return error(parsed.error.errors[0]?.message || "صيغة الإجابات غير صحيحة");
     const { answers } = parsed.data;
 
-    // BUG-003 FIX: atomic count+create inside a SERIALIZABLE transaction,
-    // same race fix as quiz submissions (BUG-002).
-    let result;
+    const homework = await prisma.homework.findUnique({
+      where: { id: homeworkId },
+      include: {
+        questions: {
+          include: { choices: true },
+          orderBy: { order: "asc" },
+        },
+        lecture: { select: { quizPassScore: true } },
+      },
+    });
+
+    if (!homework) return error("الواجب غير موجود", 404);
+
+    let correct = 0;
+    const details: {
+      questionId: string;
+      correct: boolean;
+      selectedChoiceId: string;
+      correctChoiceId: string;
+    }[] = [];
+
+    for (const question of homework.questions) {
+      const selectedId   = answers[question.id];
+      const correctChoice = question.choices.find((c: { id: string; isCorrect: boolean }) => c.isCorrect);
+      const isCorrect     = selectedId === correctChoice?.id;
+      if (isCorrect) correct++;
+      details.push({
+        questionId:       question.id,
+        correct:          isCorrect,
+        selectedChoiceId: selectedId   || "",
+        correctChoiceId:  correctChoice?.id || "",
+      });
+    }
+
+    const total      = homework.questions.length;
+    const percentage = total > 0 ? Math.round((correct / total) * 100) : 0;
+
+    // Reuses the lecture's quizPassScore as the pass threshold for homework
+    // too — there's no separate "homeworkPassScore" field, since homework
+    // and quiz grading are meant to behave identically in this lecture.
+    const passScore = homework.lecture?.quizPassScore ?? 60;
+    const passed     = percentage >= passScore;
+
+    let attemptNumber: number;
     try {
-      result = await prisma.$transaction(
+      attemptNumber = await prisma.$transaction(
         async (tx) => {
-          const existing = await tx.homeworkSubmission.count({
+          const existingAttempts = await tx.homeworkSubmission.count({
             where: { userId: payload.sub, homeworkId },
           });
-          if (existing >= MAX_ATTEMPTS) {
+          if (existingAttempts >= MAX_ATTEMPTS) {
             throw new Error("MAX_ATTEMPTS_REACHED");
           }
-          const attemptNumber = existing + 1;
-          const submission = await tx.homeworkSubmission.create({
+          const nextAttempt = existingAttempts + 1;
+          await tx.homeworkSubmission.create({
             data: {
               userId: payload.sub,
               homeworkId,
-              attemptNumber,
+              attemptNumber: nextAttempt,
+              score: correct,
+              total,
+              percentage,
+              passed,
               answers,
             },
-            select: {
-              id: true, attemptNumber: true, submittedAt: true, grade: true,
-            },
           });
-          return { submission, attemptNumber };
+          return nextAttempt;
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
       );
@@ -63,8 +108,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     return success({
-      ...result.submission,
-      attemptsRemaining: MAX_ATTEMPTS - result.attemptNumber,
+      score:             correct,
+      total,
+      percentage,
+      passed,
+      attemptNumber,
+      attemptsRemaining: MAX_ATTEMPTS - attemptNumber,
+      details,
     });
   } catch (e) {
     console.error("[homework submit]", e);
@@ -72,45 +122,34 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 }
 
+// GET — fetch attempts history for current user (mirrors quiz GET exactly)
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: homeworkId } = await params;
   const token   = extractToken(req);
   const payload = token ? await verifyToken(token) : null;
   if (!payload) return unauthorized();
 
-  const isAdmin = payload.role === "ADMIN" || payload.role === "OWNER";
-  if (!isAdmin) {
-    const owns = await userOwnsHomework(payload.sub, payload.role, homeworkId);
-    if (!owns) return forbidden("لا تملك صلاحية الوصول إلى هذا الواجب");
-  }
+  const owns = await userOwnsHomework(payload.sub, payload.role, homeworkId);
+  if (!owns) return forbidden("لا تملك صلاحية الوصول إلى هذا الواجب");
 
   try {
-    // PERF-005 FIX: the admin branch had no `take` at all — a homework with
-    // thousands of submissions returned every row in one response. Students
-    // only ever have <= MAX_ATTEMPTS rows so they don't need pagination.
-    const url   = new URL(req.url);
-    const page  = Math.max(parseInt(url.searchParams.get("page")  || "1"), 1);
-    const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "50"), 1), 100);
-
-    const [submissions, total] = await Promise.all([
-      prisma.homeworkSubmission.findMany({
-        where: isAdmin ? { homeworkId } : { userId: payload.sub, homeworkId },
-        include: isAdmin ? { user: { select: { id: true, name: true, phone: true } } } : undefined,
-        orderBy: [{ userId: "asc" }, { attemptNumber: "asc" }],
-        ...(isAdmin ? { skip: (page - 1) * limit, take: limit } : {}),
-      }),
-      isAdmin
-        ? prisma.homeworkSubmission.count({ where: { homeworkId } })
-        : Promise.resolve(undefined),
-    ]);
+    const submissions = await prisma.homeworkSubmission.findMany({
+      where: { userId: payload.sub, homeworkId },
+      orderBy: { attemptNumber: "asc" },
+      select: {
+        id: true, attemptNumber: true, score: true,
+        total: true, percentage: true, passed: true, submittedAt: true,
+      },
+    });
 
     return success({
-      submissions,
-      total: isAdmin ? total : undefined,
-      page:  isAdmin ? page  : undefined,
-      limit: isAdmin ? limit : undefined,
-      attemptsUsed: isAdmin ? undefined : submissions.length,
-      attemptsRemaining: isAdmin ? undefined : Math.max(0, MAX_ATTEMPTS - submissions.length),
+      attempts:          submissions,
+      attemptsUsed:      submissions.length,
+      attemptsRemaining: Math.max(0, MAX_ATTEMPTS - submissions.length),
+      bestScore:         submissions.length > 0
+        ? Math.max(...submissions.map((s: { percentage: number }) => s.percentage))
+        : null,
+      hasPassed: submissions.some((s: { passed: boolean }) => s.passed),
     });
   } catch (e) {
     console.error("[homework attempts GET]", e);
