@@ -71,7 +71,8 @@ export async function GET(req: NextRequest) {
     } satisfies Prisma.QuizSubmissionSelect;
 
     const homeworkSelect = {
-      id: true, attemptNumber: true, grade: true, submittedAt: true,
+      id: true, attemptNumber: true, score: true, total: true,
+      percentage: true, passed: true, submittedAt: true,
       user: { select: { id: true, name: true, phone: true } },
       homework: {
         select: {
@@ -125,7 +126,7 @@ export async function GET(req: NextRequest) {
       submittedAt:   s.submittedAt.toISOString(),
     }));
 
-    // Flatten homework rows
+    // Flatten homework rows — identical shape to quiz rows now
     const hwRows = hwSubs.map((s: HwSubRow) => ({
       type:          "homework" as const,
       id:            s.id,
@@ -137,7 +138,10 @@ export async function GET(req: NextRequest) {
       lectureTitle:  s.homework.lecture.title,
       homeworkTitle: s.homework.title,
       attemptNumber: s.attemptNumber,
-      grade:         s.grade,
+      score:         s.score,
+      total:         s.total,
+      percentage:    s.percentage,
+      passed:        s.passed,
       submittedAt:   s.submittedAt.toISOString(),
     }));
 
