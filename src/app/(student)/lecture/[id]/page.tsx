@@ -96,10 +96,11 @@ export default function LecturePage() {
   const hwAttemptHistory: HomeworkAttempt[] = hwAttemptsData?.data?.attempts ?? [];
   const hwAttemptsRemaining: number     = hwAttemptsData?.data?.attemptsRemaining ?? 3;
 
-  const { data: activeHwData, isLoading: isHwContentLoading } = useQuery({
+  const { data: activeHwData, isLoading: isHwContentLoading, isError: isHwError } = useQuery({
     queryKey: ["homework-detail", activeHomeworkId],
     queryFn:  () => fetchWithAuth(`/api/homework/${activeHomeworkId}`),
     enabled:  !!activeHomeworkId,
+    retry: 1,
   });
   const activeHomework: Homework | undefined = activeHwData?.data;
 
@@ -333,12 +334,29 @@ export default function LecturePage() {
                     );
                   })}
                 </div>
-              ) : !activeHomework || isHwContentLoading ? (
+              ) : isHwContentLoading ? (
                 <div className="flex items-center justify-center py-16">
                   <div
                     className="w-8 h-8 rounded-full border-4 animate-spin"
                     style={{ borderColor: "rgba(201,168,76,0.25)", borderTopColor: "#C9A84C" }}
                   />
+                </div>
+              ) : isHwError || !activeHomework ? (
+                <div className="text-center py-16 rounded-2xl"
+                  style={{ background:"#fff", border:"1px solid rgba(220,38,38,0.15)" }}>
+                  <div style={{ fontSize:48, marginBottom:12 }}>⚠️</div>
+                  <h3 style={{ fontFamily:"Cairo,sans-serif", color:"#DC2626", fontSize:17, fontWeight:700, marginBottom:8 }}>
+                    تعذّر تحميل الواجب
+                  </h3>
+                  <p style={{ fontFamily:"Cairo,sans-serif", color:"#7A6E5A", fontSize:13, marginBottom:16 }}>
+                    تأكد من اتصالك بالإنترنت ثم حاول مرة أخرى
+                  </p>
+                  <button
+                    onClick={() => { setSelectedHomeworkId(null); setHwResult(null); }}
+                    style={{ padding:"9px 24px", borderRadius:12, border:"1px solid rgba(201,168,76,0.3)",
+                      background:"none", color:"#8B6914", fontFamily:"Cairo,sans-serif", fontWeight:600, fontSize:14, cursor:"pointer" }}>
+                    ← عودة
+                  </button>
                 </div>
               ) : (
                 <QuizPlayer
