@@ -7,7 +7,7 @@ import { m as motion, AnimatePresence } from "framer-motion";
 import { fetchWithAuth } from "@/hooks/useAuth";
 import { VideoPlayer } from "@/components/courses/VideoPlayer";
 import { useToast } from "@/store/uiStore";
-import type { Video, PDF, Quiz, Homework, Question, QuizAttempt } from "@/types";
+import type { Video, PDF, Quiz, Homework, Question, QuizAttempt, HomeworkAttempt } from "@/types";
 
 type Tab = "videos" | "pdfs" | "quiz" | "homework";
 
@@ -19,6 +19,13 @@ export default function LecturePage() {
   const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
   const [quizAnswers,    setQuizAnswers]    = useState<Record<string, string>>({});
   const [quizResult,     setQuizResult]     = useState<{
+    score: number; total: number; percentage: number; passed: boolean;
+    attemptNumber: number; attemptsRemaining: number;
+  } | null>(null);
+  // Homework state mirrors quiz state exactly — see QuizPlayer/HomeworkPlayer below.
+  const [selectedHomeworkId, setSelectedHomeworkId] = useState<string | null>(null);
+  const [hwAnswers,          setHwAnswers]          = useState<Record<string, string>>({});
+  const [hwResult,           setHwResult]           = useState<{
     score: number; total: number; percentage: number; passed: boolean;
     attemptNumber: number; attemptsRemaining: number;
   } | null>(null);
@@ -73,6 +80,38 @@ export default function LecturePage() {
         toast.success(`✅ تم تسليم الاختبار — ${res.data.percentage}٪`);
         qc.invalidateQueries({ queryKey: ["lecture", id] });
         qc.invalidateQueries({ queryKey: ["quiz-attempts", selectedQuizId] });
+      } else {
+        toast.error(res.error ?? "خطأ في التسليم");
+      }
+    },
+  });
+
+  // ── Homework — mirrors the quiz block above exactly ──
+  const activeHomeworkId = selectedHomeworkId;
+  const { data: hwAttemptsData } = useQuery({
+    queryKey: ["homework-attempts", activeHomeworkId],
+    queryFn:  () => fetchWithAuth(`/api/homework/${activeHomeworkId}/submit`),
+    enabled:  !!activeHomeworkId,
+  });
+  const hwAttemptHistory: HomeworkAttempt[] = hwAttemptsData?.data?.attempts ?? [];
+  const hwAttemptsRemaining: number     = hwAttemptsData?.data?.attemptsRemaining ?? 3;
+
+  const { data: activeHwData, isLoading: isHwContentLoading } = useQuery({
+    queryKey: ["homework-detail", activeHomeworkId],
+    queryFn:  () => fetchWithAuth(`/api/homework/${activeHomeworkId}`),
+    enabled:  !!activeHomeworkId,
+  });
+  const activeHomework: Homework | undefined = activeHwData?.data;
+
+  const submitHomeworkMutation = useMutation({
+    mutationFn: ({ homeworkId, answers }: { homeworkId: string; answers: Record<string, string> }) =>
+      fetchWithAuth(`/api/homework/${homeworkId}/submit`, { method:"POST", body:JSON.stringify({ answers }) }),
+    onSuccess: (res) => {
+      if (res.success) {
+        setHwResult(res.data);
+        toast.success(`✅ تم تسليم الواجب — ${res.data.percentage}٪`);
+        qc.invalidateQueries({ queryKey: ["lecture", id] });
+        qc.invalidateQueries({ queryKey: ["homework-attempts", selectedHomeworkId] });
       } else {
         toast.error(res.error ?? "خطأ في التسليم");
       }
@@ -136,7 +175,11 @@ export default function LecturePage() {
       {tabs.length > 1 && (
         <div className="flex gap-2 mb-6 flex-wrap">
           {tabs.map((t) => (
-            <button key={t.id} onClick={() => { setActiveTab(t.id); setSelectedQuizId(null); setQuizResult(null); }}
+            <button key={t.id} onClick={() => {
+              setActiveTab(t.id);
+              setSelectedQuizId(null); setQuizResult(null);
+              setSelectedHomeworkId(null); setHwResult(null);
+            }}
               style={{ padding:"8px 16px", borderRadius:12, border:"1.5px solid",
                 borderColor: activeTab===t.id ? "#C9A84C" : "rgba(201,168,76,0.25)",
                 background:  activeTab===t.id ? "rgba(201,168,76,0.12)" : "#fff",
@@ -253,19 +296,64 @@ export default function LecturePage() {
           )}
 
           {/* ── HOMEWORK ── */}
+          {/* Mirrors the QUIZ block above exactly — same list → player →
+              result flow, same on-demand detail fetch, same 3-attempt
+              limit. Only the labels say "واجب" instead of "اختبار". */}
           {activeTab==="homework" && (
-            <div className="space-y-3">
-              {lecture.homework?.map((hw: Homework) => (
-                <div key={hw.id} className="p-5 rounded-2xl" style={{ background:"#fff", border:"1px solid rgba(201,168,76,0.2)" }}>
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style={{ background:"rgba(201,168,76,0.12)" }}>📋</div>
-                    <h3 style={{ fontFamily:"Cairo,sans-serif", color:"#1A1208", fontSize:15, fontWeight:700 }}>{hw.title}</h3>
-                  </div>
-                  <p style={{ fontFamily:"Cairo,sans-serif", color:"#7A6E5A", fontSize:13 }}>
-                    {hw.questions?.length ?? hw._count?.questions ?? 0} سؤال — يُسلَّم للمعلم مباشرة
-                  </p>
+            <div>
+              {!selectedHomeworkId ? (
+                <div className="space-y-3">
+                  {lecture.homework?.map((hw: Homework) => {
+                    const myBest = hwAttemptHistory.length > 0 ? Math.max(...hwAttemptHistory.map((a) => a.percentage)) : null;
+                    return (
+                      <motion.div key={hw.id} whileHover={{ x:-4 }}
+                        className="p-5 rounded-2xl cursor-pointer"
+                        style={{ background:"#fff", border:"1px solid rgba(201,168,76,0.2)", boxShadow:"0 2px 8px rgba(26,18,8,0.04)" }}
+                        onClick={() => { setSelectedHomeworkId(hw.id); setHwAnswers({}); setHwResult(null); }}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl" style={{ background:"rgba(201,168,76,0.12)" }}>📋</div>
+                            <div>
+                              <p style={{ fontFamily:"Cairo,sans-serif", color:"#1A1208", fontSize:15, fontWeight:600 }}>{hw.title}</p>
+                              <p style={{ fontFamily:"Cairo,sans-serif", color:"#7A6E5A", fontSize:12 }}>
+                                {hw._count?.questions ?? hw.questions?.length ?? 0} سؤال
+                              </p>
+                            </div>
+                          </div>
+                          <span style={{ color:"#C9A84C", fontSize:20 }}>←</span>
+                        </div>
+                        {myBest !== null && (
+                          <div className="mt-3 pt-3 flex items-center gap-3" style={{ borderTop:"1px solid rgba(201,168,76,0.12)" }}>
+                            <span style={{ fontFamily:"Cairo,sans-serif", color:"#7A6E5A", fontSize:12 }}>
+                              أفضل نتيجة: <span style={{ color:"#C9A84C", fontWeight:700 }}>{myBest}٪</span>
+                            </span>
+                          </div>
+                        )}
+                      </motion.div>
+                    );
+                  })}
                 </div>
-              ))}
+              ) : !activeHomework || isHwContentLoading ? (
+                <div className="flex items-center justify-center py-16">
+                  <div
+                    className="w-8 h-8 rounded-full border-4 animate-spin"
+                    style={{ borderColor: "rgba(201,168,76,0.25)", borderTopColor: "#C9A84C" }}
+                  />
+                </div>
+              ) : (
+                <QuizPlayer
+                  quiz={activeHomework}
+                  answers={hwAnswers}
+                  onAnswer={(qId, cId) => setHwAnswers((a) => ({ ...a, [qId]: cId }))}
+                  onSubmit={() => submitHomeworkMutation.mutate({ homeworkId: selectedHomeworkId, answers: hwAnswers })}
+                  onBack={() => { setSelectedHomeworkId(null); setHwResult(null); }}
+                  result={hwResult}
+                  isSubmitting={submitHomeworkMutation.isPending}
+                  attemptHistory={hwAttemptHistory}
+                  attemptsRemaining={hwAttemptsRemaining}
+                  itemLabel="الواجب"
+                />
+              )}
             </div>
           )}
 
@@ -301,18 +389,20 @@ function LockedContentWall({ onGoToQuiz }: { onGoToQuiz: () => void }) {
 
 // ── Quiz Player ───────────────────────────────────────────
 function QuizPlayer({
-  quiz, answers, onAnswer, onSubmit, onBack, result, isSubmitting, attemptHistory, attemptsRemaining,
+  quiz, answers, onAnswer, onSubmit, onBack, result, isSubmitting, attemptHistory, attemptsRemaining, itemLabel,
 }: {
-  quiz: Quiz;
+  quiz: Quiz | Homework;
   answers: Record<string, string>;
   onAnswer: (qId: string, cId: string) => void;
   onSubmit: () => void;
   onBack: () => void;
   result: { score: number; total: number; percentage: number; passed: boolean; attemptNumber: number; attemptsRemaining: number } | null;
   isSubmitting: boolean;
-  attemptHistory: QuizAttempt[];
+  attemptHistory: (QuizAttempt | HomeworkAttempt)[];
   attemptsRemaining: number;
+  itemLabel?: string; // "الاختبار" (default) or "الواجب"
 }) {
+  const label = itemLabel ?? "الاختبار";
   const answered = Object.keys(answers).length;
   const total    = quiz.questions?.length ?? 0;
   const noAttemptsLeft = attemptsRemaining <= 0 && !result;
@@ -482,7 +572,7 @@ function QuizPlayer({
             cursor: answered<total ? "not-allowed" : "pointer",
             boxShadow: answered>=total ? "0 6px 20px rgba(201,168,76,0.4)" : "none", transition:"all 0.2s" }}>
           {isSubmitting ? "⏳ جارٍ التسليم..." :
-           answered<total ? `أجب على ${total-answered} سؤال متبقي` : "✅ تسليم الاختبار"}
+           answered<total ? `أجب على ${total-answered} سؤال متبقي` : `✅ تسليم ${label}`}
         </button>
       </div>
 
