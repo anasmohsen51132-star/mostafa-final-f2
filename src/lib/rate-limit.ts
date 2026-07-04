@@ -1,47 +1,68 @@
 // src/lib/rate-limit.ts
-// Lightweight in-memory rate limiter for serverless functions.
-// NOTE: state resets per-instance (cold starts / multiple Vercel instances).
-// This is sufficient as a first line of defense; for strict guarantees at scale,
-// move to Upstash/Redis (see ARCH-002 recommendation).
+//
+// ARCH-003 FIX: this used to be a plain in-memory Map, which reset on every
+// cold start and — critically — was NOT shared across Vercel's concurrent
+// serverless instances. An attacker whose requests happened to land on
+// different warm instances could bypass the limit entirely, since each
+// instance kept its own independent count. Since the owner runs Neon
+// (Postgres) rather than Redis/Upstash, the counter now lives in a
+// dedicated Postgres table (RateLimitBucket) instead — every instance reads
+// and writes the same row, so the limit is enforced consistently no matter
+// which serverless instance handles a given request.
+//
+// The core operation is a single atomic `INSERT ... ON CONFLICT DO UPDATE`.
+// Postgres takes a row-level lock for the duration of this statement, so two
+// concurrent requests hitting the same key are safely serialized by the
+// database itself — there's no read-then-write race window like a naive
+// "SELECT count, then UPDATE count+1" would have.
+import prisma from "@/lib/prisma";
 
-interface Bucket {
-  count: number;
-  resetAt: number;
-}
-
-const buckets = new Map<string, Bucket>();
-
-// Periodic cleanup so the Map doesn't grow unbounded on long-lived instances.
-let lastCleanup = Date.now();
-function cleanup() {
-  const now = Date.now();
-  if (now - lastCleanup < 60_000) return;
-  lastCleanup = now;
-  for (const [key, b] of buckets) {
-    if (b.resetAt < now) buckets.delete(key);
-  }
+interface RateLimitResult {
+  allowed: boolean;
+  remaining: number;
+  retryAfterMs: number;
 }
 
 /**
  * Returns { allowed, remaining, retryAfterMs }.
  * `key` should uniquely identify the caller, e.g. `login:<ip>:<phone>`.
+ *
+ * NOTE: now async (was sync when backed by an in-memory Map) — every call
+ * site must `await` this.
  */
-export function rateLimit(key: string, limit: number, windowMs: number) {
-  cleanup();
-  const now = Date.now();
-  const existing = buckets.get(key);
+export async function rateLimit(key: string, limit: number, windowMs: number): Promise<RateLimitResult> {
+  const rows = await prisma.$queryRaw<{ count: number; resetAt: Date }[]>`
+    INSERT INTO "RateLimitBucket" (key, count, "resetAt")
+    VALUES (${key}, 1, NOW() + (${windowMs}::text || ' milliseconds')::interval)
+    ON CONFLICT (key) DO UPDATE SET
+      count = CASE
+        WHEN "RateLimitBucket"."resetAt" < NOW() THEN 1
+        ELSE "RateLimitBucket".count + 1
+      END,
+      "resetAt" = CASE
+        WHEN "RateLimitBucket"."resetAt" < NOW() THEN NOW() + (${windowMs}::text || ' milliseconds')::interval
+        ELSE "RateLimitBucket"."resetAt"
+      END
+    RETURNING count, "resetAt"
+  `;
 
-  if (!existing || existing.resetAt < now) {
-    buckets.set(key, { count: 1, resetAt: now + windowMs });
-    return { allowed: true, remaining: limit - 1, retryAfterMs: 0 };
+  const row = rows[0];
+  const allowed = row.count <= limit;
+
+  // Opportunistic cleanup of long-expired rows — runs on a small random
+  // fraction of calls so it doesn't add latency to every request, mirroring
+  // the periodic-cleanup approach the old in-memory version used.
+  if (Math.random() < 0.01) {
+    prisma.$executeRaw`DELETE FROM "RateLimitBucket" WHERE "resetAt" < NOW() - interval '1 hour'`.catch((e) =>
+      console.error("[rate-limit cleanup]", e)
+    );
   }
 
-  if (existing.count >= limit) {
-    return { allowed: false, remaining: 0, retryAfterMs: existing.resetAt - now };
-  }
-
-  existing.count += 1;
-  return { allowed: true, remaining: limit - existing.count, retryAfterMs: 0 };
+  return {
+    allowed,
+    remaining: Math.max(0, limit - row.count),
+    retryAfterMs: allowed ? 0 : new Date(row.resetAt).getTime() - Date.now(),
+  };
 }
 
 export function getClientIp(req: Request): string {
