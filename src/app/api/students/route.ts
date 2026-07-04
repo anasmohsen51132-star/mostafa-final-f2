@@ -46,6 +46,14 @@ export async function GET(req: NextRequest) {
             // a *distinct course count* from this (see
             // src/app/(admin)/admin/students/page.tsx), so we now select just
             // the flat list of courseIds via the join, with nothing nested.
+            //
+            // REG-001 FIX: the take:20 cap that existed before the PERF-003
+            // refactor was accidentally dropped when this was rewritten —
+            // restored here. A student with thousands of redeemed codes would
+            // otherwise force an unbounded nested join on every page load of
+            // the admin student list.
+            take: 20,
+            orderBy: { usedAt: "desc" },
             select: {
               courses: { select: { courseId: true } },
             },
