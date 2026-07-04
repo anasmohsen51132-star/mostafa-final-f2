@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   if (!payload) return unauthorized();
 
   // Throttle code-guessing attempts per logged-in user
-  const limited = rateLimit(`redeem:${payload.sub}`, 20, 5 * 60 * 1000);
+  const limited = await rateLimit(`redeem:${payload.sub}`, 20, 5 * 60 * 1000);
   if (!limited.allowed) {
     return rateLimitResponse("محاولات كثيرة جداً، حاول مرة أخرى بعد قليل", limited.retryAfterMs);
   }
