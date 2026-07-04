@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   try {
     const ip = getClientIp(req);
     // 10 attempts / 5 minutes per IP, regardless of phone — blunts brute force & stuffing
-    const limited = rateLimit(`login:${ip}`, 10, 5 * 60 * 1000);
+    const limited = await rateLimit(`login:${ip}`, 10, 5 * 60 * 1000);
     if (!limited.allowed) {
       return rateLimitResponse("محاولات كثيرة جداً، حاول مرة أخرى بعد قليل", limited.retryAfterMs);
     }
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     const { password } = parsed.data;
 
     // Per-account limit too, to blunt distributed credential stuffing across many IPs
-    const accountLimited = rateLimit(`login-account:${phone}`, 10, 5 * 60 * 1000);
+    const accountLimited = await rateLimit(`login-account:${phone}`, 10, 5 * 60 * 1000);
     if (!accountLimited.allowed) {
       return rateLimitResponse("محاولات كثيرة جداً على هذا الحساب، حاول مرة أخرى بعد قليل", accountLimited.retryAfterMs);
     }
