@@ -386,3 +386,35 @@ model SiteSettings {
   footerText       String   @default("© ٢٠٢٤ اكاديمية مستر مصطفى — جميع الحقوق محفوظة")
   updatedAt        DateTime @updatedAt
 }
+
+// ── DISTRIBUTED RATE LIMITING (ARCH-003) ───────────────────
+// Backs src/lib/rate-limit.ts. Replaces the old in-memory Map (which reset
+// on every cold start and wasn't shared across Vercel's concurrent lambda
+// instances — meaning limits were trivially bypassable by an attacker whose
+// requests happened to land on different warm instances). Every rate-limit
+// check now reads/writes a row here instead, so the limit is enforced
+// consistently regardless of which serverless instance handles the request.
+model RateLimitBucket {
+  key     String   @id
+  count   Int      @default(1)
+  resetAt DateTime
+
+  @@index([resetAt])
+}
+
+// ── OWNERSHIP CHECK CACHE (ARCH-002) ────────────────────────
+// Backs src/lib/access.ts. userOwnsLecture() used to run a multi-table join
+// (AccessCode → CourseOnCode → CourseLecture) on every single student
+// request that touches lecture-scoped content — including high-frequency
+// ones like video-progress pings every few seconds. Caching the boolean
+// result here for a short TTL means most requests hit one indexed row
+// lookup instead of that join, while still re-verifying periodically (so a
+// revoked/expired access code is reflected within the TTL window, not
+// permanently stale).
+model AccessCheckCache {
+  key       String   @id // `${userId}:${lectureId}`
+  owns      Boolean
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
