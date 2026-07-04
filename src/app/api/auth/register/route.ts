@@ -43,7 +43,7 @@ async function createUserAtomically(data: {
 export async function POST(req: NextRequest) {
   try {
     const ip = getClientIp(req);
-    const limited = rateLimit(`register:${ip}`, 10, 10 * 60 * 1000);
+    const limited = await rateLimit(`register:${ip}`, 10, 10 * 60 * 1000);
     if (!limited.allowed) {
       return rateLimitResponse("محاولات كثيرة جداً، حاول مرة أخرى بعد قليل", limited.retryAfterMs);
     }
