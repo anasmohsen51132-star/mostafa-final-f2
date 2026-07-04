@@ -122,17 +122,56 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 }
 
-// GET — fetch attempts history for current user (mirrors quiz GET exactly)
+// GET — students see their own attempts; admins/owners see every student's
+// attempts for this homework (paginated), mirroring the equivalent
+// capability quiz submissions have via GET /api/results.
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: homeworkId } = await params;
   const token   = extractToken(req);
   const payload = token ? await verifyToken(token) : null;
   if (!payload) return unauthorized();
 
-  const owns = await userOwnsHomework(payload.sub, payload.role, homeworkId);
-  if (!owns) return forbidden("لا تملك صلاحية الوصول إلى هذا الواجب");
+  const isAdmin = payload.role === "ADMIN" || payload.role === "OWNER";
+  const wantsRoster = isAdmin && new URL(req.url).searchParams.get("view") === "roster";
+  if (!isAdmin) {
+    const owns = await userOwnsHomework(payload.sub, payload.role, homeworkId);
+    if (!owns) return forbidden("لا تملك صلاحية الوصول إلى هذا الواجب");
+  }
 
   try {
+    // ARCH-001 FIX: this admin branch existed before homework submission
+    // was rewritten to mirror quiz submission exactly, then was silently
+    // dropped in that rewrite — admins lost the ability to inspect every
+    // student's attempts for a single homework outside the generic
+    // /api/results filter view. Restored here, with the same pagination
+    // pattern used elsewhere in this codebase (page/limit capped at 100).
+    //
+    // SAFETY: gated behind ?view=roster rather than role alone — admins/
+    // owners can also open the student-facing lecture page to preview a
+    // homework (nothing restricts that route by role), where the gate-check
+    // logic needs the *personal* {attempts, hasPassed, ...} shape just like
+    // a student gets. A plain GET (no ?view=roster) keeps working correctly
+    // for that preview case instead of silently getting back an unrelated
+    // response shape.
+    if (wantsRoster) {
+      const url   = new URL(req.url);
+      const page  = Math.max(parseInt(url.searchParams.get("page")  || "1"), 1);
+      const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "50"), 1), 100);
+
+      const [submissions, total] = await Promise.all([
+        prisma.homeworkSubmission.findMany({
+          where: { homeworkId },
+          include: { user: { select: { id: true, name: true, phone: true } } },
+          orderBy: [{ userId: "asc" }, { attemptNumber: "asc" }],
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        prisma.homeworkSubmission.count({ where: { homeworkId } }),
+      ]);
+
+      return success({ submissions, total, page, limit });
+    }
+
     const submissions = await prisma.homeworkSubmission.findMany({
       where: { userId: payload.sub, homeworkId },
       orderBy: { attemptNumber: "asc" },
