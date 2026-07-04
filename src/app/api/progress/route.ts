@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   // authenticated student could flood it (e.g. one request per video
   // timeupdate tick) and drive a DB write storm. 1 write/second sustained,
   // bursting to 10, is comfortably enough for legitimate playback tracking.
-  const limited = rateLimit(`progress:${payload.sub}`, 10, 10 * 1000);
+  const limited = await rateLimit(`progress:${payload.sub}`, 10, 10 * 1000);
   if (!limited.allowed) {
     return rateLimitResponse("طلبات كثيرة جداً، انتظر لحظة", limited.retryAfterMs);
   }
