@@ -127,17 +127,48 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 }
 
-// GET — fetch attempts history for current user
+// GET — students see their own attempts; admins/owners see every student's
+// attempts for this quiz (paginated). Mirrors the homework GET exactly.
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: quizId } = await params;
   const token   = extractToken(req);
   const payload = token ? await verifyToken(token) : null;
   if (!payload) return unauthorized();
 
-  const owns = await userOwnsQuiz(payload.sub, payload.role, quizId);
-  if (!owns) return forbidden("لا تملك صلاحية الوصول إلى هذا الاختبار");
+  const isAdmin = payload.role === "ADMIN" || payload.role === "OWNER";
+  const wantsRoster = isAdmin && new URL(req.url).searchParams.get("view") === "roster";
+  if (!isAdmin) {
+    const owns = await userOwnsQuiz(payload.sub, payload.role, quizId);
+    if (!owns) return forbidden("لا تملك صلاحية الوصول إلى هذا الاختبار");
+  }
 
   try {
+    // SAFETY: admins/owners can also open the student-facing lecture page
+    // to preview a quiz (nothing restricts that route by role), where the
+    // gate-check logic needs the *personal* {attempts, hasPassed, ...}
+    // shape just like a student gets. The all-students roster view is
+    // opt-in via ?view=roster, so a plain GET from that preview page keeps
+    // working correctly for an admin/owner instead of silently getting
+    // back an unrelated response shape.
+    if (wantsRoster) {
+      const url   = new URL(req.url);
+      const page  = Math.max(parseInt(url.searchParams.get("page")  || "1"), 1);
+      const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "50"), 1), 100);
+
+      const [submissions, total] = await Promise.all([
+        prisma.quizSubmission.findMany({
+          where: { quizId },
+          include: { user: { select: { id: true, name: true, phone: true } } },
+          orderBy: [{ userId: "asc" }, { attemptNumber: "asc" }],
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        prisma.quizSubmission.count({ where: { quizId } }),
+      ]);
+
+      return success({ submissions, total, page, limit });
+    }
+
     const submissions = await prisma.quizSubmission.findMany({
       where: { userId: payload.sub, quizId },
       orderBy: { attemptNumber: "asc" },
