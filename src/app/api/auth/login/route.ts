@@ -10,10 +10,29 @@ import prisma from "@/lib/prisma";
 export async function POST(req: NextRequest) {
   try {
     const ip = getClientIp(req);
-    // 10 attempts / 5 minutes per IP, regardless of phone — blunts brute force & stuffing
-    const limited = await rateLimit(`login:${ip}`, 10, 5 * 60 * 1000);
-    if (!limited.allowed) {
-      return rateLimitResponse("محاولات كثيرة جداً، حاول مرة أخرى بعد قليل", limited.retryAfterMs);
+    // BUGFIX: 10 attempts/5min was too tight for a shared IP — many
+    // students on the same school/home Wi-Fi, or even unrelated users
+    // sharing a carrier's IP (very common with Egyptian mobile networks'
+    // CGNAT), all land in the same bucket. A handful of real, unrelated
+    // wrong-password attempts from different people on that IP could
+    // exhaust it and lock out everyone else on that network — exactly the
+    // "كل الاكونتات وكل الاجهزة ممنوعة" symptom. Raised generously (40) so
+    // that only genuine high-volume abuse from one IP trips it; the
+    // per-account limit below (unaffected by shared IPs, since it's keyed
+    // on the phone number being logged into) remains the real defense
+    // against someone brute-forcing one specific account.
+    //
+    // Also: if we can't identify the caller's IP at all, `ip` is "unknown"
+    // — applying a shared limit to that bucket would lump together every
+    // caller we failed to identify and risk blocking all of them at once
+    // for no real security benefit (the account-level limit already
+    // protects each account regardless). Skip IP limiting entirely in
+    // that case rather than risk a mass lockout.
+    if (ip !== "unknown") {
+      const limited = await rateLimit(`login:${ip}`, 40, 5 * 60 * 1000);
+      if (!limited.allowed) {
+        return rateLimitResponse("محاولات كثيرة جداً، حاول مرة أخرى بعد قليل", limited.retryAfterMs);
+      }
     }
 
     const body = await req.json();
