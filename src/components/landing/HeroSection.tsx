@@ -16,8 +16,8 @@ const STATS_DEFAULT = [
 ];
 
 const fadeUp = {
-  hidden: { opacity: 0, y: 28 },
-  show: (delay = 0) => ({ opacity: 1, y: 0, transition: { duration: 0.7, delay, ease: "easeOut" } }),
+  hidden: { opacity: 0, y: 44 },
+  show: (delay = 0) => ({ opacity: 1, y: 0, transition: { type: "spring", stiffness: 220, damping: 20, delay } }),
 };
 
 // الحروف العربية الطافية في الخلفية
@@ -72,9 +72,9 @@ export function HeroSection({ settings }: Props) {
             willChange: "transform",
           }}
           animate={{
-            y: [0, -22, 8, -14, 0],
-            rotate: [l.rotate, l.rotate + 6, l.rotate - 4, l.rotate + 2, l.rotate],
-            opacity: [0.07, 0.13, 0.07, 0.11, 0.07],
+            y: [0, -38, 14, -24, 0],
+            rotate: [l.rotate, l.rotate + 10, l.rotate - 8, l.rotate + 4, l.rotate],
+            opacity: [0.07, 0.15, 0.07, 0.12, 0.07],
           }}
           transition={{
             duration: l.duration,
@@ -236,42 +236,44 @@ export function HeroSection({ settings }: Props) {
           className="flex justify-center flex-wrap"
           style={{ gap: "12px" }}
         >
-          <Link
-            href="/register"
-            className="transition-transform hover:-translate-y-1 active:translate-y-0"
-            style={{
-              padding: "14px 32px",
-              borderRadius: 16,
-              background: "linear-gradient(135deg,#C9A84C,#8B6914)",
-              boxShadow: "0 6px 24px rgba(201,168,76,0.4)",
-              color: "#1A1208",
-              fontFamily: "Cairo,sans-serif",
-              fontWeight: 700,
-              fontSize: "clamp(14px,3.5vw,17px)",
-              textDecoration: "none",
-              display: "inline-block",
-            }}
-          >
-            ابدأ رحلتك الآن 🚀
-          </Link>
-          <Link
-            href="/login"
-            className="transition-transform hover:-translate-y-1 active:translate-y-0"
-            style={{
-              padding: "14px 32px",
-              borderRadius: 16,
-              border: "1.5px solid rgba(201,168,76,0.4)",
-              background: "rgba(201,168,76,0.08)",
-              color: "#E8C97A",
-              fontFamily: "Cairo,sans-serif",
-              fontWeight: 600,
-              fontSize: "clamp(14px,3.5vw,17px)",
-              textDecoration: "none",
-              display: "inline-block",
-            }}
-          >
-            تسجيل الدخول
-          </Link>
+          <motion.div whileHover={{ y: -6, scale: 1.04 }} whileTap={{ scale: 0.96 }} transition={{ type: "spring", stiffness: 400, damping: 15 }}>
+            <Link
+              href="/register"
+              style={{
+                padding: "14px 32px",
+                borderRadius: 16,
+                background: "linear-gradient(135deg,#C9A84C,#8B6914)",
+                boxShadow: "0 6px 24px rgba(201,168,76,0.4)",
+                color: "#1A1208",
+                fontFamily: "Cairo,sans-serif",
+                fontWeight: 700,
+                fontSize: "clamp(14px,3.5vw,17px)",
+                textDecoration: "none",
+                display: "inline-block",
+              }}
+            >
+              ابدأ رحلتك الآن 🚀
+            </Link>
+          </motion.div>
+          <motion.div whileHover={{ y: -6, scale: 1.04 }} whileTap={{ scale: 0.96 }} transition={{ type: "spring", stiffness: 400, damping: 15 }}>
+            <Link
+              href="/login"
+              style={{
+                padding: "14px 32px",
+                borderRadius: 16,
+                border: "1.5px solid rgba(201,168,76,0.4)",
+                background: "rgba(201,168,76,0.08)",
+                color: "#E8C97A",
+                fontFamily: "Cairo,sans-serif",
+                fontWeight: 600,
+                fontSize: "clamp(14px,3.5vw,17px)",
+                textDecoration: "none",
+                display: "inline-block",
+              }}
+            >
+              تسجيل الدخول
+            </Link>
+          </motion.div>
         </motion.div>
 
         {/* Stats bar — 2x2 on mobile, row on desktop */}
@@ -281,14 +283,21 @@ export function HeroSection({ settings }: Props) {
           style={{ gap: "clamp(16px,5vw,40px)" }}
         >
           {statsBar.map((s, i) => (
-            <div key={i} className="text-center py-2">
+            <motion.div
+              key={i}
+              className="text-center py-2"
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: "spring", stiffness: 260, damping: 14, delay: 0.85 + i * 0.1 }}
+              whileHover={{ scale: 1.1 }}
+            >
               <div style={{ fontFamily: "Amiri,serif", color: "#C9A84C", fontSize: "clamp(28px,7vw,40px)", fontWeight: 700, lineHeight: 1.2 }}>
                 {s.value}
               </div>
               <div style={{ fontFamily: "Cairo,sans-serif", color: "rgba(250,247,240,0.5)", fontSize: "clamp(11px,2.5vw,12px)", marginTop: 4 }}>
                 {s.label}
               </div>
-            </div>
+            </motion.div>
           ))}
         </motion.div>
       </div>
