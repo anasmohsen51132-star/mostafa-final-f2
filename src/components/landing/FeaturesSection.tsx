@@ -42,10 +42,10 @@ const FEATURES_DEFAULT = [
 ];
 
 const cardVariants = {
-  hidden: { opacity: 0, y: 30 },
+  hidden: { opacity: 0, y: 46, scale: 0.9 },
   visible: (i: number) => ({
-    opacity: 1, y: 0,
-    transition: { duration: 0.5, delay: i * 0.09, ease: "easeOut" },
+    opacity: 1, y: 0, scale: 1,
+    transition: { type: "spring", stiffness: 240, damping: 20, delay: i * 0.12 },
   }),
 };
 
@@ -122,7 +122,8 @@ export function FeaturesSection({ settings }: Props) {
               initial="hidden"
               animate={inView ? "visible" : "hidden"}
               variants={cardVariants}
-              whileHover={{ y: -6, transition: { duration: 0.2 } }}
+              whileHover={{ y: -10, scale: 1.03, transition: { duration: 0.22, ease: "easeOut" } }}
+              whileTap={{ scale: 0.98 }}
               className="rounded-2xl p-7 cursor-default"
               style={{
                 background: "#fff",
@@ -131,12 +132,14 @@ export function FeaturesSection({ settings }: Props) {
               }}
             >
               {/* Icon bubble */}
-              <div
+              <motion.div
+                whileHover={{ scale: 1.2, rotate: [0, -10, 10, -6, 0] }}
+                transition={{ duration: 0.5 }}
                 className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl mb-5"
                 style={{ background: "linear-gradient(135deg,rgba(201,168,76,0.15),rgba(26,107,71,0.1))" }}
               >
                 {feat.icon}
-              </div>
+              </motion.div>
               <h3
                 className="font-bold mb-3"
                 style={{ fontFamily: "Cairo,sans-serif", color: "#1A1208", fontSize: 17 }}
