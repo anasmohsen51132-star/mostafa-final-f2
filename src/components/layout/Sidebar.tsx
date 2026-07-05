@@ -90,7 +90,7 @@ export function Sidebar({
                 <Link key={item.id} href={item.href}
                   onClick={onClose}
                   className={cn(
-                    "flex items-center gap-3 px-5 py-3 text-sm transition-all duration-200 relative",
+                    "flex items-center gap-3 px-5 py-3 text-sm transition-all duration-200 relative group",
                     isActive ? "border-r-[3px] border-[#C9A84C]" : "hover:bg-white/5"
                   )}
                   style={{
@@ -104,16 +104,29 @@ export function Sidebar({
                       <motion.div layoutId="sidebar-active-bg"
                         className="absolute inset-0"
                         style={{ background: "rgba(201,168,76,0.08)" }}
-                        transition={{ type: "spring", stiffness: 400, damping: 30 }} />
+                        transition={{ type: "spring", stiffness: 500, damping: 32 }} />
                     )}
                   </AnimatePresence>
-                  <span className="relative z-10 text-base">{item.icon}</span>
-                  <span className="relative z-10 flex-1">{item.label}</span>
+                  <motion.span
+                    className="relative z-10 text-base"
+                    whileHover={{ scale: 1.25, rotate: [0, -10, 10, -6, 0] }}
+                    transition={{ duration: 0.4 }}
+                  >
+                    {item.icon}
+                  </motion.span>
+                  <span className="relative z-10 flex-1 transition-transform duration-200 group-hover:translate-x-[-2px]">
+                    {item.label}
+                  </span>
                   {item.badge !== undefined && (
-                    <span className="relative z-10 text-[11px] font-bold px-2 py-0.5 rounded-full"
-                      style={{ background: "#C9A84C", color: "#1A1208" }}>
+                    <motion.span
+                      className="relative z-10 text-[11px] font-bold px-2 py-0.5 rounded-full"
+                      style={{ background: "#C9A84C", color: "#1A1208" }}
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                    >
                       {item.badge}
-                    </span>
+                    </motion.span>
                   )}
                 </Link>
               );
@@ -131,7 +144,7 @@ export function Sidebar({
             onMouseEnter={(e) => { (e.currentTarget).style.color = "#F87171"; (e.currentTarget).style.background = "rgba(239,68,68,0.1)"; }}
             onMouseLeave={(e) => { (e.currentTarget).style.color = "rgba(250,247,240,0.5)"; (e.currentTarget).style.background = "none"; }}
           >
-            <span>🚪</span>
+            <motion.span whileHover={{ rotate: [0, -15, 15, 0] }} transition={{ duration: 0.4 }}>🚪</motion.span>
             <span>تسجيل الخروج</span>
           </button>
         </div>
