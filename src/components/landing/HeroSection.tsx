@@ -3,6 +3,7 @@
 import { m as motion } from "framer-motion";
 import Link from "next/link";
 import type { SiteSettings } from "@/types";
+import { DrawnText } from "@/components/effects/DrawnText";
 
 interface Props {
   settings: Partial<SiteSettings> | null;
@@ -169,19 +170,20 @@ export function HeroSection({ settings }: Props) {
           ﷽
         </motion.div>
 
-        {/* Main heading */}
-        <motion.h1
-          initial="hidden" animate="show" custom={0.22} variants={fadeUp}
-          style={{
-            fontFamily: "Amiri,serif",
-            color: "#E8C97A",
-            fontSize: "clamp(30px,8vw,72px)",
-            lineHeight: 1.3,
-            marginBottom: 10,
-          }}
+        {/* Main heading — drawn stroke-by-stroke, then settles into solid text */}
+        <motion.div
+          initial="hidden" animate="show" custom={0.15} variants={fadeUp}
+          style={{ marginBottom: 10 }}
         >
-          {settings?.heroTitle ?? "اتقن اللغة العربية"}
-        </motion.h1>
+          <DrawnText
+            text={settings?.heroTitle ?? "اتقن اللغة العربية"}
+            fontSize={64}
+            color="#E8C97A"
+            strokeColor="#C9A84C"
+            duration={2}
+            delay={0.3}
+          />
+        </motion.div>
 
         {/* Sub-heading */}
         <motion.h2
