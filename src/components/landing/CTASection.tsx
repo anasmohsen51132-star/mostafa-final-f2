@@ -3,6 +3,7 @@
 import { m as motion, useInView } from "framer-motion";
 import Link from "next/link";
 import { useRef } from "react";
+import { FloatingArabicBackground } from "@/components/effects/FloatingArabicBackground";
 
 export function CTASection() {
   const ref = useRef<HTMLDivElement>(null);
@@ -25,6 +26,9 @@ export function CTASection() {
             boxShadow: "0 20px 60px rgba(13,61,39,0.35)",
           }}
         >
+          {/* Floating Arabic letters — subtle, matches the hero's decorative touch */}
+          <FloatingArabicBackground density={4} maxOpacity={0.09} />
+
           {/* Pattern overlay */}
           <div
             className="absolute inset-0 pointer-events-none"
