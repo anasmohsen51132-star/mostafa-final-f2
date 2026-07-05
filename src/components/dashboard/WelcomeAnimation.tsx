@@ -34,16 +34,16 @@ export function WelcomeAnimation({ name, onDone }: Props) {
           <motion.div
             className="absolute w-80 h-80 rounded-full"
             style={{ background: "radial-gradient(circle,rgba(201,168,76,0.2),transparent 70%)" }}
-            animate={{ scale: [0.8, 1.4, 0.8] }}
+            animate={{ scale: [0.7, 1.6, 0.7] }}
             transition={{ duration: 2.8, ease: "easeInOut" }}
           />
 
           <div className="relative z-10 text-center px-8">
             {/* Basmala */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.5 }}
+              initial={{ opacity: 0, scale: 0.3 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6, delay: 0.1, type: "spring", stiffness: 200 }}
+              transition={{ duration: 0.6, delay: 0.1, type: "spring", stiffness: 260, damping: 14 }}
               style={{ fontFamily: "Amiri,serif", color: "rgba(201,168,76,0.7)", fontSize: 42, marginBottom: 12 }}
             >
               ﷽
@@ -51,9 +51,9 @@ export function WelcomeAnimation({ name, onDone }: Props) {
 
             {/* Welcome text */}
             <motion.h1
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.35 }}
+              initial={{ opacity: 0, y: 36, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ type: "spring", stiffness: 220, damping: 16, delay: 0.35 }}
               style={{ fontFamily: "Amiri,serif", color: "#E8C97A", fontSize: "clamp(28px,5vw,52px)", marginBottom: 8 }}
             >
               أهلاً وسهلاً
