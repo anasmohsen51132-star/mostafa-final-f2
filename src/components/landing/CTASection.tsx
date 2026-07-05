@@ -16,9 +16,9 @@ export function CTASection() {
     >
       <div className="max-w-3xl mx-auto text-center">
         <motion.div
-          initial={{ opacity: 0, scale: 0.94 }}
+          initial={{ opacity: 0, scale: 0.85 }}
           animate={inView ? { opacity: 1, scale: 1 } : {}}
-          transition={{ duration: 0.6, ease: "easeOut" }}
+          transition={{ type: "spring", stiffness: 200, damping: 20 }}
           className="rounded-3xl px-8 py-16 relative overflow-hidden"
           style={{
             background: "linear-gradient(135deg,#0D3D27 0%,#1A6B47 100%)",
@@ -90,42 +90,44 @@ export function CTASection() {
               transition={{ duration: 0.5, delay: 0.42 }}
               className="flex gap-4 justify-center flex-wrap"
             >
-              <Link
-                href="/register"
-                className="transition-transform hover:-translate-y-1 active:translate-y-0"
-                style={{
-                  padding: "16px 44px",
-                  borderRadius: 16,
-                  background: "linear-gradient(135deg,#C9A84C,#8B6914)",
-                  boxShadow: "0 6px 24px rgba(201,168,76,0.45)",
-                  color: "#1A1208",
-                  fontFamily: "Cairo,sans-serif",
-                  fontWeight: 700,
-                  fontSize: 17,
-                  textDecoration: "none",
-                  display: "inline-block",
-                }}
-              >
-                سجّل الآن مجاناً ✨
-              </Link>
-              <Link
-                href="/login"
-                className="transition-transform hover:-translate-y-1 active:translate-y-0"
-                style={{
-                  padding: "16px 36px",
-                  borderRadius: 16,
-                  border: "1.5px solid rgba(201,168,76,0.4)",
-                  background: "rgba(201,168,76,0.08)",
-                  color: "#E8C97A",
-                  fontFamily: "Cairo,sans-serif",
-                  fontWeight: 600,
-                  fontSize: 17,
-                  textDecoration: "none",
-                  display: "inline-block",
-                }}
-              >
-                لديّ حساب
-              </Link>
+              <motion.div whileHover={{ y: -6, scale: 1.05 }} whileTap={{ scale: 0.95 }} transition={{ type: "spring", stiffness: 400, damping: 15 }}>
+                <Link
+                  href="/register"
+                  style={{
+                    padding: "16px 44px",
+                    borderRadius: 16,
+                    background: "linear-gradient(135deg,#C9A84C,#8B6914)",
+                    boxShadow: "0 6px 24px rgba(201,168,76,0.45)",
+                    color: "#1A1208",
+                    fontFamily: "Cairo,sans-serif",
+                    fontWeight: 700,
+                    fontSize: 17,
+                    textDecoration: "none",
+                    display: "inline-block",
+                  }}
+                >
+                  سجّل الآن مجاناً ✨
+                </Link>
+              </motion.div>
+              <motion.div whileHover={{ y: -6, scale: 1.05 }} whileTap={{ scale: 0.95 }} transition={{ type: "spring", stiffness: 400, damping: 15 }}>
+                <Link
+                  href="/login"
+                  style={{
+                    padding: "16px 36px",
+                    borderRadius: 16,
+                    border: "1.5px solid rgba(201,168,76,0.4)",
+                    background: "rgba(201,168,76,0.08)",
+                    color: "#E8C97A",
+                    fontFamily: "Cairo,sans-serif",
+                    fontWeight: 600,
+                    fontSize: 17,
+                    textDecoration: "none",
+                    display: "inline-block",
+                  }}
+                >
+                  لديّ حساب
+                </Link>
+              </motion.div>
             </motion.div>
 
             {/* Trust line */}
