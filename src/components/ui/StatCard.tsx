@@ -46,19 +46,24 @@ export function StatCard({
 }: StatCardProps) {
   const colors = colorMap[color];
   const isNumber = typeof value === "number";
+  const springBouncy = { type: "spring", stiffness: 260, damping: 18 } as const;
 
   return (
     <motion.div
-      initial={withAnimation ? { opacity: 0, y: 24, scale: 0.95 } : undefined}
+      initial={withAnimation ? { opacity: 0, y: 36, scale: 0.88 } : undefined}
       animate={withAnimation ? { opacity: 1, y: 0, scale: 1 } : undefined}
-      transition={{ duration: 0.5, delay, ease: "easeOut" }}
-      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+      transition={{ ...springBouncy, delay }}
+      whileHover={{ y: -8, scale: 1.02, transition: { duration: 0.2, ease: "easeOut" } }}
+      whileTap={{ scale: 0.98 }}
       className={cn("rounded-2xl p-5 border border-gold/15 shadow-sm", colors.bg)}
       style={{ fontFamily: "Cairo, sans-serif" }}
     >
-      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-xl mb-4", colors.icon)}>
+      <motion.div
+        whileHover={{ scale: 1.15, rotate: [0, -8, 8, -4, 0], transition: { duration: 0.45 } }}
+        className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-xl mb-4", colors.icon)}
+      >
         {icon}
-      </div>
+      </motion.div>
       <div className={cn("text-3xl font-bold mb-1", colors.text)}>
         {isNumber ? <AnimatedNumber value={value as number} /> : value}
       </div>
