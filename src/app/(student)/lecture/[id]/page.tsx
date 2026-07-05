@@ -176,19 +176,22 @@ export default function LecturePage() {
       {tabs.length > 1 && (
         <div className="flex gap-2 mb-6 flex-wrap">
           {tabs.map((t) => (
-            <button key={t.id} onClick={() => {
+            <motion.button key={t.id} onClick={() => {
               setActiveTab(t.id);
               setSelectedQuizId(null); setQuizResult(null);
               setSelectedHomeworkId(null); setHwResult(null);
             }}
+              whileHover={{ scale: 1.05, y: -2 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ type: "spring", stiffness: 400, damping: 20 }}
               style={{ padding:"8px 16px", borderRadius:12, border:"1.5px solid",
                 borderColor: activeTab===t.id ? "#C9A84C" : "rgba(201,168,76,0.25)",
                 background:  activeTab===t.id ? "rgba(201,168,76,0.12)" : "#fff",
                 color:       activeTab===t.id ? "#8B6914" : "#7A6E5A",
                 fontFamily:"Cairo,sans-serif", fontSize:13,
-                fontWeight: activeTab===t.id ? 700 : 400, cursor:"pointer", transition:"all 0.15s" }}>
+                fontWeight: activeTab===t.id ? 700 : 400, cursor:"pointer" }}>
               {t.icon} {t.label} ({t.count})
-            </button>
+            </motion.button>
           ))}
         </div>
       )}
@@ -427,31 +430,55 @@ function QuizPlayer({
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
 
   if (result) return (
-    <motion.div initial={{ opacity:0, scale:0.95 }} animate={{ opacity:1, scale:1 }}
+    <motion.div initial={{ opacity:0, scale:0.85 }} animate={{ opacity:1, scale:1 }}
+      transition={{ type: "spring", stiffness: 220, damping: 18 }}
       className="text-center py-12"
       style={{ background:"#fff", borderRadius:24, border:"1px solid rgba(201,168,76,0.2)", padding:40 }}>
-      <div style={{ fontSize:72, marginBottom:16 }}>{result.passed ? "🎉" : "💪"}</div>
-      <h2 style={{ fontFamily:"Amiri,serif", color:"#1A1208", fontSize:32, marginBottom:8 }}>
+      <motion.div
+        initial={{ scale: 0, rotate: -30 }}
+        animate={{ scale: 1, rotate: 0 }}
+        transition={{ type: "spring", stiffness: 260, damping: 12, delay: 0.15 }}
+        style={{ fontSize:72, marginBottom:16 }}
+      >
+        {result.passed ? "🎉" : "💪"}
+      </motion.div>
+      <motion.h2
+        initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3, type: "spring", stiffness: 300, damping: 20 }}
+        style={{ fontFamily:"Amiri,serif", color:"#1A1208", fontSize:32, marginBottom:8 }}
+      >
         {result.passed ? "أحسنت! لقد نجحت!" : "لم تنجح هذه المرة"}
-      </h2>
-      <div style={{ fontFamily:"Amiri,serif", color:"#C9A84C", fontSize:56, fontWeight:700, marginBottom:4 }}>
+      </motion.h2>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.45, type: "spring", stiffness: 200, damping: 14 }}
+        style={{ fontFamily:"Amiri,serif", color:"#C9A84C", fontSize:56, fontWeight:700, marginBottom:4 }}
+      >
         {result.percentage}٪
-      </div>
-      <p style={{ fontFamily:"Cairo,sans-serif", color:"#7A6E5A", fontSize:15, marginBottom:8 }}>
+      </motion.div>
+      <motion.p
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
+        style={{ fontFamily:"Cairo,sans-serif", color:"#7A6E5A", fontSize:15, marginBottom:8 }}
+      >
         {result.score} / {result.total} إجابة صحيحة
-      </p>
-      <p style={{ fontFamily:"Cairo,sans-serif", color:"#7A6E5A", fontSize:13, marginBottom:24 }}>
+      </motion.p>
+      <motion.p
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}
+        style={{ fontFamily:"Cairo,sans-serif", color:"#7A6E5A", fontSize:13, marginBottom:24 }}
+      >
         المحاولة رقم {result.attemptNumber} •
         {result.attemptsRemaining > 0
           ? ` متبقٍ لك ${result.attemptsRemaining} محاولة`
           : " لا محاولات متبقية"}
-      </p>
-      <button onClick={onBack}
+      </motion.p>
+      <motion.button onClick={onBack}
+        initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}
+        whileHover={{ scale: 1.06, y: -3 }} whileTap={{ scale: 0.95 }}
         style={{ padding:"12px 32px", borderRadius:14, border:"none",
           background:"linear-gradient(135deg,#C9A84C,#8B6914)",
           color:"#1A1208", fontFamily:"Cairo,sans-serif", fontWeight:700, fontSize:15, cursor:"pointer" }}>
         العودة
-      </button>
+      </motion.button>
     </motion.div>
   );
 
@@ -554,27 +581,34 @@ function QuizPlayer({
                 const label  = labels[ci] ?? String(ci + 1);
                 const selected = answers[q.id] === c.id;
                 return (
-                  <button key={c.id} onClick={() => onAnswer(q.id, c.id)}
+                  <motion.button key={c.id} onClick={() => onAnswer(q.id, c.id)}
+                    whileHover={{ scale: 1.02, x: -3 }}
+                    whileTap={{ scale: 0.97 }}
+                    animate={selected ? { scale: [1, 1.03, 1] } : {}}
+                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
                     style={{ width:"100%", padding:"12px 16px", borderRadius:12, border:"1.5px solid",
                       borderColor: selected ? "#C9A84C" : "rgba(201,168,76,0.2)",
                       background:  selected ? "rgba(201,168,76,0.12)" : "rgba(250,247,240,0.5)",
                       color:"#1A1208", fontFamily:"Cairo,sans-serif", fontSize:14, textAlign:"right",
-                      cursor:"pointer", transition:"all 0.15s", display:"flex", alignItems:"center", gap:10 }}>
-                    <span style={{
-                      width:26, height:26, borderRadius:"50%", flexShrink:0,
-                      border:"2px solid",
-                      borderColor: selected ? "#C9A84C" : "rgba(201,168,76,0.35)",
-                      background:  selected ? "#C9A84C" : "transparent",
-                      color: selected ? "#1A1208" : "#8B6914",
-                      fontFamily:"Cairo,sans-serif", fontWeight:700, fontSize:13,
-                      display:"flex", alignItems:"center", justifyContent:"center",
-                      transition:"all 0.15s", flexDirection:"column",
-                    }}>
+                      cursor:"pointer", display:"flex", alignItems:"center", gap:10 }}>
+                    <motion.span
+                      animate={{ scale: selected ? 1.1 : 1, rotate: selected ? 360 : 0 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 15 }}
+                      style={{
+                        width:26, height:26, borderRadius:"50%", flexShrink:0,
+                        border:"2px solid",
+                        borderColor: selected ? "#C9A84C" : "rgba(201,168,76,0.35)",
+                        background:  selected ? "#C9A84C" : "transparent",
+                        color: selected ? "#1A1208" : "#8B6914",
+                        fontFamily:"Cairo,sans-serif", fontWeight:700, fontSize:13,
+                        display:"flex", alignItems:"center", justifyContent:"center",
+                        flexDirection:"column",
+                      }}>
                       {label}
-                    </span>
+                    </motion.span>
                     {c.text}
                     {c.imageUrl && <img src={c.imageUrl} alt="" className="h-12 object-contain rounded" />}
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>
@@ -583,15 +617,19 @@ function QuizPlayer({
       </div>
 
       <div className="mt-8 flex justify-center">
-        <button onClick={onSubmit} disabled={answered<total || isSubmitting}
+        <motion.button onClick={onSubmit} disabled={answered<total || isSubmitting}
+          whileHover={answered>=total ? { scale: 1.05, y: -3 } : {}}
+          whileTap={answered>=total ? { scale: 0.95 } : {}}
+          animate={answered>=total && !isSubmitting ? { scale: [1, 1.03, 1] } : {}}
+          transition={{ scale: { duration: 1.4, repeat: answered>=total && !isSubmitting ? Infinity : 0, ease: "easeInOut" } }}
           style={{ padding:"14px 48px", borderRadius:16, border:"none",
             background: answered<total ? "rgba(201,168,76,0.3)" : "linear-gradient(135deg,#C9A84C,#8B6914)",
             color:"#1A1208", fontFamily:"Cairo,sans-serif", fontWeight:700, fontSize:16,
             cursor: answered<total ? "not-allowed" : "pointer",
-            boxShadow: answered>=total ? "0 6px 20px rgba(201,168,76,0.4)" : "none", transition:"all 0.2s" }}>
+            boxShadow: answered>=total ? "0 6px 20px rgba(201,168,76,0.4)" : "none" }}>
           {isSubmitting ? "⏳ جارٍ التسليم..." :
            answered<total ? `أجب على ${total-answered} سؤال متبقي` : `✅ تسليم ${label}`}
-        </button>
+        </motion.button>
       </div>
 
       {/* Fullscreen image lightbox */}
