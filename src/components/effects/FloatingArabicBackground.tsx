@@ -31,6 +31,14 @@ const DEFAULT_LETTERS: FloatingLetter[] = [
   { char: "ا", x: "60%", y: "78%", size: 95,  duration: 17, delay: 1.1, rotate: 15  },
   { char: "ف", x: "35%", y: "88%", size: 65,  duration: 19, delay: 2.6, rotate: -12 },
   { char: "ن", x: "92%", y: "80%", size: 85,  duration: 13, delay: 0.6, rotate: 18  },
+  { char: "ك", x: "25%", y: "35%", size: 75,  duration: 21, delay: 1.3, rotate: -18 },
+  { char: "ل", x: "45%", y: "55%", size: 105, duration: 14.5, delay: 2.8, rotate: 10 },
+  { char: "ط", x: "78%", y: "88%", size: 60,  duration: 23, delay: 0.2, rotate: -6  },
+  { char: "ق", x: "3%",  y: "42%", size: 90,  duration: 16.5, delay: 1.9, rotate: 14 },
+  { char: "د", x: "95%", y: "60%", size: 70,  duration: 18.5, delay: 2.4, rotate: -22 },
+  { char: "ه", x: "20%", y: "5%",  size: 55,  duration: 20.5, delay: 0.9, rotate: 9   },
+  { char: "و", x: "55%", y: "30%", size: 80,  duration: 15.5, delay: 3.2, rotate: -10 },
+  { char: "ث", x: "40%", y: "68%", size: 65,  duration: 24,   delay: 1.6, rotate: 16  },
 ];
 
 interface Props {
@@ -48,7 +56,7 @@ export function FloatingArabicBackground({
   letters,
   density,
   color = "201,168,76", // brand gold, as an RGB triplet so we can vary alpha per-frame
-  maxOpacity = 0.13,
+  maxOpacity = 0.16,
 }: Props) {
   const set = letters ?? (density ? DEFAULT_LETTERS.slice(0, density) : DEFAULT_LETTERS);
   const restOpacity = maxOpacity * 0.55;
@@ -71,7 +79,7 @@ export function FloatingArabicBackground({
             willChange: "transform",
           }}
           animate={{
-            y: [0, -38, 14, -24, 0],
+            y: [0, -46, 18, -30, 0],
             rotate: [l.rotate, l.rotate + 10, l.rotate - 8, l.rotate + 4, l.rotate],
             opacity: [restOpacity, maxOpacity, restOpacity, maxOpacity * 0.85, restOpacity],
           }}
