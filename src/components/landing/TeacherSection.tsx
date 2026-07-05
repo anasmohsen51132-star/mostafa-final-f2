@@ -42,9 +42,9 @@ export function TeacherSection({ settings }: Props) {
 
           {/* Avatar column */}
           <motion.div
-            initial={{ opacity: 0, x: 40 }}
-            animate={inView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.7 }}
+            initial={{ opacity: 0, x: 50, scale: 0.85 }}
+            animate={inView ? { opacity: 1, x: 0, scale: 1 } : {}}
+            transition={{ type: "spring", stiffness: 200, damping: 18 }}
             className="flex-shrink-0 flex flex-col items-center"
           >
             {/* Avatar circle */}
@@ -134,10 +134,14 @@ export function TeacherSection({ settings }: Props) {
               className="flex gap-8 justify-center lg:justify-start flex-wrap"
             >
               {teacherStats.map((s, i) => (
-                <div
+                <motion.div
                   key={i}
                   className="text-center px-5 py-4 rounded-2xl"
                   style={{ background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)" }}
+                  initial={{ opacity: 0, scale: 0.7 }}
+                  animate={inView ? { opacity: 1, scale: 1 } : {}}
+                  transition={{ type: "spring", stiffness: 260, damping: 16, delay: 0.4 + i * 0.1 }}
+                  whileHover={{ y: -6, scale: 1.06 }}
                 >
                   <div style={{ fontFamily: "Amiri,serif", color: "#C9A84C", fontSize: 36, fontWeight: 700, lineHeight: 1 }}>
                     {s.value}
@@ -145,7 +149,7 @@ export function TeacherSection({ settings }: Props) {
                   <div style={{ fontFamily: "Cairo,sans-serif", color: "rgba(250,247,240,0.55)", fontSize: 12, marginTop: 6 }}>
                     {s.label}
                   </div>
-                </div>
+                </motion.div>
               ))}
             </motion.div>
           </div>
