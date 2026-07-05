@@ -43,10 +43,11 @@ export function DashboardStats() {
       {stats.map((s) => (
         <motion.div
           key={s.label}
-          initial={{ opacity: 0, y: 20, scale: 0.95 }}
+          initial={{ opacity: 0, y: 32, scale: 0.85 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.45, delay: s.delay, ease: "easeOut" }}
-          whileHover={{ y: -4, transition: { duration: 0.18 } }}
+          transition={{ type: "spring", stiffness: 240, damping: 16, delay: s.delay }}
+          whileHover={{ y: -8, scale: 1.04, transition: { duration: 0.2 } }}
+          whileTap={{ scale: 0.97 }}
           className="rounded-2xl p-5 text-center"
           style={{
             background: "#fff",
@@ -54,12 +55,14 @@ export function DashboardStats() {
             boxShadow: "0 2px 12px rgba(26,18,8,0.05)",
           }}
         >
-          <div
+          <motion.div
+            whileHover={{ scale: 1.2, rotate: [0, -10, 10, -6, 0] }}
+            transition={{ duration: 0.45 }}
             className="w-10 h-10 rounded-xl flex items-center justify-center text-xl mx-auto mb-3"
             style={{ background: s.bg }}
           >
             {s.icon}
-          </div>
+          </motion.div>
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
