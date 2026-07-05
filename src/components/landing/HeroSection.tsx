@@ -4,6 +4,7 @@ import { m as motion } from "framer-motion";
 import Link from "next/link";
 import type { SiteSettings } from "@/types";
 import { DrawnText } from "@/components/effects/DrawnText";
+import { FloatingArabicBackground } from "@/components/effects/FloatingArabicBackground";
 
 interface Props {
   settings: Partial<SiteSettings> | null;
@@ -22,19 +23,6 @@ const fadeUp = {
 };
 
 // الحروف العربية الطافية في الخلفية
-const FLOATING_LETTERS = [
-  { char: "ع", x: "8%",  y: "18%", size: 120, duration: 14, delay: 0,   rotate: -15 },
-  { char: "ر", x: "82%", y: "12%", size: 90,  duration: 18, delay: 1.5, rotate: 12  },
-  { char: "ب", x: "72%", y: "62%", size: 140, duration: 12, delay: 0.8, rotate: -8  },
-  { char: "ي", x: "5%",  y: "65%", size: 100, duration: 16, delay: 2.2, rotate: 20  },
-  { char: "ة", x: "88%", y: "40%", size: 80,  duration: 20, delay: 0.4, rotate: -20 },
-  { char: "م", x: "15%", y: "80%", size: 110, duration: 15, delay: 1.8, rotate: 8   },
-  { char: "ص", x: "50%", y: "8%",  size: 70,  duration: 22, delay: 3,   rotate: -5  },
-  { char: "ا", x: "60%", y: "78%", size: 95,  duration: 17, delay: 1.1, rotate: 15  },
-  { char: "ف", x: "35%", y: "88%", size: 65,  duration: 19, delay: 2.6, rotate: -12 },
-  { char: "ن", x: "92%", y: "80%", size: 85,  duration: 13, delay: 0.6, rotate: 18  },
-];
-
 export function HeroSection({ settings }: Props) {
   let statsBar = STATS_DEFAULT;
   try {
@@ -57,36 +45,7 @@ export function HeroSection({ settings }: Props) {
       }} />
 
       {/* ── الحروف العربية الطافية ── */}
-      {FLOATING_LETTERS.map((l, i) => (
-        <motion.div
-          key={i}
-          className="absolute pointer-events-none select-none"
-          style={{
-            left: l.x,
-            top: l.y,
-            fontFamily: "Amiri,serif",
-            fontSize: l.size,
-            color: "rgba(201,168,76,0.07)",
-            fontWeight: 700,
-            lineHeight: 1,
-            rotate: l.rotate,
-            willChange: "transform",
-          }}
-          animate={{
-            y: [0, -38, 14, -24, 0],
-            rotate: [l.rotate, l.rotate + 10, l.rotate - 8, l.rotate + 4, l.rotate],
-            opacity: [0.07, 0.15, 0.07, 0.12, 0.07],
-          }}
-          transition={{
-            duration: l.duration,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: l.delay,
-          }}
-        >
-          {l.char}
-        </motion.div>
-      ))}
+      <FloatingArabicBackground />
 
       {/* Orbs */}
       <motion.div
