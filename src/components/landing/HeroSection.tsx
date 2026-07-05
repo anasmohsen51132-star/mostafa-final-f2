@@ -51,15 +51,15 @@ export function HeroSection({ settings }: Props) {
       <motion.div
         className="absolute pointer-events-none select-none hidden sm:block"
         style={{
-          top: "-6%", right: "-4%",
+          top: "-3%", right: "-2%",
           fontFamily: "Amiri,serif", fontSize: "clamp(220px,26vw,340px)",
-          color: "rgba(201,168,76,0.12)", fontWeight: 700, lineHeight: 1,
-          rotate: -12, willChange: "transform",
+          color: "rgba(201,168,76,0.28)", fontWeight: 700, lineHeight: 1,
+          rotate: -12, willChange: "transform", zIndex: 1,
         }}
         animate={{
           y: [0, -28, 10, 0],
           rotate: [-12, -6, -15, -12],
-          opacity: [0.1, 0.16, 0.1],
+          opacity: [0.24, 0.36, 0.24],
         }}
         transition={{ duration: 26, repeat: Infinity, ease: "easeInOut" }}
       >
@@ -68,15 +68,15 @@ export function HeroSection({ settings }: Props) {
       <motion.div
         className="absolute pointer-events-none select-none hidden sm:block"
         style={{
-          bottom: "-8%", left: "-5%",
+          bottom: "-4%", left: "-2%",
           fontFamily: "Amiri,serif", fontSize: "clamp(200px,24vw,300px)",
-          color: "rgba(201,168,76,0.11)", fontWeight: 700, lineHeight: 1,
-          rotate: 15, willChange: "transform",
+          color: "rgba(201,168,76,0.26)", fontWeight: 700, lineHeight: 1,
+          rotate: 15, willChange: "transform", zIndex: 1,
         }}
         animate={{
           y: [0, 24, -14, 0],
           rotate: [15, 22, 10, 15],
-          opacity: [0.09, 0.15, 0.09],
+          opacity: [0.22, 0.34, 0.22],
         }}
         transition={{ duration: 24, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
       >
