@@ -2,10 +2,12 @@
 // src/components/layout/PageTransition.tsx
 import { m as motion } from "framer-motion";
 
+const springBouncy = { type: "spring", stiffness: 260, damping: 18 } as const;
+
 const variants = {
-  hidden: { opacity: 0, y: 16 },
+  hidden: { opacity: 0, y: 28 },
   enter:  { opacity: 1, y: 0 },
-  exit:   { opacity: 0, y: -16 },
+  exit:   { opacity: 0, y: -20 },
 };
 
 export function PageTransition({ children }: { children: React.ReactNode }) {
@@ -15,7 +17,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       initial="hidden"
       animate="enter"
       exit="exit"
-      transition={{ duration: 0.35, ease: "easeOut" }}
+      transition={springBouncy}
     >
       {children}
     </motion.div>
@@ -32,16 +34,17 @@ export function DashReveal({
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 36 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay, ease: "easeOut" }}
+      transition={{ ...springBouncy, delay }}
     >
       {children}
     </motion.div>
   );
 }
 
-// Stagger container
+// Stagger container — longer per-child delay so the sequence actually
+// reads as a sequence instead of everything arriving almost at once.
 export function StaggerContainer({
   children,
   className,
@@ -56,7 +59,7 @@ export function StaggerContainer({
       animate="visible"
       variants={{
         hidden: {},
-        visible: { transition: { staggerChildren: 0.08 } },
+        visible: { transition: { staggerChildren: 0.12, delayChildren: 0.05 } },
       }}
     >
       {children}
@@ -64,7 +67,7 @@ export function StaggerContainer({
   );
 }
 
-// Stagger item
+// Stagger item — bigger offset + a hint of scale, with a springy settle.
 export function StaggerItem({
   children,
   className,
@@ -76,8 +79,8 @@ export function StaggerItem({
     <motion.div
       className={className}
       variants={{
-        hidden: { opacity: 0, y: 20 },
-        visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
+        hidden: { opacity: 0, y: 32, scale: 0.94 },
+        visible: { opacity: 1, y: 0, scale: 1, transition: springBouncy },
       }}
     >
       {children}
