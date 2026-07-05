@@ -44,6 +44,45 @@ export function HeroSection({ settings }: Props) {
         backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23C9A84C' fill-opacity='0.04'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E")`,
       }} />
 
+      {/* Large decorative letters anchoring the empty top-right / bottom-left
+          corners left bare by the diagonal gradient — bigger and bolder than
+          the scattered field below, bleeding slightly off-edge for a
+          calligraphic-poster feel. */}
+      <motion.div
+        className="absolute pointer-events-none select-none hidden sm:block"
+        style={{
+          top: "-6%", right: "-4%",
+          fontFamily: "Amiri,serif", fontSize: "clamp(220px,26vw,340px)",
+          color: "rgba(201,168,76,0.12)", fontWeight: 700, lineHeight: 1,
+          rotate: -12, willChange: "transform",
+        }}
+        animate={{
+          y: [0, -28, 10, 0],
+          rotate: [-12, -6, -15, -12],
+          opacity: [0.1, 0.16, 0.1],
+        }}
+        transition={{ duration: 26, repeat: Infinity, ease: "easeInOut" }}
+      >
+        م
+      </motion.div>
+      <motion.div
+        className="absolute pointer-events-none select-none hidden sm:block"
+        style={{
+          bottom: "-8%", left: "-5%",
+          fontFamily: "Amiri,serif", fontSize: "clamp(200px,24vw,300px)",
+          color: "rgba(201,168,76,0.11)", fontWeight: 700, lineHeight: 1,
+          rotate: 15, willChange: "transform",
+        }}
+        animate={{
+          y: [0, 24, -14, 0],
+          rotate: [15, 22, 10, 15],
+          opacity: [0.09, 0.15, 0.09],
+        }}
+        transition={{ duration: 24, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
+      >
+        ص
+      </motion.div>
+
       {/* ── الحروف العربية الطافية ── */}
       <FloatingArabicBackground />
 
