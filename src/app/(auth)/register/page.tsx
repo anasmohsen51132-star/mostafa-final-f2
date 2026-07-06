@@ -20,7 +20,7 @@ export default function RegisterPage() {
       />
 
       {/* Floating Arabic letters — same decorative touch as the landing hero */}
-      <FloatingArabicBackground density={6} maxOpacity={0.1} />
+      <FloatingArabicBackground density={6} color="rgba(201,168,76,0.1)" />
 
       {/* Orbs */}
       <motion.div
