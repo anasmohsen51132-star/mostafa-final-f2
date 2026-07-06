@@ -20,7 +20,7 @@ export default function LoginPage() {
       }} />
 
       {/* Floating Arabic letters — same decorative touch as the landing hero */}
-      <FloatingArabicBackground density={6} maxOpacity={0.1} />
+      <FloatingArabicBackground density={6} color="rgba(201,168,76,0.1)" />
 
       {/* Orbs — hidden on very small screens to avoid overflow */}
       <motion.div
