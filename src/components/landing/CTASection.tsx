@@ -4,6 +4,7 @@ import { m as motion, useInView } from "framer-motion";
 import Link from "next/link";
 import { useRef } from "react";
 import { FloatingArabicBackground } from "@/components/effects/FloatingArabicBackground";
+import { TwinklingStars } from "@/components/effects/TwinklingStars";
 
 export function CTASection() {
   const ref = useRef<HTMLDivElement>(null);
@@ -28,6 +29,7 @@ export function CTASection() {
         >
           {/* Floating Arabic letters — subtle, matches the hero's decorative touch */}
           <FloatingArabicBackground density={4} maxOpacity={0.09} />
+          <TwinklingStars density={6} maxOpacity={0.4} />
 
           {/* Pattern overlay */}
           <div
