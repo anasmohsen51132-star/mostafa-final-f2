@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { SiteSettings } from "@/types";
 import { DrawnText } from "@/components/effects/DrawnText";
 import { FloatingArabicBackground } from "@/components/effects/FloatingArabicBackground";
+import { TwinklingStars } from "@/components/effects/TwinklingStars";
 
 interface Props {
   settings: Partial<SiteSettings> | null;
@@ -51,15 +52,15 @@ export function HeroSection({ settings }: Props) {
       <motion.div
         className="absolute pointer-events-none select-none hidden sm:block"
         style={{
-          top: "-3%", right: "-2%",
-          fontFamily: "Amiri,serif", fontSize: "clamp(220px,26vw,340px)",
-          color: "rgba(201,168,76,0.28)", fontWeight: 700, lineHeight: 1,
+          top: "-2%", right: "-1%",
+          fontFamily: "Amiri,serif", fontSize: "clamp(140px,16vw,210px)",
+          color: "rgba(201,168,76,0.26)", fontWeight: 700, lineHeight: 1,
           rotate: -12, willChange: "transform", zIndex: 1,
         }}
         animate={{
           y: [0, -28, 10, 0],
           rotate: [-12, -6, -15, -12],
-          opacity: [0.24, 0.36, 0.24],
+          opacity: [0.22, 0.34, 0.22],
         }}
         transition={{ duration: 26, repeat: Infinity, ease: "easeInOut" }}
       >
@@ -68,15 +69,15 @@ export function HeroSection({ settings }: Props) {
       <motion.div
         className="absolute pointer-events-none select-none hidden sm:block"
         style={{
-          bottom: "-4%", left: "-2%",
-          fontFamily: "Amiri,serif", fontSize: "clamp(200px,24vw,300px)",
-          color: "rgba(201,168,76,0.26)", fontWeight: 700, lineHeight: 1,
+          bottom: "-3%", left: "-1%",
+          fontFamily: "Amiri,serif", fontSize: "clamp(130px,15vw,190px)",
+          color: "rgba(201,168,76,0.24)", fontWeight: 700, lineHeight: 1,
           rotate: 15, willChange: "transform", zIndex: 1,
         }}
         animate={{
           y: [0, 24, -14, 0],
           rotate: [15, 22, 10, 15],
-          opacity: [0.22, 0.34, 0.22],
+          opacity: [0.2, 0.32, 0.2],
         }}
         transition={{ duration: 24, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
       >
@@ -85,6 +86,7 @@ export function HeroSection({ settings }: Props) {
 
       {/* ── الحروف العربية الطافية ── */}
       <FloatingArabicBackground />
+      <TwinklingStars />
 
       {/* Orbs */}
       <motion.div
