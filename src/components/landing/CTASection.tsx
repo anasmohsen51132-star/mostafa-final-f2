@@ -28,7 +28,7 @@ export function CTASection() {
           }}
         >
           {/* Floating Arabic letters — subtle, matches the hero's decorative touch */}
-          <FloatingArabicBackground density={4} maxOpacity={0.09} />
+          <FloatingArabicBackground density={4} color="rgba(201,168,76,0.09)" />
           <TwinklingStars density={6} maxOpacity={0.4} />
 
           {/* Pattern overlay */}
