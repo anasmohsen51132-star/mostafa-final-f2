@@ -5,8 +5,25 @@
 // Twitter card image per Next's documented fallback behavior) for every
 // page under this segment that doesn't define its own. Served at
 // /opengraph-image, auto-linked in <head> — no static image asset needed.
+//
+// BUGFIX: this previously rendered full Arabic words/sentences
+// (e.g. "أكاديمية مستر مصطفى", "لتدريس اللغة العربية"). Vercel's built-in
+// @vercel/og font engine (which next/og's ImageResponse uses under the
+// hood) does not fully support the Arabic OpenType shaping tables needed
+// to correctly join multiple Arabic letters together — it crashed at build
+// time with "substFormat: 3 is not yet supported" the moment it hit a
+// multi-letter Arabic word. A single ISOLATED Arabic letter (no
+// neighbors, so no letter-joining/shaping needed at all) renders fine —
+// that's exactly why icon.tsx/apple-icon.tsx/icon-192/icon-512 (which only
+// ever render a single "م") never had this problem. The real fix for
+// keeping actual shaped Arabic text here would be embedding a proper font
+// file via ImageResponse's `fonts` option, but that adds a network fetch
+// (or a bundled binary asset) at build time — for a purely decorative
+// social-share image, that's not worth the added fragility. This image
+// now uses the English name instead, which needs no special shaping and
+// can never hit this crash; all of the site's actual Arabic metadata
+// (title, description, JSON-LD, etc.) is untouched and unaffected.
 import { ImageResponse } from "next/og";
-import { SITE_NAME, SITE_NAME_SHORT } from "@/lib/seo";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
@@ -38,13 +55,14 @@ export default function OpengraphImage() {
             marginBottom: 40,
           }}
         >
+          {/* Single isolated Arabic letter — safe, no joining/shaping needed */}
           <span style={{ fontFamily: "serif", fontWeight: 700, fontSize: 76, color: "#1A1208" }}>
             م
           </span>
         </div>
         <div
           style={{
-            fontFamily: "serif",
+            fontFamily: "sans-serif",
             fontWeight: 700,
             fontSize: 58,
             color: "#E8C97A",
@@ -52,18 +70,18 @@ export default function OpengraphImage() {
             lineHeight: 1.3,
           }}
         >
-          {SITE_NAME_SHORT}
+          Mostafa Academy
         </div>
         <div
           style={{
             fontFamily: "sans-serif",
-            fontSize: 30,
+            fontSize: 28,
             color: "rgba(250,247,240,0.8)",
             marginTop: 18,
             textAlign: "center",
           }}
         >
-          لتدريس اللغة العربية
+          Arabic Language Learning Platform
         </div>
       </div>
     ),
