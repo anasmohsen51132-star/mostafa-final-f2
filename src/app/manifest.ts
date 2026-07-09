@@ -19,10 +19,16 @@ export default function manifest(): MetadataRoute.Manifest {
     lang: "ar",
     dir: "rtl",
     icons: [
-      { src: "/icon", sizes: "32x32", type: "image/png" },
-      { src: "/icon-192", sizes: "192x192", type: "image/png", purpose: "any" },
-      { src: "/icon-512", sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: "/icon-512", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      // BUGFIX: this used to reference /icon and /icon-512 — the routes
+      // for the old code-generated (single-letter) icons, which have now
+      // been replaced by the real logo the owner supplied. Static icon
+      // files under src/app/ (icon.png, apple-icon.png) are served at
+      // /icon.png and /apple-icon.png respectively; the two extra manifest
+      // sizes live as plain files in /public.
+      { src: "/icon.png", sizes: "32x32", type: "image/png" },
+      { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }
