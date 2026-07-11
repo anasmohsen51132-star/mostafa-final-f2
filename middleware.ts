@@ -11,18 +11,21 @@ const PUBLIC_PATHS = [
   "/api/auth/login",
   "/api/auth/register",
   "/api/customize",
-  // SEO FIX: Next.js's dynamic icon/OG-image file convention (icon.tsx,
-  // apple-icon.tsx, opengraph-image.tsx, and the numbered icon-192/icon-512
-  // route handlers) serves these at clean, extension-less paths — so the
-  // extension-based static-file bypass further down (pathname.includes("."))
-  // never catches them. Without this, every anonymous visitor and every
-  // crawler (Google, Facebook/WhatsApp link previews, etc.) would get
-  // redirected to /login instead of receiving the actual icon/image,
-  // silently breaking favicons and social share previews for all of them.
-  "/icon",
-  "/apple-icon",
-  "/icon-192",
-  "/icon-512",
+  // SEO FIX: Next.js's dynamic OG-image file convention (opengraph-image.tsx)
+  // serves it at a clean, extension-less path — so the extension-based
+  // static-file bypass further down (pathname.includes(".")) never catches
+  // it. Without this, every anonymous visitor and every crawler (Google,
+  // Facebook/WhatsApp link previews, etc.) would get redirected to /login
+  // instead of receiving the actual image, silently breaking social share
+  // previews for all of them.
+  //
+  // NOTE: /icon, /apple-icon, /icon-192, /icon-512 used to need the same
+  // explicit entry here too, back when they were also dynamic generators.
+  // They're now static .png files (src/app/icon.png, apple-icon.png, and
+  // public/icon-192.png, icon-512.png) which already have a "." in their
+  // served path, so the generic extension check below covers them — no
+  // explicit entry needed anymore.
+  "/opengraph-image",
   "/opengraph-image",
 ];
 
