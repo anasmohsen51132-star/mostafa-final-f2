@@ -73,7 +73,10 @@ export default function AdminStudentsPage() {
 
       {/* Students table */}
       {!isLoading && students.length > 0 && (
-        <div className="rounded-2xl overflow-hidden" style={{ background: "#fff", border: "1px solid rgba(201,168,76,0.15)", boxShadow: "0 2px 12px rgba(26,18,8,0.04)" }}>
+        <div className="rounded-2xl" style={{ background: "#fff", border: "1px solid rgba(201,168,76,0.15)", boxShadow: "0 2px 12px rgba(26,18,8,0.04)", overflowX: "auto" }}>
+          {/* RESPONSIVE FIX: min-width forces this 5-column table to scroll
+              sideways on narrow screens instead of crushing every column. */}
+          <div style={{ minWidth: 560 }}>
           {/* Header row */}
           <div className="grid gap-4 px-5 py-3" style={{ gridTemplateColumns: "2fr 1.5fr 1.5fr 1fr 1fr", background: "rgba(201,168,76,0.06)", borderBottom: "1px solid rgba(201,168,76,0.12)" }}>
             {["الطالب","رقم الهاتف","المرحلة","الكورسات","الحالة"].map((h) => (
@@ -134,6 +137,7 @@ export default function AdminStudentsPage() {
               </motion.div>
             );
           })}
+          </div>
         </div>
       )}
 

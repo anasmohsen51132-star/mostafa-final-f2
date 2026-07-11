@@ -211,7 +211,18 @@ export default function LecturePage() {
                     <h3 style={{ fontFamily:"Cairo,sans-serif", color:"#1A1208", fontSize:15, fontWeight:700, marginBottom:10 }}>
                       🎥 {video.title}
                     </h3>
-                    <VideoPlayer youtubeId={video.youtubeId} title={video.title} lectureId={id as string} videoId={video.id} />
+                    {/* RESPONSIVE FIX: bleeds past the page's own side padding
+                        on mobile/small-tablet, so the video actually uses the
+                        full screen width instead of being squeezed in by
+                        padding meant for text content. Since the player keeps
+                        a fixed 16:9 ratio, more width also means more height —
+                        this is the direct fix for "video area is too small on
+                        phone/tablet". Reverts to sitting inside the normal
+                        padded column at md+ where there's already plenty of
+                        room next to the sidebar. */}
+                    <div className="-mx-3 sm:-mx-4 md:mx-0">
+                      <VideoPlayer youtubeId={video.youtubeId} title={video.title} lectureId={id as string} videoId={video.id} />
+                    </div>
                   </div>
                 ))
               ) : (

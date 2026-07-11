@@ -10,7 +10,7 @@
 //  - Quiz and homework behave identically (auto-graded, multi-choice,
 //    3 attempts) — the only difference between them is the label shown.
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, memo } from "react";
 import { m as motion, AnimatePresence } from "framer-motion";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -18,6 +18,29 @@ import Link from "next/link";
 import { fetchWithAuth } from "@/hooks/useAuth";
 import { useToast } from "@/store/uiStore";
 import type { QuestionForm, ChoiceForm } from "@/types";
+
+// PERF FIX: hoisted out of the component (used to be recreated as a new
+// object on every single render). These are passed down to QuestionBlock
+// below, which is wrapped in React.memo specifically to stop every question
+// re-rendering on every keystroke typed into any one of them (see the note
+// on QuestionBlock) — a new object reference for these style props every
+// render would silently defeat that memoization, since React.memo does a
+// shallow prop comparison and a fresh object is never `===` to the last one.
+const FIELD_STYLE: React.CSSProperties = {
+  padding: "10px 12px", borderRadius: 10,
+  border: "1.5px solid rgba(201,168,76,0.25)",
+  background: "#FAFAF8", color: "#1A1208",
+  fontFamily: "Cairo,sans-serif", fontSize: 13,
+  outline: "none", direction: "rtl", transition: "border-color 0.2s",
+};
+
+const SECTION_CARD: React.CSSProperties = {
+  background: "#fff",
+  border: "1px solid rgba(201,168,76,0.15)",
+  boxShadow: "0 2px 12px rgba(26,18,8,0.04)",
+  borderRadius: 20,
+  padding: 24,
+};
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -164,6 +187,187 @@ function UploadBtn({
 
 // ── Main page ─────────────────────────────────────────────────
 
+// PERF FIX: this used to be rendered inline inside `questions.map(...)` in
+// the main component below. Every keystroke into ANY field called
+// setQuestions() with a full new array, and since the inline map wasn't
+// memoized, React re-rendered EVERY question block (all its choices, image
+// previews, and motion wrappers) on every single keystroke — not just the
+// one field being typed into. With several questions already added, this
+// visibly cascaded into noticeable input lag, most pronounced on mobile
+// CPUs (this is the root cause of "typing feels slow on mobile" for this
+// page). Extracting this into its own component wrapped in React.memo, and
+// giving it only the narrow, stable-reference callbacks it actually needs
+// (see the useCallback wrapping in QuizBuilderPage below), means a
+// keystroke in question 3 now only re-renders question 3.
+interface QuestionBlockProps {
+  q: QuestionForm;
+  qi: number;
+  questionsLength: number;
+  qLoading: boolean;
+  cImgLoading: Record<string, boolean>;
+  onUpdateQ: (qi: number, field: keyof QuestionForm, value: unknown) => void;
+  onUpdateC: (qi: number, ci: number, field: keyof ChoiceForm, value: unknown) => void;
+  onSetCorrect: (qi: number, ci: number) => void;
+  onRemoveQuestion: (qi: number) => void;
+  onAddChoice: (qi: number) => void;
+  onRemoveChoice: (qi: number, ci: number) => void;
+}
+
+const QuestionBlock = memo(function QuestionBlock({
+  q, qi, questionsLength, qLoading, cImgLoading,
+  onUpdateQ, onUpdateC, onSetCorrect, onRemoveQuestion, onAddChoice, onRemoveChoice,
+}: QuestionBlockProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.22 }}
+      style={SECTION_CARD}
+    >
+      {/* Question header */}
+      <div className="flex items-center justify-between mb-5">
+        <div className="px-3 py-1 rounded-full text-xs font-bold"
+          style={{ background: "linear-gradient(135deg,#C9A84C,#8B6914)", color: "#1A1208", fontFamily: "Cairo,sans-serif" }}>
+          سؤال {qi + 1}
+        </div>
+        {questionsLength > 1 && (
+          <button type="button" onClick={() => onRemoveQuestion(qi)}
+            style={{ padding: "4px 12px", borderRadius: 8, border: "1px solid rgba(239,68,68,0.25)", color: "#DC2626", background: "none", fontFamily: "Cairo,sans-serif", fontSize: 12, cursor: "pointer" }}>
+            حذف السؤال
+          </button>
+        )}
+      </div>
+
+      {/* Question text */}
+      <div className="mb-3">
+        <label style={{ fontFamily: "Cairo,sans-serif", color: "#4A3F2A", fontSize: 12, marginBottom: 4, display: "block", fontWeight: 600 }}>
+          نص السؤال <span style={{ color: "#7A6E5A", fontWeight: 400 }}>(اختياري إذا أضفت صورة)</span>
+        </label>
+        <textarea
+          value={q.text ?? ""}
+          onChange={(e) => onUpdateQ(qi, "text", e.target.value)}
+          placeholder="اكتب نص السؤال هنا..."
+          rows={2}
+          style={{ ...FIELD_STYLE, width: "100%", resize: "vertical" }}
+          onFocus={(e) => (e.target.style.borderColor = "rgba(201,168,76,0.6)")}
+          onBlur={(e)  => (e.target.style.borderColor = "rgba(201,168,76,0.25)")}
+        />
+      </div>
+
+      {/* Question image */}
+      <div className="mb-5">
+        <div className="flex items-center gap-3 mb-1">
+          <label style={{ fontFamily: "Cairo,sans-serif", color: "#4A3F2A", fontSize: 12, fontWeight: 600 }}>
+            🖼️ صورة السؤال
+          </label>
+          <UploadBtn
+            onUrl={(url) => onUpdateQ(qi, "imageUrl", url)}
+            loading={qLoading}
+            label="رفع من الجهاز"
+          />
+        </div>
+        {/* Also allow URL input */}
+        <input
+          value={typeof q.imageUrl === "string" && !q.imageUrl.startsWith("data:") ? q.imageUrl : ""}
+          onChange={(e) => onUpdateQ(qi, "imageUrl", e.target.value)}
+          placeholder="أو أدخل رابط صورة مباشر (https://...)"
+          style={{ ...FIELD_STYLE, width: "100%", direction: "ltr", fontSize: 12 }}
+          onFocus={(e) => (e.target.style.borderColor = "rgba(201,168,76,0.6)")}
+          onBlur={(e)  => (e.target.style.borderColor = "rgba(201,168,76,0.25)")}
+        />
+        <ImagePreview
+          url={q.imageUrl ?? ""}
+          onRemove={() => onUpdateQ(qi, "imageUrl", "")}
+        />
+      </div>
+
+      {/* Choices */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <label style={{ fontFamily: "Cairo,sans-serif", color: "#4A3F2A", fontSize: 13, fontWeight: 600 }}>
+            الخيارات — اضغط الدائرة لتحديد الإجابة الصحيحة
+          </label>
+          <button type="button" onClick={() => onAddChoice(qi)}
+            style={{ padding: "4px 12px", borderRadius: 8, border: "1px solid rgba(201,168,76,0.3)", color: "#8B6914", background: "none", fontFamily: "Cairo,sans-serif", fontSize: 12, cursor: "pointer" }}>
+            ＋ خيار
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {q.choices.map((c, ci) => {
+            const cKey    = `${qi}-${ci}`;
+            const cLoading = cImgLoading[cKey] ?? false;
+            return (
+              <div key={ci} className="rounded-xl p-3"
+                style={{ border: `1.5px solid ${c.isCorrect ? "rgba(45,158,107,0.4)" : "rgba(201,168,76,0.15)"}`,
+                  background: c.isCorrect ? "rgba(45,158,107,0.04)" : "rgba(250,247,240,0.4)",
+                  transition: "all 0.15s" }}>
+                <div className="flex items-start gap-3">
+                  {/* Correct answer radio — shown for both quiz and homework now */}
+                  <button type="button" onClick={() => onSetCorrect(qi, ci)}
+                    className="mt-1 flex-shrink-0"
+                    style={{ width: 22, height: 22, borderRadius: "50%", border: "2px solid",
+                      borderColor: c.isCorrect ? "#2D9E6B" : "rgba(201,168,76,0.35)",
+                      background: c.isCorrect ? "#2D9E6B" : "transparent",
+                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                      color: "#fff", fontSize: 13, transition: "all 0.15s" }}
+                    title="الإجابة الصحيحة">
+                    {c.isCorrect ? "✓" : ""}
+                  </button>
+
+                  <div style={{ flex: 1 }}>
+                    {/* Choice text */}
+                    <input
+                      value={c.text ?? ""}
+                      onChange={(e) => onUpdateC(qi, ci, "text", e.target.value)}
+                      placeholder={`نص الخيار ${ci + 1}`}
+                      style={{ ...FIELD_STYLE, width: "100%", marginBottom: 6,
+                        borderColor: c.isCorrect ? "rgba(45,158,107,0.4)" : "rgba(201,168,76,0.25)" }}
+                      onFocus={(e) => (e.target.style.borderColor = c.isCorrect ? "rgba(45,158,107,0.6)" : "rgba(201,168,76,0.6)")}
+                      onBlur={(e)  => (e.target.style.borderColor = c.isCorrect ? "rgba(45,158,107,0.4)" : "rgba(201,168,76,0.25)")}
+                    />
+
+                    {/* Choice image */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <UploadBtn
+                        onUrl={(url) => onUpdateC(qi, ci, "imageUrl", url)}
+                        loading={cLoading}
+                        label="صورة للخيار"
+                        small
+                      />
+                      <input
+                        value={typeof c.imageUrl === "string" && !c.imageUrl.startsWith("data:") ? c.imageUrl : ""}
+                        onChange={(e) => onUpdateC(qi, ci, "imageUrl", e.target.value)}
+                        placeholder="أو رابط صورة مباشر"
+                        style={{ ...FIELD_STYLE, flex: 1, minWidth: 120, fontSize: 11, direction: "ltr", padding: "5px 8px" }}
+                        onFocus={(e) => (e.target.style.borderColor = "rgba(201,168,76,0.6)")}
+                        onBlur={(e)  => (e.target.style.borderColor = "rgba(201,168,76,0.25)")}
+                      />
+                    </div>
+                    <ImagePreview
+                      url={c.imageUrl ?? ""}
+                      onRemove={() => onUpdateC(qi, ci, "imageUrl", "")}
+                      maxH="max-h-20"
+                    />
+                  </div>
+
+                  {/* Remove choice */}
+                  {q.choices.length > 2 && (
+                    <button type="button" onClick={() => onRemoveChoice(qi, ci)}
+                      className="mt-1 flex-shrink-0"
+                      style={{ width: 22, height: 22, borderRadius: "50%", border: "1px solid rgba(239,68,68,0.3)", color: "#DC2626", background: "none", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>
+                      ×
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </motion.div>
+  );
+});
+
 export default function QuizBuilderPage() {
   const router       = useRouter();
   const searchParams = useSearchParams();
@@ -224,18 +428,24 @@ export default function QuizBuilderPage() {
   });
 
   // ── Question helpers ───────────────────────────────────────
+  // PERF FIX: wrapped in useCallback (all use the functional setQuestions
+  // form, so no dependencies are needed) so each has a stable reference
+  // across renders. QuestionBlock above is wrapped in React.memo — without
+  // this, a new function identity on every render would still cause every
+  // question to re-render on every keystroke, defeating that memoization
+  // even though the component itself is memoized correctly.
 
-  const addQuestion = () => setQuestions((q) => [...q, blankQ()]);
+  const addQuestion = useCallback(() => setQuestions((q) => [...q, blankQ()]), []);
 
-  const removeQuestion = (qi: number) =>
-    setQuestions((q) => q.filter((_, i) => i !== qi));
+  const removeQuestion = useCallback((qi: number) =>
+    setQuestions((q) => q.filter((_, i) => i !== qi)), []);
 
-  const updateQ = (qi: number, field: keyof QuestionForm, value: unknown) =>
+  const updateQ = useCallback((qi: number, field: keyof QuestionForm, value: unknown) =>
     setQuestions((prev) =>
       prev.map((q, i) => (i === qi ? { ...q, [field]: value } : q))
-    );
+    ), []);
 
-  const updateC = (qi: number, ci: number, field: keyof ChoiceForm, value: unknown) =>
+  const updateC = useCallback((qi: number, ci: number, field: keyof ChoiceForm, value: unknown) =>
     setQuestions((prev) =>
       prev.map((q, i) =>
         i !== qi ? q : {
@@ -245,9 +455,9 @@ export default function QuizBuilderPage() {
           ),
         }
       )
-    );
+    ), []);
 
-  const setCorrect = (qi: number, ci: number) =>
+  const setCorrect = useCallback((qi: number, ci: number) =>
     setQuestions((prev) =>
       prev.map((q, i) =>
         i !== qi ? q : {
@@ -255,21 +465,21 @@ export default function QuizBuilderPage() {
           choices: q.choices.map((c, j) => ({ ...c, isCorrect: j === ci })),
         }
       )
-    );
+    ), []);
 
-  const addChoice = (qi: number) =>
+  const addChoice = useCallback((qi: number) =>
     setQuestions((prev) =>
       prev.map((q, i) =>
         i === qi ? { ...q, choices: [...q.choices, blank()] } : q
       )
-    );
+    ), []);
 
-  const removeChoice = (qi: number, ci: number) =>
+  const removeChoice = useCallback((qi: number, ci: number) =>
     setQuestions((prev) =>
       prev.map((q, i) =>
         i !== qi ? q : { ...q, choices: q.choices.filter((_, j) => j !== ci) }
       )
-    );
+    ), []);
 
   // ── Image upload for question ──────────────────────────────
 
@@ -332,22 +542,6 @@ export default function QuizBuilderPage() {
 
   const isPending = createQuiz.isPending || createHomework.isPending;
 
-  const fieldStyle: React.CSSProperties = {
-    padding: "10px 12px", borderRadius: 10,
-    border: "1.5px solid rgba(201,168,76,0.25)",
-    background: "#FAFAF8", color: "#1A1208",
-    fontFamily: "Cairo,sans-serif", fontSize: 13,
-    outline: "none", direction: "rtl", transition: "border-color 0.2s",
-  };
-
-  const sectionCard: React.CSSProperties = {
-    background: "#fff",
-    border: "1px solid rgba(201,168,76,0.15)",
-    boxShadow: "0 2px 12px rgba(26,18,8,0.04)",
-    borderRadius: 20,
-    padding: 24,
-  };
-
   return (
     <div style={{ direction: "rtl" }}>
       {/* Header */}
@@ -369,7 +563,7 @@ export default function QuizBuilderPage() {
       <form onSubmit={handleSubmit} className="space-y-6">
 
         {/* ── Title + time limit ── */}
-        <div style={sectionCard}>
+        <div style={SECTION_CARD}>
           <div className="flex gap-4 flex-wrap">
             <div style={{ flex: 2, minWidth: 200 }}>
               <label style={{ fontFamily: "Cairo,sans-serif", color: "#4A3F2A", fontSize: 13, fontWeight: 600, marginBottom: 5, display: "block" }}>
@@ -378,7 +572,7 @@ export default function QuizBuilderPage() {
               <input
                 value={quizTitle} onChange={(e) => setQuizTitle(e.target.value)}
                 placeholder={type === "quiz" ? "مثال: اختبار الدرس الأول" : "مثال: واجب المبتدأ والخبر"}
-                style={{ ...fieldStyle, width: "100%" }}
+                style={{ ...FIELD_STYLE, width: "100%" }}
                 onFocus={(e) => (e.target.style.borderColor = "rgba(201,168,76,0.6)")}
                 onBlur={(e)  => (e.target.style.borderColor = "rgba(201,168,76,0.25)")}
               />
@@ -392,7 +586,7 @@ export default function QuizBuilderPage() {
                   type="number" min="1" value={timeLimit}
                   onChange={(e) => setTimeLimit(e.target.value)}
                   placeholder="بلا حد"
-                  style={{ ...fieldStyle, width: "100%", direction: "ltr" }}
+                  style={{ ...FIELD_STYLE, width: "100%", direction: "ltr" }}
                   onFocus={(e) => (e.target.style.borderColor = "rgba(201,168,76,0.6)")}
                   onBlur={(e)  => (e.target.style.borderColor = "rgba(201,168,76,0.25)")}
                 />
@@ -403,159 +597,22 @@ export default function QuizBuilderPage() {
 
         {/* ── Questions ── */}
         <AnimatePresence>
-          {questions.map((q, qi) => {
-            const qLoading = qImgLoading[qi] ?? false;
-            return (
-              <motion.div
-                key={qi}
-                initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.22 }}
-                style={sectionCard}
-              >
-                {/* Question header */}
-                <div className="flex items-center justify-between mb-5">
-                  <div className="px-3 py-1 rounded-full text-xs font-bold"
-                    style={{ background: "linear-gradient(135deg,#C9A84C,#8B6914)", color: "#1A1208", fontFamily: "Cairo,sans-serif" }}>
-                    سؤال {qi + 1}
-                  </div>
-                  {questions.length > 1 && (
-                    <button type="button" onClick={() => removeQuestion(qi)}
-                      style={{ padding: "4px 12px", borderRadius: 8, border: "1px solid rgba(239,68,68,0.25)", color: "#DC2626", background: "none", fontFamily: "Cairo,sans-serif", fontSize: 12, cursor: "pointer" }}>
-                      حذف السؤال
-                    </button>
-                  )}
-                </div>
-
-                {/* Question text */}
-                <div className="mb-3">
-                  <label style={{ fontFamily: "Cairo,sans-serif", color: "#4A3F2A", fontSize: 12, marginBottom: 4, display: "block", fontWeight: 600 }}>
-                    نص السؤال <span style={{ color: "#7A6E5A", fontWeight: 400 }}>(اختياري إذا أضفت صورة)</span>
-                  </label>
-                  <textarea
-                    value={q.text ?? ""}
-                    onChange={(e) => updateQ(qi, "text", e.target.value)}
-                    placeholder="اكتب نص السؤال هنا..."
-                    rows={2}
-                    style={{ ...fieldStyle, width: "100%", resize: "vertical" }}
-                    onFocus={(e) => (e.target.style.borderColor = "rgba(201,168,76,0.6)")}
-                    onBlur={(e)  => (e.target.style.borderColor = "rgba(201,168,76,0.25)")}
-                  />
-                </div>
-
-                {/* Question image */}
-                <div className="mb-5">
-                  <div className="flex items-center gap-3 mb-1">
-                    <label style={{ fontFamily: "Cairo,sans-serif", color: "#4A3F2A", fontSize: 12, fontWeight: 600 }}>
-                      🖼️ صورة السؤال
-                    </label>
-                    <UploadBtn
-                      onUrl={(url) => updateQ(qi, "imageUrl", url)}
-                      loading={qLoading}
-                      label="رفع من الجهاز"
-                    />
-                  </div>
-                  {/* Also allow URL input */}
-                  <input
-                    value={typeof q.imageUrl === "string" && !q.imageUrl.startsWith("data:") ? q.imageUrl : ""}
-                    onChange={(e) => updateQ(qi, "imageUrl", e.target.value)}
-                    placeholder="أو أدخل رابط صورة مباشر (https://...)"
-                    style={{ ...fieldStyle, width: "100%", direction: "ltr", fontSize: 12 }}
-                    onFocus={(e) => (e.target.style.borderColor = "rgba(201,168,76,0.6)")}
-                    onBlur={(e)  => (e.target.style.borderColor = "rgba(201,168,76,0.25)")}
-                  />
-                  <ImagePreview
-                    url={q.imageUrl ?? ""}
-                    onRemove={() => updateQ(qi, "imageUrl", "")}
-                  />
-                </div>
-
-                {/* Choices */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <label style={{ fontFamily: "Cairo,sans-serif", color: "#4A3F2A", fontSize: 13, fontWeight: 600 }}>
-                      الخيارات — اضغط الدائرة لتحديد الإجابة الصحيحة
-                    </label>
-                    <button type="button" onClick={() => addChoice(qi)}
-                      style={{ padding: "4px 12px", borderRadius: 8, border: "1px solid rgba(201,168,76,0.3)", color: "#8B6914", background: "none", fontFamily: "Cairo,sans-serif", fontSize: 12, cursor: "pointer" }}>
-                      ＋ خيار
-                    </button>
-                  </div>
-
-                  <div className="space-y-4">
-                    {q.choices.map((c, ci) => {
-                      const cKey    = `${qi}-${ci}`;
-                      const cLoading = cImgLoading[cKey] ?? false;
-                      return (
-                        <div key={ci} className="rounded-xl p-3"
-                          style={{ border: `1.5px solid ${c.isCorrect ? "rgba(45,158,107,0.4)" : "rgba(201,168,76,0.15)"}`,
-                            background: c.isCorrect ? "rgba(45,158,107,0.04)" : "rgba(250,247,240,0.4)",
-                            transition: "all 0.15s" }}>
-                          <div className="flex items-start gap-3">
-                            {/* Correct answer radio — shown for both quiz and homework now */}
-                            <button type="button" onClick={() => setCorrect(qi, ci)}
-                              className="mt-1 flex-shrink-0"
-                              style={{ width: 22, height: 22, borderRadius: "50%", border: "2px solid",
-                                borderColor: c.isCorrect ? "#2D9E6B" : "rgba(201,168,76,0.35)",
-                                background: c.isCorrect ? "#2D9E6B" : "transparent",
-                                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                                color: "#fff", fontSize: 13, transition: "all 0.15s" }}
-                              title="الإجابة الصحيحة">
-                              {c.isCorrect ? "✓" : ""}
-                            </button>
-
-                            <div style={{ flex: 1 }}>
-                              {/* Choice text */}
-                              <input
-                                value={c.text ?? ""}
-                                onChange={(e) => updateC(qi, ci, "text", e.target.value)}
-                                placeholder={`نص الخيار ${ci + 1}`}
-                                style={{ ...fieldStyle, width: "100%", marginBottom: 6,
-                                  borderColor: c.isCorrect ? "rgba(45,158,107,0.4)" : "rgba(201,168,76,0.25)" }}
-                                onFocus={(e) => (e.target.style.borderColor = c.isCorrect ? "rgba(45,158,107,0.6)" : "rgba(201,168,76,0.6)")}
-                                onBlur={(e)  => (e.target.style.borderColor = c.isCorrect ? "rgba(45,158,107,0.4)" : "rgba(201,168,76,0.25)")}
-                              />
-
-                              {/* Choice image */}
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <UploadBtn
-                                  onUrl={(url) => updateC(qi, ci, "imageUrl", url)}
-                                  loading={cLoading}
-                                  label="صورة للخيار"
-                                  small
-                                />
-                                <input
-                                  value={typeof c.imageUrl === "string" && !c.imageUrl.startsWith("data:") ? c.imageUrl : ""}
-                                  onChange={(e) => updateC(qi, ci, "imageUrl", e.target.value)}
-                                  placeholder="أو رابط صورة مباشر"
-                                  style={{ ...fieldStyle, flex: 1, minWidth: 120, fontSize: 11, direction: "ltr", padding: "5px 8px" }}
-                                  onFocus={(e) => (e.target.style.borderColor = "rgba(201,168,76,0.6)")}
-                                  onBlur={(e)  => (e.target.style.borderColor = "rgba(201,168,76,0.25)")}
-                                />
-                              </div>
-                              <ImagePreview
-                                url={c.imageUrl ?? ""}
-                                onRemove={() => updateC(qi, ci, "imageUrl", "")}
-                                maxH="max-h-20"
-                              />
-                            </div>
-
-                            {/* Remove choice */}
-                            {q.choices.length > 2 && (
-                              <button type="button" onClick={() => removeChoice(qi, ci)}
-                                className="mt-1 flex-shrink-0"
-                                style={{ width: 22, height: 22, borderRadius: "50%", border: "1px solid rgba(239,68,68,0.3)", color: "#DC2626", background: "none", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>
-                                ×
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
+          {questions.map((q, qi) => (
+            <QuestionBlock
+              key={qi}
+              q={q}
+              qi={qi}
+              questionsLength={questions.length}
+              qLoading={qImgLoading[qi] ?? false}
+              cImgLoading={cImgLoading}
+              onUpdateQ={updateQ}
+              onUpdateC={updateC}
+              onSetCorrect={setCorrect}
+              onRemoveQuestion={removeQuestion}
+              onAddChoice={addChoice}
+              onRemoveChoice={removeChoice}
+            />
+          ))}
         </AnimatePresence>
 
         {/* ── Add question + Submit ── */}

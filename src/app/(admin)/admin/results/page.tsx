@@ -191,8 +191,14 @@ export default function ResultsPage() {
           </p>
         </div>
       ) : (
-        <div className="rounded-2xl overflow-hidden"
-          style={{ background: "#fff", border: "1px solid rgba(201,168,76,0.15)", boxShadow: "0 2px 12px rgba(26,18,8,0.04)" }}>
+        <div className="rounded-2xl"
+          style={{ background: "#fff", border: "1px solid rgba(201,168,76,0.15)", boxShadow: "0 2px 12px rgba(26,18,8,0.04)", overflowX: "auto" }}>
+          {/* RESPONSIVE FIX: this table has 7 fixed columns with no mobile
+              layout of its own — on a phone that used to mean either
+              unreadably crushed columns or silent horizontal overflow.
+              A min-width forces the table to keep a readable column width
+              and scroll sideways on narrow screens instead. */}
+          <div style={{ minWidth: 640 }}>
           <div className="grid gap-3 px-5 py-3 text-xs font-semibold"
             style={{
               gridTemplateColumns: "1.8fr 1.4fr 1.4fr 1.2fr 0.8fr 1fr 0.8fr",
@@ -261,6 +267,7 @@ export default function ResultsPage() {
               </span>
             </motion.div>
           ))}
+          </div>
         </div>
       )}
 
