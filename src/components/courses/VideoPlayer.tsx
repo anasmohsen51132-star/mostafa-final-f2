@@ -119,6 +119,7 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
     origin,
     onProgressTick,
     onStateChange,
+    autoPlayOnReady: started,
   });
 
   // ── Resume watching: seek once, right after the player is cued ──
@@ -439,6 +440,33 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* Error state — watchdog fired, or YT reported a playback error */}
+            {state.status === "error" && (
+              <div
+                className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 px-4 text-center"
+                style={{ background: "#0a1f14" }}
+              >
+                <p style={{ fontFamily: "Cairo,sans-serif", color: "#E8967A", fontSize: 13, fontWeight: 600 }}>
+                  ⚠️ تعذّر تحميل الفيديو
+                </p>
+                <p style={{ fontFamily: "Cairo,sans-serif", color: "rgba(250,247,240,0.5)", fontSize: 11 }}>
+                  تأكد من اتصال الإنترنت، أو أن أي أداة حجب إعلانات لا تمنع youtube.com
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStarted(false);
+                    resumeAppliedRef.current = false;
+                    window.setTimeout(() => setStarted(true), 50);
+                  }}
+                  className="mt-2 rounded-lg px-3 py-1.5"
+                  style={{ fontFamily: "Cairo,sans-serif", fontSize: 12, color: "#C9A84C", border: "1px solid rgba(201,168,76,0.3)" }}
+                >
+                  إعادة المحاولة
+                </button>
+              </div>
+            )}
 
             {/* The actual YT iframe is created inside this mount div by the IFrame API */}
             <div
