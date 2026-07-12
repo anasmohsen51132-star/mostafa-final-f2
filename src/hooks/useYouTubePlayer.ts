@@ -70,6 +70,10 @@ export interface UseYouTubePlayerOptions {
   origin: string;
   onProgressTick?: (currentTime: number, duration: number) => void;
   onStateChange?: (status: PlayerStatus) => void;
+  /** Call playVideo() as soon as the player is ready — used when the player
+   *  is only mounted in response to a real click (our thumbnail), so this
+   *  still runs close enough to the user gesture for autoplay to be allowed. */
+  autoPlayOnReady?: boolean;
 }
 
 const DEFAULT_STATE: YouTubePlayerState = {
@@ -84,8 +88,21 @@ const DEFAULT_STATE: YouTubePlayerState = {
   quality: "auto",
 };
 
-export function useYouTubePlayer({ videoId, origin, onProgressTick, onStateChange }: UseYouTubePlayerOptions) {
-  const mountRef = useRef<HTMLDivElement | null>(null);
+export function useYouTubePlayer({ videoId, origin, onProgressTick, onStateChange, autoPlayOnReady }: UseYouTubePlayerOptions) {
+  // BUGFIX: this used to be a plain `useRef<HTMLDivElement>(null)`. The
+  // problem: the mount <div> only enters the DOM after the user clicks the
+  // thumbnail (VideoPlayer only renders it once `started` is true). A plain
+  // ref's `.current` changing does NOT re-run effects — React only reacts to
+  // state/prop changes. So the "create the player" effect below would fire
+  // once (when the YT API script finished loading), see `mountRef.current
+  // === null` because the div didn't exist yet, bail out, and then never
+  // fire again even after the div mounted — permanent loading spinner, no
+  // player ever created. A callback ref backed by state fixes this: mounting
+  // the div now updates state, which is a valid effect dependency.
+  const [mountNode, setMountNode] = useState<HTMLDivElement | null>(null);
+  const mountRef = useCallback((node: HTMLDivElement | null) => {
+    setMountNode(node);
+  }, []);
   const playerRef = useRef<YT.Player | null>(null);
   const pollRef = useRef<number | null>(null);
   const [state, setState] = useState<YouTubePlayerState>(DEFAULT_STATE);
@@ -107,12 +124,24 @@ export function useYouTubePlayer({ videoId, origin, onProgressTick, onStateChang
     };
   }, []);
 
+  // Watchdog: if the API script never loads (blocked by an ad-blocker,
+  // corporate network, or a CSP that's stricter than expected), don't sit on
+  // an infinite spinner — surface it as an actual error state after 10s so
+  // it's visibly distinguishable from "still buffering" during testing.
   useEffect(() => {
-    if (!isApiReady || !mountRef.current || !videoId) return;
+    if (isApiReady || !videoId) return;
+    const timer = window.setTimeout(() => {
+      if (!isApiReady) patch({ status: "error" });
+    }, 10000);
+    return () => window.clearTimeout(timer);
+  }, [isApiReady, videoId, patch]);
+
+  useEffect(() => {
+    if (!isApiReady || !mountNode || !videoId) return;
 
     patch({ status: "loading" });
 
-    const player = new window.YT.Player(mountRef.current, {
+    const player = new window.YT.Player(mountNode, {
       videoId,
       host: "https://www.youtube-nocookie.com",
       width: "100%",
@@ -141,6 +170,7 @@ export function useYouTubePlayer({ videoId, origin, onProgressTick, onStateChang
             muted: e.target.isMuted(),
             availableQualities: e.target.getAvailableQualityLevels(),
           });
+          if (autoPlayOnReady) e.target.playVideo();
         },
         onStateChange: (e) => {
           const map: Partial<Record<YT.PlayerState, PlayerStatus>> = {
@@ -166,7 +196,7 @@ export function useYouTubePlayer({ videoId, origin, onProgressTick, onStateChang
       playerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isApiReady, videoId, origin]);
+  }, [isApiReady, mountNode, videoId, origin]);
 
   // ── Poll time/buffer while mounted (YT API has no timeupdate event) ──
   useEffect(() => {
