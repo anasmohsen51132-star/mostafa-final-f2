@@ -59,7 +59,6 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [ripple, setRipple] = useState<{ side: "left" | "right"; key: number } | null>(null);
-  const [coverStyle, setCoverStyle] = useState<React.CSSProperties>({});
 
   // ── Progress tracking (server) ────────────────────────────
   const trackEvent = useCallback(
@@ -190,33 +189,27 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
     };
   }, []);
 
-  const recomputeCover = useCallback(() => {
-    if (!isFullscreen) {
-      setCoverStyle({});
-      return;
-    }
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const viewportAspect = vw / vh;
-    // "cover" behaviour: scale the iframe up and center it so the 16:9
-    // frame fills the viewport with no letterbox/pillarbox, cropping the
-    // overflow instead of showing black bars.
-    if (viewportAspect > VIDEO_ASPECT) {
-      setCoverStyle({ width: "100vw", height: `${vw / VIDEO_ASPECT}px`, top: "50%", left: 0, transform: "translateY(-50%)" });
-    } else {
-      setCoverStyle({ height: "100dvh", width: `${vh * VIDEO_ASPECT}px`, left: "50%", top: 0, transform: "translateX(-50%)" });
-    }
-  }, [isFullscreen]);
-
-  useEffect(() => {
-    recomputeCover();
-    window.addEventListener("resize", recomputeCover);
-    window.addEventListener("orientationchange", recomputeCover);
-    return () => {
-      window.removeEventListener("resize", recomputeCover);
-      window.removeEventListener("orientationchange", recomputeCover);
-    };
-  }, [recomputeCover]);
+  // BUGFIX: this used to measure window.innerWidth/innerHeight in JS and
+  // compute a pixel width/height to "cover" the screen. The problem: right
+  // after entering fullscreen (especially combined with the orientation
+  // lock), the browser hasn't finished resizing the viewport yet when this
+  // ran, so it read stale (pre-fullscreen) dimensions — the video ended up
+  // too small, leaving a big black area around it.
+  // Fix: a pure-CSS "cover" trick. Setting both a width/height pair AND a
+  // min-width/min-height pair (in the opposite unit) makes the browser pick
+  // whichever pair produces the LARGER box — that's exactly cover behaviour,
+  // and it's recalculated by the browser itself on every resize/rotation,
+  // so there's no JS measurement to go stale. No state, no listeners needed.
+  const coverStyle: React.CSSProperties = {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    width: "100vw",
+    height: `${100 / VIDEO_ASPECT}vw`, // 100vw * 9/16
+    minWidth: `${100 * VIDEO_ASPECT}dvh`, // 100dvh * 16/9
+    minHeight: "100dvh",
+    transform: "translate(-50%, -50%)",
+  };
 
   const toggleFullscreen = useCallback(async () => {
     const el = playerBoxRef.current;
@@ -307,12 +300,21 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
   }, [started, controls, state.volume, state.duration, resetHideTimer, toggleFullscreen]);
 
   // ── Touch gestures: single tap = toggle controls, double tap L/R = seek ──
+  const lastHandledRef = useRef(0);
   const handleTap = useCallback(
     (clientX: number) => {
       const el = playerBoxRef.current;
       if (!el) return;
-      const rect = el.getBoundingClientRect();
       const now = Date.now();
+
+      // Extra defense on top of using a single onPointerUp handler: ignore
+      // anything that looks like the same physical tap firing twice
+      // (e.g. a stray duplicate event on some browser/device combos).
+      // Legitimate double-taps are always well above this gap.
+      if (now - lastHandledRef.current < 80) return;
+      lastHandledRef.current = now;
+
+      const rect = el.getBoundingClientRect();
       const isLeftHalf = clientX - rect.left < rect.width / 2;
 
       if (tapRef.current && now - tapRef.current.time < 300) {
@@ -477,14 +479,21 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
 
             {/* Gesture / interaction capture layer — sits ABOVE the iframe so
                 the native embed never receives clicks, drags, or right-clicks
-                directly; every interaction is routed through our own state. */}
+                directly; every interaction is routed through our own state.
+                BUGFIX: this used to have BOTH onClick and onTouchEnd. On a
+                touch device, a single tap fires touchend AND a synthetic
+                compatibility click a moment later — both landed inside the
+                300ms double-tap window, so handleTap() ran twice per real
+                tap and every single tap was misread as a double-tap (10s
+                seek). Pointer Events fire exactly once per interaction
+                across mouse/touch/pen, so a single handler here is correct. */}
             <div
               className="absolute inset-0 z-10"
               style={{ touchAction: "manipulation" }}
               onContextMenu={(e) => e.preventDefault()}
-              onClick={(e) => handleTap(e.clientX)}
-              onTouchEnd={(e) => {
-                if (e.changedTouches[0]) handleTap(e.changedTouches[0].clientX);
+              onPointerUp={(e) => {
+                e.preventDefault();
+                handleTap(e.clientX);
               }}
             />
 
