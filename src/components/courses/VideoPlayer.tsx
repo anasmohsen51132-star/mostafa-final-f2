@@ -200,14 +200,27 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
   // whichever pair produces the LARGER box — that's exactly cover behaviour,
   // and it's recalculated by the browser itself on every resize/rotation,
   // so there's no JS measurement to go stale. No state, no listeners needed.
+  //
+  // REMAINING BARS: this math is exact *if the source video is really
+  // 16:9*. It sizes our <iframe> box to fully cover the screen, but YouTube
+  // still letterboxes/pillarboxes *inside* that box to match the video's
+  // own native resolution — and lecture recordings (whiteboard apps, screen
+  // captures) are very often NOT exactly 16:9 (e.g. 4:3, 16:10, or an odd
+  // capture resolution). The IFrame API has no way to ask YouTube for the
+  // real source aspect ratio, so we can't compute an exact crop. The
+  // practical fix is to deliberately oversize the cover box by a safety
+  // margin (COVER_OVERSCAN) so YouTube's internal letterbox bars get pushed
+  // outside the visible viewport and cropped away instead of showing —
+  // trading a bit of extra edge-cropping for guaranteed no black bars.
+  const COVER_OVERSCAN = 1.28; // ~28% extra zoom; raise this if bars still show on very off-ratio videos
   const coverStyle: React.CSSProperties = {
     position: "absolute",
     top: "50%",
     left: "50%",
-    width: "100vw",
-    height: `${100 / VIDEO_ASPECT}vw`, // 100vw * 9/16
-    minWidth: `${100 * VIDEO_ASPECT}dvh`, // 100dvh * 16/9
-    minHeight: "100dvh",
+    width: `${100 * COVER_OVERSCAN}vw`,
+    height: `${(100 / VIDEO_ASPECT) * COVER_OVERSCAN}vw`, // 100vw * 9/16, scaled up
+    minWidth: `${100 * VIDEO_ASPECT * COVER_OVERSCAN}dvh`, // 100dvh * 16/9, scaled up
+    minHeight: `${100 * COVER_OVERSCAN}dvh`,
     transform: "translate(-50%, -50%)",
   };
 
