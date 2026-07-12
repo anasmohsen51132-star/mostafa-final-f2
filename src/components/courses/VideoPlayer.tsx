@@ -115,8 +115,10 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
   const [started,      setStarted]     = useState(false);
   const [speed,        setSpeed]       = useState(1);
   const [isReady,      setIsReady]     = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const iframeRef                      = useRef<HTMLIFrameElement>(null);
   const containerRef                   = useRef<HTMLDivElement>(null);
+  const playerBoxRef                   = useRef<HTMLDivElement>(null);
   const trackedCompleteRef             = useRef(false);
   const lastEventRef                   = useRef<string>("");
 
@@ -140,6 +142,73 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
       el.removeEventListener("selectstart",  block);
     };
   }, []);
+
+  // ── Track fullscreen state ─────────────────────────────────
+  useEffect(() => {
+    const handleChange = () => {
+      const fsElement =
+        document.fullscreenElement ||
+        (document as unknown as { webkitFullscreenElement?: Element }).webkitFullscreenElement;
+      setIsFullscreen(fsElement === playerBoxRef.current);
+    };
+    document.addEventListener("fullscreenchange", handleChange);
+    document.addEventListener("webkitfullscreenchange", handleChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleChange);
+      document.removeEventListener("webkitfullscreenchange", handleChange);
+    };
+  }, []);
+
+  // ── Fullscreen toggle ───────────────────────────────────────
+  // BUGFIX: this is the actual fix for "big black bars on the sides in
+  // fullscreen on phone/tablet" — a 16:9 video staying in portrait
+  // orientation on a phone leaves huge black letterbox bars left/right,
+  // since a landscape video can never fill a portrait screen. Requesting
+  // fullscreen on OUR player box (not the whole component — that would also
+  // fullscreen the speed controls/notice text below it) and then explicitly
+  // locking the screen to landscape makes the video actually rotate and
+  // fill the entire screen edge-to-edge on mobile, instead of sitting small
+  // in the middle of an unrotated portrait viewport.
+  const toggleFullscreen = useCallback(async () => {
+    const el = playerBoxRef.current;
+    if (!el) return;
+
+    const fsElement =
+      document.fullscreenElement ||
+      (document as unknown as { webkitFullscreenElement?: Element }).webkitFullscreenElement;
+
+    if (fsElement) {
+      if (document.exitFullscreen) await document.exitFullscreen();
+      else (document as unknown as { webkitExitFullscreen?: () => void }).webkitExitFullscreen?.();
+      return;
+    }
+
+    try {
+      if (el.requestFullscreen) await el.requestFullscreen();
+      else (el as unknown as { webkitRequestFullscreen?: () => void }).webkitRequestFullscreen?.();
+
+      // Only meaningful on narrow (phone/tablet-portrait) viewports — a
+      // laptop/desktop screen doesn't need or want a forced rotation.
+      // Not supported on iOS Safari (Apple restricts the Orientation Lock
+      // API there), which is fine: iOS handles native video rotation via
+      // its own fullscreen video UI regardless.
+      const orientation = screen.orientation as unknown as {
+        lock?: (o: string) => Promise<void>;
+      };
+      if (window.innerWidth < 900 && orientation?.lock) {
+        orientation.lock("landscape").catch(() => {
+          // Some browsers reject this outside a direct user gesture
+          // context or don't support it at all — safe to ignore, the video
+          // still fills the fullscreen box either way, just without a
+          // forced rotation.
+        });
+      }
+    } catch {
+      // Fullscreen can be denied by the browser (e.g. no user gesture) —
+      // fail silently, the inline player keeps working normally.
+    }
+  }, []);
+
 
   // ── Playback tracking ─────────────────────────────────────
   const trackEvent = useCallback(async (event: string) => {
@@ -284,11 +353,21 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
           /* ── Active player ── */
           <motion.div
             key="player"
+            ref={playerBoxRef}
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.28, ease: "easeOut" }}
-            className="relative rounded-2xl overflow-hidden"
-            style={{ aspectRatio: "16/9", background: "#000" }}
+            className={isFullscreen ? "relative overflow-hidden" : "relative rounded-2xl overflow-hidden"}
+            style={
+              isFullscreen
+                // BUGFIX: true edge-to-edge fullscreen — no aspect-ratio
+                // lock, no rounded corners clipping into the frame, full
+                // width/height of whatever the fullscreen viewport actually
+                // is (which is the phone's full landscape dimensions once
+                // toggleFullscreen's orientation lock kicks in above).
+                ? { width: "100vw", height: "100vh", background: "#000" }
+                : { aspectRatio: "16/9", background: "#000" }
+            }
             onContextMenu={(e) => e.preventDefault()}
           >
             {/* Loading shimmer */}
@@ -335,7 +414,7 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
               style={{ border: "none", display: "block" }}
               allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen"
               allowFullScreen
-              sandbox="allow-scripts allow-same-origin allow-presentation"
+              sandbox="allow-scripts allow-same-origin allow-presentation allow-orientation-lock"
               onLoad={() => setTimeout(() => setIsReady(true), 700)}
             />
 
@@ -358,6 +437,23 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
                 🔒 أكاديمية مستر مصطفى
               </span>
             </div>
+
+            {/* Fullscreen toggle — see toggleFullscreen() above for why this
+                exists instead of relying only on YouTube's own button. */}
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              aria-label={isFullscreen ? "الخروج من ملء الشاشة" : "ملء الشاشة"}
+              className="absolute top-3 z-30"
+              style={{
+                right: 12, width: 34, height: 34, borderRadius: 8,
+                background: "rgba(13,61,39,0.82)", border: "1px solid rgba(201,168,76,0.25)",
+                backdropFilter: "blur(6px)", display: "flex", alignItems: "center",
+                justifyContent: "center", cursor: "pointer", pointerEvents: "auto",
+              }}
+            >
+              <span style={{ fontSize: 15, lineHeight: 1 }}>{isFullscreen ? "⤦" : "⛶"}</span>
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
