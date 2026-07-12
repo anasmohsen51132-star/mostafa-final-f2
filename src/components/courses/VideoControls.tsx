@@ -59,12 +59,22 @@ export function VideoControls({
           style={{
             background: "linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.35) 55%, transparent 100%)",
             pointerEvents: "auto",
+            direction: "ltr",
           }}
           onPointerDown={(e) => e.stopPropagation()}
         >
-          {/* Seek bar */}
+          {/* Seek bar
+              BUGFIX: this container (and the absolutely-positioned bars
+              inside it) previously had no explicit `direction` and the fill
+              bars had no explicit `left: 0`. On an RTL page (this site is
+              Arabic), a position:absolute element with no left/right offset
+              anchors to the RIGHT edge by default — so the gold "progress"
+              fill rendered as a chunk on the right side of the track,
+              completely disconnected from the actual playhead position,
+              instead of growing from the left like a normal seek bar. */}
           <div
             className="group relative mb-2 h-3 w-full cursor-pointer"
+            style={{ direction: "ltr" }}
             onClick={(e) => {
               onInteract();
               const rect = e.currentTarget.getBoundingClientRect();
@@ -72,13 +82,13 @@ export function VideoControls({
               onSeek(ratio * state.duration);
             }}
           >
-            <div className="absolute top-1/2 h-1 w-full -translate-y-1/2 rounded-full bg-white/25" />
+            <div className="absolute top-1/2 left-0 h-1 w-full -translate-y-1/2 rounded-full bg-white/25" />
             <div
-              className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-white/40"
+              className="absolute top-1/2 left-0 h-1 -translate-y-1/2 rounded-full bg-white/40"
               style={{ width: `${state.bufferedFraction * 100}%` }}
             />
             <div
-              className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full"
+              className="absolute top-1/2 left-0 h-1 -translate-y-1/2 rounded-full"
               style={{ width: `${progress}%`, background: "#C9A84C" }}
             />
             <div
