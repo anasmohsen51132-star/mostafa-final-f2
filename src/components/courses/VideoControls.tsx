@@ -6,6 +6,18 @@ import type { YouTubePlayerState } from "@/hooks/useYouTubePlayer";
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
+// Fixed quality menu, always shown regardless of what YouTube reports as
+// currently available (replaces the previous dynamic-detection approach).
+// `value` uses YouTube's own internal quality-level keys — this is what
+// setPlaybackQuality()/getPlaybackQuality() actually expect and return:
+// tiny=144p, small=240p, medium=360p, large=480p, hd720=720p, hd1080=1080p.
+const QUALITY_OPTIONS: { value: string; label: string }[] = [
+  { value: "auto", label: "Auto" },
+  { value: "large", label: "480p" },
+  { value: "hd720", label: "720p" },
+  { value: "hd1080", label: "1080p" },
+];
+
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
   const h = Math.floor(seconds / 3600);
@@ -196,39 +208,37 @@ export function VideoControls({
                 )}
               </div>
 
-              {/* Quality */}
-              {state.availableQualities.length > 0 && (
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onInteract();
-                      setMenu(menu === "quality" ? null : "quality");
-                    }}
-                    className="rounded px-2 py-1 text-white"
-                    style={{ fontFamily: "Cairo, sans-serif", fontSize: 12, background: "rgba(255,255,255,0.1)" }}
-                  >
-                    {state.quality === "auto" ? "Auto" : state.quality}
-                  </button>
-                  {menu === "quality" && (
-                    <div className="absolute bottom-9 right-0 rounded-lg p-1" style={{ background: "rgba(20,20,20,0.95)" }}>
-                      {["auto", ...state.availableQualities].map((q) => (
-                        <button
-                          key={q}
-                          onClick={() => {
-                            onSetQuality(q);
-                            setMenu(null);
-                          }}
-                          className="block w-full whitespace-nowrap rounded px-3 py-1 text-left text-white hover:bg-white/10"
-                          style={{ fontFamily: "Cairo, sans-serif", fontSize: 12 }}
-                        >
-                          {q === "auto" ? "Auto" : q} {q === state.quality ? "✓" : ""}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+              {/* Quality — fixed list: Auto / 480p / 720p / 1080p */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onInteract();
+                    setMenu(menu === "quality" ? null : "quality");
+                  }}
+                  className="rounded px-2 py-1 text-white"
+                  style={{ fontFamily: "Cairo, sans-serif", fontSize: 12, background: "rgba(255,255,255,0.1)" }}
+                >
+                  {QUALITY_OPTIONS.find((q) => q.value === state.quality)?.label ?? "Auto"}
+                </button>
+                {menu === "quality" && (
+                  <div className="absolute bottom-9 right-0 rounded-lg p-1" style={{ background: "rgba(20,20,20,0.95)" }}>
+                    {QUALITY_OPTIONS.map((q) => (
+                      <button
+                        key={q.value}
+                        onClick={() => {
+                          onSetQuality(q.value);
+                          setMenu(null);
+                        }}
+                        className="block w-full whitespace-nowrap rounded px-3 py-1 text-left text-white hover:bg-white/10"
+                        style={{ fontFamily: "Cairo, sans-serif", fontSize: 12 }}
+                      >
+                        {q.label} {q.value === state.quality ? "✓" : ""}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* Fullscreen */}
               <button
