@@ -213,6 +213,13 @@ export interface SiteSettings {
   metaDescription?: string | null;
   metaKeywords?: string | null;
   ogImage?: string | null;
+
+  // Announcement bar (CUSTOM-010)
+  announcementEnabled: boolean;
+  announcementTitle?: string | null;
+  announcementText?: string | null;
+  announcementLink?: string | null;
+  announcementDismissible: boolean;
 }
 
 // ── API RESPONSES ───────────────────────────────────────────
