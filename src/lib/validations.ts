@@ -224,6 +224,19 @@ export const siteSettingsSchema = z
     // CTA buttons (CUSTOM-003)
     ctaButtons:       z.array(ctaButtonSchema).max(6).optional(),
 
+    // Announcement (CUSTOM-010) — actual editing happens through the
+    // separate /api/admin/announcement endpoint (admin+owner), but these
+    // fields must still be accepted here: the owner customize page always
+    // sends the *entire* settings object back on save, and this schema is
+    // `.strict()`, so omitting them would reject every save the moment
+    // this feature's columns exist on the row — the exact same class of
+    // bug already hit once with image fields.
+    announcementEnabled:     z.boolean().optional(),
+    announcementTitle:       z.string().max(120).optional().nullable(),
+    announcementText:        z.string().max(300).optional().nullable(),
+    announcementLink:        z.string().max(300).optional().nullable(),
+    announcementDismissible: z.boolean().optional(),
+
     // SEO (CUSTOM-004)
     metaTitle:        z.string().max(70).optional().nullable(),
     metaDescription:  z.string().max(160).optional().nullable(),
@@ -300,6 +313,20 @@ export const homeworkAnswersSchema = z.object({
   message: "حجم الإجابات أكبر من المسموح",
   path: ["answers"],
 });
+
+// ── Announcement bar (CUSTOM-010) ───────────────────────────────
+// Separate, deliberately small schema: this is the one part of
+// SiteSettings that ADMIN (not just OWNER) is allowed to touch, via
+// /api/admin/announcement — keeping it its own schema means that
+// permission boundary can't accidentally widen just because it shares a
+// DB row with the OWNER-only settings.
+export const announcementSchema = z.object({
+  enabled:     z.boolean(),
+  title:       z.string().max(120).optional().nullable(),
+  text:        z.string().max(300).optional().nullable(),
+  link:        z.string().max(300).optional().nullable(),
+  dismissible: z.boolean().default(true),
+}).strict();
 
 // ── Inferred types ────────────────────────────────────────────
 
