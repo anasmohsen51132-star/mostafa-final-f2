@@ -9,13 +9,14 @@ import { useAuth } from "@/hooks/useAuth";
 import type { SidebarItem } from "@/components/layout/Sidebar";
 
 const ADMIN_NAV: SidebarItem[] = [
-  { id: "overview",  label: "لوحة التحكم",    icon: "📊", href: "/admin",              section: "الرئيسية" },
-  { id: "courses",   label: "الكورسات",        icon: "📚", href: "/admin/courses",      section: "المحتوى"  },
-  { id: "lectures",  label: "المحاضرات",       icon: "🎬", href: "/admin/lectures",     section: "المحتوى"  },
-  { id: "quiz",      label: "منشئ الاختبارات", icon: "📝", href: "/admin/quiz-builder", section: "المحتوى"  },
-  { id: "codes",     label: "كودات الوصول",    icon: "🎟️", href: "/admin/codes",        section: "الطلاب"   },
-  { id: "students",  label: "الطلاب",          icon: "👥", href: "/admin/students",     section: "الطلاب"   },
-  { id: "results",   label: "النتائج",          icon: "📊", href: "/admin/results",      section: "الطلاب"   },
+  { id: "overview",     label: "لوحة التحكم",    icon: "📊", href: "/admin",              section: "الرئيسية" },
+  { id: "announcement", label: "الإعلان الشريطي", icon: "📢", href: "/admin/announcement", section: "الرئيسية" },
+  { id: "courses",      label: "الكورسات",        icon: "📚", href: "/admin/courses",      section: "المحتوى"  },
+  { id: "lectures",     label: "المحاضرات",       icon: "🎬", href: "/admin/lectures",     section: "المحتوى"  },
+  { id: "quiz",         label: "منشئ الاختبارات", icon: "📝", href: "/admin/quiz-builder", section: "المحتوى"  },
+  { id: "codes",        label: "كودات الوصول",    icon: "🎟️", href: "/admin/codes",        section: "الطلاب"   },
+  { id: "students",     label: "الطلاب",          icon: "👥", href: "/admin/students",     section: "الطلاب"   },
+  { id: "results",      label: "النتائج",          icon: "📊", href: "/admin/results",      section: "الطلاب"   },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
