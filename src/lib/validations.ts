@@ -146,6 +146,28 @@ const featureCardSchema = z.object({
   desc:  z.string().max(200),
 });
 
+// CUSTOM-005: reusable validator for uploaded image fields. These are
+// always Vercel Blob URLs (produced by /api/upload), never arbitrary
+// external URLs, which keeps the platform's own image-src CSP allowlist
+// meaningful rather than becoming "any URL the owner feels like pasting".
+const blobImageUrl = z
+  .string()
+  .url("رابط الصورة غير صحيح")
+  .max(500)
+  .refine((u) => u.includes(".public.blob.vercel-storage.com"), {
+    message: "الصورة يجب أن تُرفع من لوحة التحكم مباشرة",
+  })
+  .optional()
+  .nullable();
+
+const ctaButtonSchema = z.object({
+  id:      z.string().max(40),
+  label:   z.string().min(1).max(40),
+  href:    z.string().max(300),
+  visible: z.boolean(),
+  order:   z.number().int().min(0).max(20),
+});
+
 export const siteSettingsSchema = z
   .object({
     heroTitle:        z.string().max(100).optional(),
@@ -164,11 +186,44 @@ export const siteSettingsSchema = z
     loginBgGradient:  z.string().max(200).optional(),
     platformName:     z.string().max(80).optional(),
     platformTagline:  z.string().max(120).optional(),
+
+    // Colors (CUSTOM-001)
     primaryColor:     hexColor.optional(),
+    secondaryColor:   hexColor.optional(),
     accentColor:      hexColor.optional(),
+    backgroundColor:  hexColor.optional(),
+    surfaceColor:     hexColor.optional(),
+    textColor:        hexColor.optional(),
+    buttonColor:      hexColor.optional(),
+    hoverColor:       hexColor.optional(),
+    successColor:     hexColor.optional(),
+    warningColor:     hexColor.optional(),
+    errorColor:       hexColor.optional(),
+
+    // Images (CUSTOM-002) — mutated only via the dedicated image endpoints
+    // in practice, but validated here too since this schema is the single
+    // gate for the settings PUT.
+    heroBackgroundImage: blobImageUrl,
+    heroIllustration:    blobImageUrl,
+    heroBanner:          blobImageUrl,
+    dashboardBanner:     blobImageUrl,
+    welcomeSectionImage: blobImageUrl,
+    dashboardDecorImage: blobImageUrl,
+    headerLogo:          blobImageUrl,
+    loginLogo:           blobImageUrl,
+    faviconImage:        blobImageUrl,
+
     dashboardWelcome: z.string().max(200).optional(),
-    dashboardBanner:  z.string().url("رابط الصورة غير صحيح").max(500).optional().nullable(),
     footerText:       z.string().max(200).optional(),
+
+    // CTA buttons (CUSTOM-003)
+    ctaButtons:       z.array(ctaButtonSchema).max(6).optional(),
+
+    // SEO (CUSTOM-004)
+    metaTitle:        z.string().max(70).optional().nullable(),
+    metaDescription:  z.string().max(160).optional().nullable(),
+    metaKeywords:     z.string().max(300).optional().nullable(),
+    ogImage:          blobImageUrl,
   })
   .strict();
 
