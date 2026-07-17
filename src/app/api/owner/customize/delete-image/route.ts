@@ -41,16 +41,20 @@ export async function POST(req: NextRequest) {
     const url = body?.url as string | undefined;
 
     if (!field || !IMAGE_FIELDS.has(field)) return error("حقل غير صحيح");
-    if (!url || typeof url !== "string" || !url.includes(".public.blob.vercel-storage.com")) {
-      return error("رابط الصورة غير صحيح");
-    }
+    if (!url || typeof url !== "string") return error("رابط الصورة غير صحيح");
 
-    // Best-effort blob deletion — if it's already gone (e.g. deleted twice,
-    // or manually removed from storage), don't block clearing the DB field.
-    try {
-      await del(url);
-    } catch (blobErr) {
-      console.warn("[owner/customize/delete-image] blob delete failed, continuing:", blobErr);
+    // Only actually call Vercel Blob's delete for URLs that are really ours
+    // — a pre-existing image set via the old manual-paste-a-URL system
+    // (e.g. a Cloudinary link) was never in our storage to begin with, so
+    // there's nothing to delete there; just clear the DB field for it.
+    // Best-effort either way: if the blob is already gone (deleted twice,
+    // or removed manually from storage), don't block clearing the field.
+    if (url.includes(".public.blob.vercel-storage.com")) {
+      try {
+        await del(url);
+      } catch (blobErr) {
+        console.warn("[owner/customize/delete-image] blob delete failed, continuing:", blobErr);
+      }
     }
 
     const settings = await prisma.siteSettings.upsert({
