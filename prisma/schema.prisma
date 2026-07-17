@@ -378,12 +378,51 @@ model SiteSettings {
   statsBar         Json     @default("[{\"value\":\"٥٠٠٠+\",\"label\":\"طالب مسجل\"},{\"value\":\"٢٠\",\"label\":\"دورة متاحة\"},{\"value\":\"١٥+\",\"label\":\"سنة خبرة\"},{\"value\":\"٩٨٪\",\"label\":\"نسبة الرضا\"}]")
   platformName     String   @default("اكاديمية مستر مصطفى")
   platformTagline  String   @default("لتدريس اللغة العربية")
+
+  // ── COLORS (CUSTOM-001): full palette, was just primary+accent ──
+  // Defaults below match the colors already hardcoded across the app today,
+  // so turning this feature on doesn't visually change anything until the
+  // OWNER actually edits a value.
   primaryColor     String   @default("#C9A84C")
+  secondaryColor   String   @default("#1A6B47")
   accentColor      String   @default("#1A6B47")
+  backgroundColor  String   @default("#F5F1E8")
+  surfaceColor     String   @default("#FFFFFF")
+  textColor        String   @default("#1A1208")
+  buttonColor      String   @default("#C9A84C")
+  hoverColor       String   @default("#8B6914")
+  successColor     String   @default("#16A34A")
+  warningColor     String   @default("#D97706")
+  errorColor       String   @default("#DC2626")
   loginBgGradient  String   @default("135deg, #0D3D27 0%, #1A6B47 100%")
-  dashboardBanner  String?
+
+  // ── IMAGES (CUSTOM-002): all optional — null = fall back to the
+  // current static/default asset, so nothing breaks for existing sites
+  // until the OWNER uploads something. URLs are Vercel Blob URLs, same
+  // storage already used by /api/upload for everything else. ──
+  heroBackgroundImage    String?
+  heroIllustration       String?
+  heroBanner             String?
+  dashboardBanner        String?
+  welcomeSectionImage    String?
+  dashboardDecorImage    String?
+  headerLogo             String?
+  loginLogo              String?
+  faviconImage           String?
+
   dashboardWelcome String   @default("أهلاً وسهلاً بك في منصتك التعليمية")
   footerText       String   @default("© ٢٠٢٤ اكاديمية مستر مصطفى — جميع الحقوق محفوظة")
+
+  // ── CTA BUTTONS (CUSTOM-003): ordered + toggleable, same JSON-array
+  // convention already used above for teacherStats/features/statsBar. ──
+  ctaButtons       Json     @default("[{\"id\":\"primary\",\"label\":\"ابدأ الآن\",\"href\":\"/register\",\"visible\":true,\"order\":0},{\"id\":\"secondary\",\"label\":\"تعرف أكثر\",\"href\":\"#about\",\"visible\":true,\"order\":1}]")
+
+  // ── SEO (CUSTOM-004) ──
+  metaTitle        String?
+  metaDescription  String?
+  metaKeywords     String?
+  ogImage          String?
+
   updatedAt        DateTime @updatedAt
 }
 
