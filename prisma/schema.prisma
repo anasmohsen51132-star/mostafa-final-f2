@@ -423,6 +423,16 @@ model SiteSettings {
   metaKeywords     String?
   ogImage          String?
 
+  // ── ANNOUNCEMENT BAR (CUSTOM-010): site-wide dismissible banner,
+  // editable by ADMIN or OWNER (unlike the rest of this model, which is
+  // OWNER-only — see /api/admin/announcement for the separate, more
+  // permissive RBAC this specific feature needs). ──
+  announcementEnabled     Boolean @default(false)
+  announcementTitle       String?
+  announcementText        String?
+  announcementLink        String?
+  announcementDismissible Boolean @default(true)
+
   updatedAt        DateTime @updatedAt
 }
 
