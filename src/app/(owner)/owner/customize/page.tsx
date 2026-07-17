@@ -1,20 +1,44 @@
 "use client";
 // src/app/(owner)/owner/customize/page.tsx
+//
+// Full rebuild (see chat audit for the "before" state and rationale).
+// Reuses this app's existing conventions rather than inventing new ones:
+// react-query for data, useToast for feedback, framer-motion for section
+// transitions, fetchWithAuth for JSON mutations, and the plain
+// fetch+FormData pattern already used for image uploads elsewhere.
 import { useState, useEffect } from "react";
 import { m as motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchWithAuth } from "@/hooks/useAuth";
 import { useToast } from "@/store/uiStore";
-import type { SiteSettings } from "@/types";
+import { ImageUploadField } from "@/components/theme/ImageUploadField";
+import { CtaButtonsEditor } from "@/components/theme/CtaButtonsEditor";
+import type { SiteSettings, CtaButton } from "@/types";
 
-type Section = "hero" | "teacher" | "branding" | "dashboard" | "colors";
+type Section = "hero" | "teacher" | "branding" | "dashboard" | "colors" | "landing" | "seo";
 
 const SECTIONS: { id: Section; label: string; icon: string }[] = [
-  { id: "hero",      label: "الصفحة الرئيسية",  icon: "🏠" },
-  { id: "teacher",   label: "معلومات الأستاذ",   icon: "👨‍🏫" },
-  { id: "branding",  label: "هوية المنصة",        icon: "🏷️" },
-  { id: "dashboard", label: "لوحة الطالب",        icon: "📊" },
-  { id: "colors",    label: "الألوان",             icon: "🎨" },
+  { id: "hero",      label: "الصفحة الرئيسية", icon: "🏠" },
+  { id: "landing",   label: "صور وأزرار الهبوط", icon: "🖼️" },
+  { id: "teacher",   label: "معلومات الأستاذ",  icon: "👨‍🏫" },
+  { id: "branding",  label: "هوية المنصة",       icon: "🏷️" },
+  { id: "dashboard", label: "لوحة الطالب",       icon: "📊" },
+  { id: "colors",    label: "الألوان",           icon: "🎨" },
+  { id: "seo",       label: "SEO ومشاركة",       icon: "🔎" },
+];
+
+const COLOR_FIELDS: { label: string; field: keyof SiteSettings; fallback: string }[] = [
+  { label: "اللون الرئيسي",   field: "primaryColor",    fallback: "#C9A84C" },
+  { label: "اللون الثانوي",   field: "secondaryColor",  fallback: "#1A6B47" },
+  { label: "لون التمييز",     field: "accentColor",     fallback: "#1A6B47" },
+  { label: "لون الخلفية",     field: "backgroundColor", fallback: "#F5F1E8" },
+  { label: "لون البطاقات",    field: "surfaceColor",    fallback: "#FFFFFF" },
+  { label: "لون النص",        field: "textColor",       fallback: "#1A1208" },
+  { label: "لون الأزرار",     field: "buttonColor",     fallback: "#C9A84C" },
+  { label: "لون التحويم",     field: "hoverColor",      fallback: "#8B6914" },
+  { label: "لون النجاح",      field: "successColor",    fallback: "#16A34A" },
+  { label: "لون التحذير",     field: "warningColor",    fallback: "#D97706" },
+  { label: "لون الخطأ",       field: "errorColor",      fallback: "#DC2626" },
 ];
 
 export default function CustomizePage() {
@@ -24,6 +48,9 @@ export default function CustomizePage() {
   const [form, setForm] = useState<Partial<SiteSettings>>({});
   const [isDirty, setIsDirty] = useState(false);
 
+  // GET stays public/unauthenticated-friendly at /api/customize — see that
+  // route's own comment for why. This page is already behind the (owner)
+  // route group + middleware, so reading it here is fine either way.
   const { data, isLoading } = useQuery({
     queryKey: ["site-settings"],
     queryFn:  () => fetchWithAuth("/api/customize"),
@@ -31,10 +58,6 @@ export default function CustomizePage() {
 
   useEffect(() => {
     if (data?.data) {
-      // BUGFIX: id/updatedAt are system-managed (not part of the editable
-      // schema) — keeping them out of form state means they can never be
-      // sent back on save, which is what broke every save after
-      // siteSettingsSchema became `.strict()` (SEC-010 fix).
       const { id: _id, updatedAt: _updatedAt, ...editable } = data.data;
       setForm(editable);
       setIsDirty(false);
@@ -43,7 +66,7 @@ export default function CustomizePage() {
 
   const saveMutation = useMutation({
     mutationFn: () =>
-      fetchWithAuth("/api/customize", {
+      fetchWithAuth("/api/owner/customize", {
         method: "PUT",
         body: JSON.stringify(form),
       }),
@@ -59,9 +82,28 @@ export default function CustomizePage() {
     onError: () => toast.error("حدث خطأ في الاتصال"),
   });
 
-  const update = (key: keyof SiteSettings, value: string) => {
+  const update = (key: keyof SiteSettings, value: unknown) => {
     setForm((f) => ({ ...f, [key]: value }));
     setIsDirty(true);
+  };
+
+  // Image fields save immediately on upload/delete (not batched with the
+  // rest of the form) — this matches user expectation for drag-drop
+  // uploaders (the image is "just there" once dropped) and means a lost
+  // upload never depends on the owner remembering to hit the main Save
+  // button afterward.
+  const saveImageField = async (key: keyof SiteSettings, url: string | null) => {
+    update(key, url);
+    const res = await fetchWithAuth("/api/owner/customize", {
+      method: "PUT",
+      body: JSON.stringify({ ...form, [key]: url }),
+    });
+    if (res.success) {
+      qc.invalidateQueries({ queryKey: ["site-settings"] });
+      setIsDirty(false);
+    } else {
+      toast.error(res.error ?? "فشل حفظ الصورة");
+    }
   };
 
   const inputStyle: React.CSSProperties = {
@@ -73,6 +115,9 @@ export default function CustomizePage() {
   const labelStyle: React.CSSProperties = {
     fontFamily: "Cairo,sans-serif", color: "#4A3F2A",
     fontSize: 12, fontWeight: 600, marginBottom: 5, display: "block",
+  };
+  const sectionTitleStyle: React.CSSProperties = {
+    fontFamily: "Amiri,serif", color: "#1A1208", fontSize: 20, marginBottom: 20,
   };
   const onFocus = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     (e.target.style.borderColor = "rgba(201,168,76,0.65)");
@@ -121,7 +166,7 @@ export default function CustomizePage() {
             🎨 تخصيص المنصة
           </h1>
           <p style={{ fontFamily: "Cairo,sans-serif", color: "#7A6E5A", fontSize: 14 }}>
-            عدّل جميع نصوص وألوان المنصة بدون كود
+            عدّل كل نصوص وألوان وصور المنصة بدون كود
           </p>
         </div>
 
@@ -192,64 +237,114 @@ export default function CustomizePage() {
                 {/* ── HERO SECTION ── */}
                 {activeSection === "hero" && (
                   <div>
-                    <h2 style={{ fontFamily: "Amiri,serif", color: "#1A1208", fontSize: 20, marginBottom: 20 }}>
-                      🏠 إعدادات الصفحة الرئيسية
-                    </h2>
-                    <Field label="العنوان الرئيسي"       field="heroTitle"    placeholder="اتقن اللغة العربية" />
-                    <Field label="العنوان الفرعي"         field="heroSubtitle" placeholder="مع نخبة من أفضل الأساتذة" />
-                    <Field label="وصف الصفحة الرئيسية"   field="heroDesc"     placeholder="انضم إلى آلاف الطلاب..." multiline />
-                    <Field label="نص تذييل الصفحة"        field="footerText"   placeholder="© ٢٠٢٤ اكاديمية..." />
+                    <h2 style={sectionTitleStyle}>🏠 إعدادات الصفحة الرئيسية</h2>
+                    <Field label="العنوان الرئيسي"     field="heroTitle"    placeholder="اتقن اللغة العربية" />
+                    <Field label="العنوان الفرعي"       field="heroSubtitle" placeholder="مع نخبة من أفضل الأساتذة" />
+                    <Field label="وصف الصفحة الرئيسية" field="heroDesc"     placeholder="انضم إلى آلاف الطلاب..." multiline />
+                    <Field label="نص تذييل الصفحة"      field="footerText"   placeholder="© ٢٠٢٤ اكاديمية..." />
+                  </div>
+                )}
+
+                {/* ── LANDING (images + CTA buttons) ── */}
+                {activeSection === "landing" && (
+                  <div>
+                    <h2 style={sectionTitleStyle}>🖼️ صور وأزرار صفحة الهبوط</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-6">
+                      <ImageUploadField
+                        label="خلفية القسم الرئيسي" fieldKey="heroBackgroundImage"
+                        value={form.heroBackgroundImage} aspect="16/9"
+                        onChange={(url) => saveImageField("heroBackgroundImage", url)}
+                      />
+                      <ImageUploadField
+                        label="الرسم التوضيحي الرئيسي" fieldKey="heroIllustration"
+                        value={form.heroIllustration} aspect="4/3"
+                        onChange={(url) => saveImageField("heroIllustration", url)}
+                      />
+                      <ImageUploadField
+                        label="بانر ترويجي" fieldKey="heroBanner"
+                        value={form.heroBanner} aspect="21/9"
+                        onChange={(url) => saveImageField("heroBanner", url)}
+                      />
+                    </div>
+
+                    <h3 style={{ fontFamily: "Amiri,serif", color: "#1A1208", fontSize: 16, marginBottom: 4 }}>
+                      أزرار الدعوة لاتخاذ إجراء (CTA)
+                    </h3>
+                    <p style={{ fontFamily: "Cairo,sans-serif", color: "#A89A7E", fontSize: 12, marginBottom: 14 }}>
+                      رتّب الأزرار بالأسهم، أو أخفِ زرار بدون حذفه من غير ما تفقد إعداداته.
+                    </p>
+                    <CtaButtonsEditor
+                      buttons={(form.ctaButtons as CtaButton[]) ?? []}
+                      onChange={(btns) => update("ctaButtons", btns)}
+                    />
                   </div>
                 )}
 
                 {/* ── TEACHER SECTION ── */}
                 {activeSection === "teacher" && (
                   <div>
-                    <h2 style={{ fontFamily: "Amiri,serif", color: "#1A1208", fontSize: 20, marginBottom: 20 }}>
-                      👨‍🏫 معلومات الأستاذ
-                    </h2>
-                    <Field label="اسم الأستاذ"    field="teacherName"  placeholder="مستر مصطفى" />
-                    <Field label="لقب / تخصص"     field="teacherTitle" placeholder="خبير تدريس اللغة العربية" />
-                    <Field label="نبذة عن الأستاذ" field="teacherBio"   placeholder="معلم متميز بخبرة..." multiline />
+                    <h2 style={sectionTitleStyle}>👨‍🏫 معلومات الأستاذ</h2>
+                    <Field label="اسم الأستاذ"     field="teacherName"  placeholder="مستر مصطفى" />
+                    <Field label="لقب / تخصص"       field="teacherTitle" placeholder="خبير تدريس اللغة العربية" />
+                    <Field label="نبذة عن الأستاذ"  field="teacherBio"   placeholder="معلم متميز بخبرة..." multiline />
                   </div>
                 )}
 
                 {/* ── BRANDING SECTION ── */}
                 {activeSection === "branding" && (
                   <div>
-                    <h2 style={{ fontFamily: "Amiri,serif", color: "#1A1208", fontSize: 20, marginBottom: 20 }}>
-                      🏷️ هوية المنصة
-                    </h2>
-                    <Field label="اسم المنصة"    field="platformName"    placeholder="اكاديمية مستر مصطفى" />
-                    <Field label="شعار / وصف"    field="platformTagline" placeholder="لتدريس اللغة العربية" />
+                    <h2 style={sectionTitleStyle}>🏷️ هوية المنصة</h2>
+                    <Field label="اسم المنصة" field="platformName"    placeholder="اكاديمية مستر مصطفى" />
+                    <Field label="شعار / وصف" field="platformTagline" placeholder="لتدريس اللغة العربية" />
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mt-2">
+                      <ImageUploadField
+                        label="شعار الهيدر" fieldKey="headerLogo"
+                        value={form.headerLogo} aspect="1/1"
+                        onChange={(url) => saveImageField("headerLogo", url)}
+                      />
+                      <ImageUploadField
+                        label="شعار صفحة الدخول" fieldKey="loginLogo"
+                        value={form.loginLogo} aspect="1/1"
+                        onChange={(url) => saveImageField("loginLogo", url)}
+                      />
+                      <ImageUploadField
+                        label="أيقونة المتصفح (Favicon)" fieldKey="faviconImage"
+                        value={form.faviconImage} aspect="1/1"
+                        onChange={(url) => saveImageField("faviconImage", url)}
+                        hint="مربّعة، 512×512 مثاليًا"
+                      />
+                    </div>
+                    <div className="mt-3 p-3 rounded-xl" style={{ background: "rgba(201,168,76,0.06)", border: "1px solid rgba(201,168,76,0.2)" }}>
+                      <p style={{ fontFamily: "Cairo,sans-serif", color: "#8B6914", fontSize: 12 }}>
+                        💡 أيقونة المتصفح الفعلية بتتحدد حاليًا من ملف ثابت في المشروع. رفع صورة هنا بيخزّنها للاستخدام المستقبلي، وربطها الفعلي بأيقونة المتصفح محتاج خطوة تطوير إضافية (موضّحة في تقرير المراجعة).
+                      </p>
+                    </div>
                   </div>
                 )}
 
                 {/* ── DASHBOARD SECTION ── */}
                 {activeSection === "dashboard" && (
                   <div>
-                    <h2 style={{ fontFamily: "Amiri,serif", color: "#1A1208", fontSize: 20, marginBottom: 20 }}>
-                      📊 لوحة تحكم الطالب
-                    </h2>
+                    <h2 style={sectionTitleStyle}>📊 لوحة تحكم الطالب</h2>
                     <Field label="رسالة الترحيب" field="dashboardWelcome" placeholder="أهلاً وسهلاً بك في منصتك التعليمية" multiline />
-                    <div style={{ marginBottom: 16 }}>
-                      <label style={labelStyle}>رابط صورة البانر (اختياري)</label>
-                      <input
-                        type="url"
-                        value={(form.dashboardBanner as string) ?? ""}
-                        onChange={(e) => update("dashboardBanner", e.target.value)}
-                        placeholder="https://..."
-                        style={{ ...inputStyle, direction: "ltr" }}
-                        onFocus={onFocus} onBlur={onBlur}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-2">
+                      <ImageUploadField
+                        label="بانر لوحة الطالب" fieldKey="dashboardBanner"
+                        value={form.dashboardBanner} aspect="21/9"
+                        onChange={(url) => saveImageField("dashboardBanner", url)}
                       />
-                      {form.dashboardBanner && (
-                        <img
-                          src={form.dashboardBanner}
-                          alt="بانر"
-                          className="mt-2 rounded-xl w-full object-cover max-h-32"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                        />
-                      )}
+                      <ImageUploadField
+                        label="صورة قسم الترحيب" fieldKey="welcomeSectionImage"
+                        value={form.welcomeSectionImage} aspect="4/3"
+                        onChange={(url) => saveImageField("welcomeSectionImage", url)}
+                      />
+                      <ImageUploadField
+                        label="صورة زخرفية" fieldKey="dashboardDecorImage"
+                        value={form.dashboardDecorImage} aspect="1/1"
+                        onChange={(url) => saveImageField("dashboardDecorImage", url)}
+                      />
                     </div>
                   </div>
                 )}
@@ -257,48 +352,61 @@ export default function CustomizePage() {
                 {/* ── COLORS SECTION ── */}
                 {activeSection === "colors" && (
                   <div>
-                    <h2 style={{ fontFamily: "Amiri,serif", color: "#1A1208", fontSize: 20, marginBottom: 20 }}>
-                      🎨 ألوان المنصة
-                    </h2>
-
+                    <h2 style={sectionTitleStyle}>🎨 ألوان المنصة</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                      {[
-                        { label: "اللون الرئيسي (الذهبي)",  field: "primaryColor" as keyof SiteSettings, current: form.primaryColor ?? "#C9A84C" },
-                        { label: "اللون الثانوي (الأخضر)", field: "accentColor"  as keyof SiteSettings, current: form.accentColor  ?? "#1A6B47" },
-                      ].map(({ label, field, current }) => (
-                        <div key={field}>
-                          <label style={labelStyle}>{label}</label>
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="color"
-                              value={current}
-                              onChange={(e) => update(field, e.target.value)}
-                              style={{ width: 48, height: 48, borderRadius: 12, border: "2px solid rgba(201,168,76,0.3)", cursor: "pointer", padding: 2 }}
-                            />
-                            <input
-                              type="text"
-                              value={current}
-                              onChange={(e) => update(field, e.target.value)}
-                              style={{ ...inputStyle, flex: 1, direction: "ltr" }}
-                              onFocus={onFocus} onBlur={onBlur}
-                            />
+                      {COLOR_FIELDS.map(({ label, field, fallback }) => {
+                        const current = (form[field] as string) ?? fallback;
+                        return (
+                          <div key={field}>
+                            <label style={labelStyle}>{label}</label>
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="color"
+                                value={current}
+                                onChange={(e) => update(field, e.target.value)}
+                                style={{ width: 44, height: 44, borderRadius: 11, border: "2px solid rgba(201,168,76,0.3)", cursor: "pointer", padding: 2 }}
+                              />
+                              <input
+                                type="text"
+                                value={current}
+                                onChange={(e) => update(field, e.target.value)}
+                                style={{ ...inputStyle, flex: 1, direction: "ltr" }}
+                                onFocus={onFocus} onBlur={onBlur}
+                              />
+                            </div>
+                            <div className="mt-2 rounded-lg py-2 text-center"
+                              style={{ background: current, color: "#fff", fontFamily: "Cairo,sans-serif", fontSize: 12 }}>
+                              معاينة
+                            </div>
                           </div>
-                          {/* Live preview */}
-                          <div className="mt-3 rounded-xl p-4 text-center"
-                            style={{ background: current, color: "#fff", fontFamily: "Cairo,sans-serif", fontSize: 13 }}>
-                            معاينة اللون
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
 
-                    <div
-                      className="mt-6 p-4 rounded-xl"
-                      style={{ background: "rgba(201,168,76,0.06)", border: "1px solid rgba(201,168,76,0.2)" }}
-                    >
+                    <div className="mt-6 p-4 rounded-xl" style={{ background: "rgba(201,168,76,0.06)", border: "1px solid rgba(201,168,76,0.2)" }}>
                       <p style={{ fontFamily: "Cairo,sans-serif", color: "#8B6914", fontSize: 13 }}>
-                        💡 تأثير تغيير الألوان يظهر على الصفحة الرئيسية وصفحات الدخول بعد الحفظ وإعادة التحميل.
+                        💡 هذه القيم متاحة فورًا كمتغيرات CSS (<code>--color-primary</code> إلخ) في كل الموقع بعد الحفظ.
+                        استخدامها الفعلي داخل كل شاشة موجودة مسبقًا في المنصة محتاج نقل تدريجي — تفاصيل ده في تقرير المراجعة.
                       </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── SEO SECTION ── */}
+                {activeSection === "seo" && (
+                  <div>
+                    <h2 style={sectionTitleStyle}>🔎 محركات البحث والمشاركة</h2>
+                    <Field label="عنوان المتصفح (Meta Title)" field="metaTitle" placeholder="اكاديمية مستر مصطفى" />
+                    <Field label="وصف الصفحة (Meta Description)" field="metaDescription" placeholder="وصف قصير يظهر في نتائج البحث" multiline />
+                    <Field label="كلمات مفتاحية (مفصولة بفاصلة)" field="metaKeywords" placeholder="اللغة العربية, ثانوية عامة, ..." />
+
+                    <div className="mt-2">
+                      <ImageUploadField
+                        label="صورة المشاركة (Open Graph)" fieldKey="ogImage"
+                        value={form.ogImage} aspect="1200/630"
+                        onChange={(url) => saveImageField("ogImage", url)}
+                        hint="اللي بتظهر لما حد يشارك رابط الموقع على واتساب/فيسبوك — 1200×630 مثاليًا"
+                      />
                     </div>
                   </div>
                 )}
