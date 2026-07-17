@@ -175,15 +175,44 @@ export interface Progress {
 
 // ── SITE SETTINGS ───────────────────────────────────────────
 
+export interface CtaButton {
+  id: string; label: string; href: string; visible: boolean; order: number;
+}
+
 export interface SiteSettings {
   id: string; heroTitle: string; heroSubtitle: string; heroDesc: string;
   teacherName: string; teacherTitle: string; teacherBio: string;
   teacherStats: { value: string; label: string }[];
   features: { icon: string; title: string; desc: string }[];
-  primaryColor: string; accentColor: string; platformName: string;
-  platformTagline: string; loginBgGradient: string;
-  dashboardBanner?: string | null; dashboardWelcome: string; footerText: string;
+  platformName: string; platformTagline: string; loginBgGradient: string;
+  dashboardWelcome: string; footerText: string;
   statsBar: { value: string; label: string }[];
+
+  // Colors — full palette (CUSTOM-001)
+  primaryColor: string; secondaryColor: string; accentColor: string;
+  backgroundColor: string; surfaceColor: string; textColor: string;
+  buttonColor: string; hoverColor: string;
+  successColor: string; warningColor: string; errorColor: string;
+
+  // Images — all nullable, fall back to static defaults when unset (CUSTOM-002)
+  heroBackgroundImage?: string | null;
+  heroIllustration?: string | null;
+  heroBanner?: string | null;
+  dashboardBanner?: string | null;
+  welcomeSectionImage?: string | null;
+  dashboardDecorImage?: string | null;
+  headerLogo?: string | null;
+  loginLogo?: string | null;
+  faviconImage?: string | null;
+
+  // CTA buttons (CUSTOM-003)
+  ctaButtons: CtaButton[];
+
+  // SEO (CUSTOM-004)
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+  metaKeywords?: string | null;
+  ogImage?: string | null;
 }
 
 // ── API RESPONSES ───────────────────────────────────────────
