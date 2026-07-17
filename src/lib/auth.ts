@@ -5,13 +5,31 @@ import { NextRequest } from "next/server";
 import type { User } from "@/types";
 import { AUTH_COOKIE_NAME } from "@/lib/cookie-name";
 
-if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
-  throw new Error(
-    "[auth] JWT_SECRET غير معرّف أو ضعيف (أقل من 32 حرف). أضف JWT_SECRET قوي في متغيرات البيئة على Vercel قبل التشغيل."
-  );
+// BUG-500-001 FIX: this used to validate JWT_SECRET at MODULE LOAD TIME
+// (top-level `throw`). Any route that merely imports this file — including
+// ones that don't touch auth at all, like GET /api/customize, which only
+// imports { extractToken, verifyToken } for its PUT handler — would crash
+// with an unhandled exception the instant the module was evaluated, long
+// before the route's own try/catch ever ran. That produced an HTTP 500 on
+// EVERY route importing this file whenever JWT_SECRET was missing/short,
+// not just the ones that actually need to verify a token.
+//
+// Fix: make the check lazy. The secret is only resolved (and only throws)
+// the moment something actually tries to sign or verify a token. Routes
+// that don't need auth for a given request path are never affected, and
+// routes that catch errors (as every route here does) get a clean 500
+// response instead of an unhandled crash.
+let cachedSecret: Uint8Array | null = null;
+function getSecret(): Uint8Array {
+  if (cachedSecret) return cachedSecret;
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+    throw new Error(
+      "[auth] JWT_SECRET غير معرّف أو ضعيف (أقل من 32 حرف). أضف JWT_SECRET قوي في متغيرات البيئة على Vercel قبل التشغيل."
+    );
+  }
+  cachedSecret = new TextEncoder().encode(process.env.JWT_SECRET);
+  return cachedSecret;
 }
-
-const SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
 export interface JWTPayload {
   sub: string;       // user id
@@ -28,15 +46,18 @@ export async function signToken(payload: Omit<JWTPayload, "iat" | "exp">): Promi
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(process.env.JWT_EXPIRES_IN || "7d")
-    .sign(SECRET);
+    .sign(getSecret());
 }
 
 // ---- Verify and decode a token ----
 export async function verifyToken(token: string): Promise<JWTPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, SECRET);
+    const { payload } = await jwtVerify(token, getSecret());
     return payload as unknown as JWTPayload;
   } catch {
+    // Also covers getSecret() throwing (missing/weak JWT_SECRET) — a
+    // misconfigured secret should mean "treat this request as unauthenticated",
+    // not crash the route with an unhandled 500.
     return null;
   }
 }
