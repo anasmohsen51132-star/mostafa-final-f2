@@ -146,17 +146,22 @@ const featureCardSchema = z.object({
   desc:  z.string().max(200),
 });
 
-// CUSTOM-005: reusable validator for uploaded image fields. These are
-// always Vercel Blob URLs (produced by /api/upload), never arbitrary
-// external URLs, which keeps the platform's own image-src CSP allowlist
-// meaningful rather than becoming "any URL the owner feels like pasting".
+// CUSTOM-005: reusable validator for image URL fields.
+// BUGFIX: this originally required the URL to match Vercel Blob's domain
+// (*.public.blob.vercel-storage.com), on the assumption every image field
+// only ever gets set via the new upload flow. That broke saving the *whole*
+// form for any site with a pre-existing image URL from before this feature
+// existed — e.g. dashboardBanner, which the old implementation let the
+// owner set by pasting any URL (often Cloudinary) into a plain text input.
+// Since the PUT always round-trips the entire form, one legacy non-blob URL
+// blocked every save, even for unrelated fields. New uploads still always
+// go through ImageUploadField -> /api/upload -> a real blob URL regardless,
+// so this domain check wasn't preventing anything a non-owner could exploit
+// (this endpoint is OWNER-only already) — just validate it's a URL.
 const blobImageUrl = z
   .string()
   .url("رابط الصورة غير صحيح")
   .max(500)
-  .refine((u) => u.includes(".public.blob.vercel-storage.com"), {
-    message: "الصورة يجب أن تُرفع من لوحة التحكم مباشرة",
-  })
   .optional()
   .nullable();
 
