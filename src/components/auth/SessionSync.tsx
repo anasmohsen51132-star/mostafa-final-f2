@@ -6,31 +6,40 @@
 // load via the httpOnly cookie. This also means `role` used for client-side
 // routing decisions is always freshly verified server-side, not trusted from disk.
 //
-// AUTH-002: also polls /api/auth/me periodically while the app stays open, not
-// just once on load. Single-device enforcement happens server-side (see
-// /api/auth/me) — this poll just improves how quickly an open, otherwise-idle
-// tab notices it's been logged out by a login elsewhere, rather than only
-// finding out on its next full reload (which could be hours later).
+// AUTH-002 v2: single-device enforcement is checked here on three triggers,
+// not just app load:
+//  1. Once on initial hydration (was already there).
+//  2. On a short interval (was 5 min — far too slow, an account logged in
+//     on two devices could sit "both active" for most of that window; now
+//     15s, giving effectively-immediate enforcement for any open tab).
+//  3. On tab focus / visibility change — the moment someone switches back
+//     to this tab (e.g. after logging in on another device), we recheck
+//     right away instead of waiting for the next interval tick. Between
+//     (2) and (3), a kicked-out session gets caught within ~15s in every
+//     realistic case, without needing WebSockets/SSE for true push-based
+//     instant invalidation (a materially bigger change — worth doing later
+//     if 15s ever proves not tight enough in practice).
 import { useEffect, useRef } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useToast } from "@/store/uiStore";
 
-const RECHECK_INTERVAL_MS = 5 * 60 * 1000;
+const RECHECK_INTERVAL_MS = 15 * 1000;
 
 export function SessionSync() {
   const { isHydrated, user, setUser, clearAuth, setSessionVerified } = useAuthStore();
   const fired = useRef(false);
   const toast = useToast();
 
-  // BUGFIX: checkSession must NOT be recreated (or re-trigger the effect)
-  // every time `user` changes — it changes as a *result* of a successful
-  // check, which would tear down and never re-arm the interval after the
-  // very first sync. A ref holds the latest store actions/toast without
-  // making them reactive dependencies of the interval-setup effect below.
   const liveRef = useRef({ setUser, clearAuth, setSessionVerified, toast });
   liveRef.current = { setUser, clearAuth, setSessionVerified, toast };
 
+  // Avoid overlapping checks if a slow request is still in flight when the
+  // next trigger (interval tick or focus event) fires.
+  const inFlight = useRef(false);
+
   const checkSession = (isBackgroundRecheck: boolean) => {
+    if (inFlight.current) return;
+    inFlight.current = true;
     fetch("/api/auth/me", { credentials: "same-origin" })
       .then((res) => res.json())
       .then((res) => {
@@ -46,9 +55,10 @@ export function SessionSync() {
         }
       })
       .catch(() => {
-        // Network hiccup — keep the lightweight display state, don't log
-        // the user out, but still unblock layouts waiting on this flag.
         if (!isBackgroundRecheck) liveRef.current.setSessionVerified();
+      })
+      .finally(() => {
+        inFlight.current = false;
       });
   };
 
@@ -57,9 +67,6 @@ export function SessionSync() {
     if (!isHydrated || fired.current) return;
     fired.current = true;
 
-    // Nothing locally cached at all → no point calling /me, user is logged
-    // out. Mark verified immediately so layouts waiting on
-    // isSessionVerified don't hang — there's nothing to wait for.
     if (!user) {
       setSessionVerified();
       return;
@@ -68,11 +75,23 @@ export function SessionSync() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isHydrated]);
 
-  // Periodic recheck — one interval for the lifetime of the mounted app
-  // shell, independent of user/store churn (see liveRef above).
+  // Periodic recheck + focus/visibility recheck — one set of listeners for
+  // the lifetime of the mounted app shell, independent of user/store churn.
   useEffect(() => {
     const interval = setInterval(() => checkSession(true), RECHECK_INTERVAL_MS);
-    return () => clearInterval(interval);
+
+    const onFocus = () => checkSession(true);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") checkSession(true);
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
