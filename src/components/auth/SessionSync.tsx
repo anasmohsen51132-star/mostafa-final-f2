@@ -37,52 +37,20 @@ export function SessionSync() {
   // next trigger (interval tick or focus event) fires.
   const inFlight = useRef(false);
 
-  // BUG FIX: the "تم تسجيل الدخول من جهاز آخر" toast used to repeat on
-  // every single interval tick (every 15s) and every tab focus, forever,
-  // instead of showing once. Root cause: the interval/focus effect below
-  // has an empty dependency array (`[]`) and sets up its listeners exactly
-  // once at mount, so its `checkSession` closure kept referencing the
-  // *original* (now stale) `user` from that first render — it was never
-  // updated when `clearAuth()` set `user` to null, so every recheck still
-  // treated the session as "possibly still valid" and kept polling +
-  // re-toasting after the very first kick-out. We now read `user` fresh
-  // from the store at call time (via `useAuthStore.getState()`) instead of
-  // the closed-over value, and once we've already surfaced the "logged out
-  // elsewhere" toast, we stop rechecking entirely until a real user is
-  // present again (i.e. they log back in).
-  const alreadyNotifiedLogout = useRef(false);
-
   const checkSession = (isBackgroundRecheck: boolean) => {
     if (inFlight.current) return;
-
-    if (isBackgroundRecheck) {
-      const currentUser = useAuthStore.getState().user;
-      // Nothing to (re)verify: either we already know we're logged out, or
-      // we've already told the user why and are just waiting for them to
-      // log in again — either way, hammering the endpoint and re-showing
-      // the same toast every 15s / every tab focus serves no purpose.
-      if (!currentUser || alreadyNotifiedLogout.current) return;
-    }
-
     inFlight.current = true;
     fetch("/api/auth/me", { credentials: "same-origin" })
       .then((res) => res.json())
       .then((res) => {
         const { setUser, clearAuth, setSessionVerified, toast } = liveRef.current;
         if (res.success) {
-          // Confirmed a valid session (e.g. they logged back in) — re-arm
-          // so a future kick-out can notify again.
-          alreadyNotifiedLogout.current = false;
           setUser(res.data.user);
         } else {
           // AUTH-002: surface *why* — a silent logout with no explanation
           // reads as a bug ("the site logged me out for no reason") when
           // it's actually expected behavior from logging in elsewhere.
-          // Only shown once per kick-out (see alreadyNotifiedLogout above).
-          if (isBackgroundRecheck && !alreadyNotifiedLogout.current) {
-            toast.info(res.error || "انتهت الجلسة");
-            alreadyNotifiedLogout.current = true;
-          }
+          if (isBackgroundRecheck) toast.info(res.error || "انتهت الجلسة");
           clearAuth();
         }
       })
