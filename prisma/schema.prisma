@@ -51,6 +51,16 @@ model User {
   joinedAt       DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
+  // AUTH-002: single-device login enforcement. Every successful login
+  // generates a fresh random id here AND embeds it in the issued JWT's
+  // `sid` claim. Since this column only ever holds the *latest* session's
+  // id, any older token (from a different device/browser) still verifies
+  // cryptographically fine but carries a now-stale `sid` — /api/auth/me
+  // checks this on every session-verification call and rejects the
+  // mismatch, effectively logging the older device out. Nullable because
+  // existing users have no session yet until their next login.
+  currentSessionId String?
+
   redeemedCodes      AccessCode[]       @relation("CodeRedeemer")
   createdCodes       AccessCode[]       @relation("CodeCreator")
   progress           Progress[]
