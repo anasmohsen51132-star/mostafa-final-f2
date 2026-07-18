@@ -2,7 +2,7 @@
 import { NextRequest } from "next/server";
 import { registerSchema } from "@/lib/validations";
 import { hashPassword } from "@/lib/bcrypt";
-import { signToken, setAuthCookie } from "@/lib/auth";
+import { signToken, setAuthCookie, generateSessionId } from "@/lib/auth";
 import { normalizePhone, success, error } from "@/lib/utils";
 import { rateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 import prisma from "@/lib/prisma";
@@ -87,9 +87,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // AUTH-002: same single-device session id as login (see that route's comment).
+    const sid = generateSessionId();
+    await prisma.user.update({ where: { id: user.id }, data: { currentSessionId: sid } });
+
     const token = await signToken({
       sub: user.id, phone: user.phone,
-      role: user.role, name: user.name,
+      role: user.role, name: user.name, sid,
     });
     await setAuthCookie(token);
 

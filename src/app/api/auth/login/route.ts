@@ -2,7 +2,7 @@
 import { NextRequest } from "next/server";
 import { loginSchema } from "@/lib/validations";
 import { verifyPassword, DUMMY_HASH } from "@/lib/bcrypt";
-import { signToken, setAuthCookie } from "@/lib/auth";
+import { signToken, setAuthCookie, generateSessionId } from "@/lib/auth";
 import { normalizePhone, success, error } from "@/lib/utils";
 import { rateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 import prisma from "@/lib/prisma";
@@ -69,7 +69,14 @@ export async function POST(req: NextRequest) {
     if (!user || !valid) return error("رقم الهاتف أو كلمة المرور غير صحيحة", 401);
     if (!user.isActive) return error("حسابك موقوف، تواصل مع الإدارة", 403);
 
-    const token = await signToken({ sub: user.id, phone: user.phone, role: user.role, name: user.name });
+    // AUTH-002: a fresh session id here, saved as the *only* valid one for
+    // this account, is what makes login on this device immediately log out
+    // any other device — their token still has a valid signature, but its
+    // embedded sid no longer matches what's in the DB (checked in /api/auth/me).
+    const sid = generateSessionId();
+    await prisma.user.update({ where: { id: user.id }, data: { currentSessionId: sid } });
+
+    const token = await signToken({ sub: user.id, phone: user.phone, role: user.role, name: user.name, sid });
     await setAuthCookie(token);
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

@@ -16,14 +16,30 @@ export async function GET(req: NextRequest) {
       select: {
         id: true, name: true, phone: true, role: true,
         academicLevel: true, avatar: true, joinedAt: true, isActive: true,
+        currentSessionId: true,
       },
     });
     if (!user || !user.isActive) return unauthorized("الحساب غير نشط");
+
+    // AUTH-002: single-device enforcement. This token verified fine
+    // cryptographically (it's genuinely this user's token), but if its `sid`
+    // doesn't match the account's current session, a newer login happened
+    // on a different device since this token was issued — treat this one
+    // as logged out. `currentSessionId` can be null for accounts that
+    // existed before this feature shipped and haven't logged in since;
+    // treat that as "no active session recorded yet" rather than a mismatch,
+    // so existing sessions aren't force-logged-out by the deploy itself.
+    if (user.currentSessionId && payload.sid !== user.currentSessionId) {
+      await clearAuthCookie();
+      return unauthorized("تم تسجيل الدخول من جهاز آخر، تم تسجيل خروجك من هذا الجهاز");
+    }
+
+    const { currentSessionId: _sid, ...safeUser } = user;
     // PERF-006 FIX: this response carries the current user's session data —
     // without an explicit no-store, an intermediate shared cache could
     // serve one user's session data to a different user.
     return Response.json(
-      { success: true, data: { user } },
+      { success: true, data: { user: safeUser } },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (e) {
