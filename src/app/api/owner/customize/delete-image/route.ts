@@ -8,6 +8,7 @@
 // from Vercel storage and nulls the field on SiteSettings, in one request.
 import { NextRequest } from "next/server";
 import { del } from "@vercel/blob";
+import { revalidateTag } from "next/cache";
 import { extractToken, verifyToken } from "@/lib/auth";
 import { success, error, unauthorized, forbidden } from "@/lib/utils";
 import prisma from "@/lib/prisma";
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest) {
       update: { [field]: null },
     });
 
+    revalidateTag("site-settings");
     return success(settings);
   } catch (e) {
     console.error("[owner/customize/delete-image POST]", e);

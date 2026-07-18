@@ -11,6 +11,7 @@
 // (see that file) since settings legitimately need to be publicly readable
 // (landing page, student dashboard).
 import { NextRequest } from "next/server";
+import { revalidateTag } from "next/cache";
 import { extractToken, verifyToken } from "@/lib/auth";
 import { siteSettingsSchema } from "@/lib/validations";
 import { success, error, unauthorized, forbidden } from "@/lib/utils";
@@ -42,6 +43,9 @@ export async function PUT(req: NextRequest) {
       create: { id: "singleton", ...parsed.data },
       update: parsed.data,
     });
+    // PERF-007: bust the 60s site-wide settings cache immediately instead
+    // of leaving stale colors/text/SEO up for up to a minute after a save.
+    revalidateTag("site-settings");
     return success(settings);
   } catch (e) {
     console.error("[owner/customize PUT]", e);
