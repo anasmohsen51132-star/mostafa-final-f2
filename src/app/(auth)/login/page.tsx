@@ -19,51 +19,63 @@ export default function LoginPage() {
         backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23C9A84C' fill-opacity='0.05'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E")`,
       }} />
 
-      {/* Floating Arabic letters — same decorative touch as the landing hero */}
-      <FloatingArabicBackground density={6} color="rgba(201,168,76,0.1)" />
+      {/*
+        PERF FIX: on mobile/tablet these decorative layers (floating letters,
+        orbs, stars) all animate forever behind the card below, which has
+        `backdrop-filter: blur(...)`. Backdrop-blur forces the browser to
+        recompute the blur every single frame that anything behind it
+        changes — combined with 12+ simultaneously-looping animations, this
+        is what caused the severe lag/jank on phones and tablets (weaker
+        GPUs feel this far more than desktop). None of this is essential to
+        using the form, so it's now desktop-only (`lg:` and up); phones and
+        tablets get a clean, static card with no drop in usability.
+      */}
+      <div className="hidden lg:block">
+        {/* Floating Arabic letters — same decorative touch as the landing hero */}
+        <FloatingArabicBackground density={6} color="rgba(201,168,76,0.1)" />
 
-      {/* Orbs — hidden on very small screens to avoid overflow */}
-      <motion.div
-        className="absolute top-10 right-10 w-40 h-40 sm:w-56 sm:h-56 rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle,rgba(201,168,76,0.15),transparent 70%)" }}
-        animate={{ scale: [1, 1.2, 1] }}
-        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="absolute bottom-10 left-10 w-28 h-28 sm:w-40 sm:h-40 rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle,rgba(45,158,107,0.12),transparent 70%)" }}
-        animate={{ scale: [1, 1.3, 1] }}
-        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-      />
-
-      {/* Stars — only on screens wider than mobile */}
-      {[
-        { top: "15%", left: "12%", delay: 0 },
-        { top: "70%", left: "8%",  delay: 0.8 },
-        { top: "25%", left: "88%", delay: 1.4 },
-        { top: "80%", left: "85%", delay: 0.4 },
-      ].map((star, i) => (
+        {/* Orbs */}
         <motion.div
-          key={i}
-          className="absolute pointer-events-none hidden sm:block"
-          style={{ top: star.top, left: star.left, fontSize: 14, color: "rgba(232,201,122,0.5)" }}
-          animate={{ opacity: [0.2, 1, 0.2], scale: [0.8, 1.2, 0.8] }}
-          transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut", delay: star.delay }}
-        >
-          ✦
-        </motion.div>
-      ))}
+          className="absolute top-10 right-10 w-56 h-56 rounded-full pointer-events-none"
+          style={{ background: "radial-gradient(circle,rgba(201,168,76,0.15),transparent 70%)" }}
+          animate={{ scale: [1, 1.2, 1] }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute bottom-10 left-10 w-40 h-40 rounded-full pointer-events-none"
+          style={{ background: "radial-gradient(circle,rgba(45,158,107,0.12),transparent 70%)" }}
+          animate={{ scale: [1, 1.3, 1] }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+        />
+
+        {/* Stars */}
+        {[
+          { top: "15%", left: "12%", delay: 0 },
+          { top: "70%", left: "8%",  delay: 0.8 },
+          { top: "25%", left: "88%", delay: 1.4 },
+          { top: "80%", left: "85%", delay: 0.4 },
+        ].map((star, i) => (
+          <motion.div
+            key={i}
+            className="absolute pointer-events-none"
+            style={{ top: star.top, left: star.left, fontSize: 14, color: "rgba(232,201,122,0.5)" }}
+            animate={{ opacity: [0.2, 1, 0.2], scale: [0.8, 1.2, 0.8] }}
+            transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut", delay: star.delay }}
+          >
+            ✦
+          </motion.div>
+        ))}
+      </div>
 
       {/* Card */}
       <motion.div
         initial={{ opacity: 0, y: 32, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.55, ease: "easeOut" }}
-        className="relative z-10 w-full lux-shine-border"
+        className="relative z-10 w-full lux-shine-border backdrop-blur-none lg:backdrop-blur-xl"
         style={{
           maxWidth: 440,
           background: "rgba(13,61,39,0.88)",
-          backdropFilter: "blur(20px)",
           border: "1px solid rgba(201,168,76,0.25)",
           borderRadius: 24,
           padding: "clamp(24px, 5vw, 40px)",
