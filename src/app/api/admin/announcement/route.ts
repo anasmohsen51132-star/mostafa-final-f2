@@ -7,6 +7,7 @@
 // /api/admin/* is exactly the prefix middleware.ts already grants to both
 // roles, so this gets that protection for free (see middleware.ts).
 import { NextRequest } from "next/server";
+import { revalidateTag } from "next/cache";
 import { extractToken, verifyToken } from "@/lib/auth";
 import { announcementSchema } from "@/lib/validations";
 import { success, error, unauthorized, forbidden } from "@/lib/utils";
@@ -49,6 +50,7 @@ export async function PUT(req: NextRequest) {
         announcementDismissible: parsed.data.dismissible,
       },
     });
+    revalidateTag("site-settings");
     return success(settings);
   } catch (e) {
     console.error("[admin/announcement PUT]", e);
@@ -74,6 +76,7 @@ export async function DELETE(req: NextRequest) {
         announcementLink: null,
       },
     });
+    revalidateTag("site-settings");
     return success(settings);
   } catch (e) {
     console.error("[admin/announcement DELETE]", e);
