@@ -1,11 +1,13 @@
 // src/app/page.tsx
 // Pure Server Component — no client-only imports at top level
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { FeaturesSection } from "@/components/landing/FeaturesSection";
 import { TeacherSection } from "@/components/landing/TeacherSection";
 import { CTASection } from "@/components/landing/CTASection";
 import prisma from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 import type { SiteSettings } from "@/types";
 import {
   SITE_URL,
@@ -51,7 +53,29 @@ async function getSettings(): Promise<Partial<SiteSettings> | null> {
   }
 }
 
+// AUTH-004: where each role lands when they're already logged in and hit
+// the marketing homepage. Shared/admin surfaces for both ADMIN and OWNER
+// live under /admin (see ADMIN_NAV in the (admin) layout) — OWNER-only
+// extras like /owner/customize are additional pages reached from there,
+// not a separate home.
+function dashboardPathForRole(role: string): string {
+  if (role === "OWNER" || role === "ADMIN") return "/admin";
+  return "/dashboard";
+}
+
 export default async function LandingPage() {
+  // AUTH-004: an already-authenticated visitor hitting "/" should land in
+  // their dashboard, not see the marketing hero again — this was the
+  // reported gap. getCurrentUser() just decodes+verifies the JWT (no DB
+  // round trip), so this costs nothing extra for the anonymous visitors
+  // who make up most landing-page traffic; only a valid cookie triggers it.
+  // Session validity beyond signature/expiry (e.g. single-device sid match)
+  // is still fully re-checked client-side by SessionSync once they land on
+  // the dashboard, so an already-invalidated session correctly bounces back
+  // to /login from there rather than getting stuck.
+  const currentUser = await getCurrentUser();
+  if (currentUser) redirect(dashboardPathForRole(currentUser.role));
+
   const settings = await getSettings();
 
   // SEO: JSON-LD structured data for the homepage. Rendered as plain JSON
