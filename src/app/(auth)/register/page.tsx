@@ -19,40 +19,32 @@ export default function RegisterPage() {
         }}
       />
 
-      {/*
-        PERF FIX: same issue as the login page — these decorative layers
-        animate forever behind a `backdrop-filter: blur(...)` card, forcing
-        the browser to recompute the blur every frame. That combination is
-        the actual cause of the severe lag on phones/tablets. Desktop-only
-        now; phones/tablets get a clean static card, form works identically.
-      */}
-      <div className="hidden lg:block">
-        {/* Floating Arabic letters — same decorative touch as the landing hero */}
-        <FloatingArabicBackground density={6} color="rgba(201,168,76,0.1)" />
+      {/* Floating Arabic letters — same decorative touch as the landing hero */}
+      <FloatingArabicBackground density={6} color="rgba(201,168,76,0.1)" />
 
-        {/* Orbs */}
-        <motion.div
-          className="absolute top-16 left-16 w-52 h-52 rounded-full pointer-events-none"
-          style={{ background: "radial-gradient(circle,rgba(201,168,76,0.13),transparent 70%)" }}
-          animate={{ scale: [1, 1.18, 1] }}
-          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute bottom-16 right-16 w-44 h-44 rounded-full pointer-events-none"
-          style={{ background: "radial-gradient(circle,rgba(45,158,107,0.1),transparent 70%)" }}
-          animate={{ scale: [1, 1.25, 1] }}
-          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 3 }}
-        />
-      </div>
+      {/* Orbs */}
+      <motion.div
+        className="absolute top-16 left-16 w-52 h-52 rounded-full pointer-events-none"
+        style={{ background: "radial-gradient(circle,rgba(201,168,76,0.13),transparent 70%)" }}
+        animate={{ scale: [1, 1.18, 1] }}
+        transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute bottom-16 right-16 w-44 h-44 rounded-full pointer-events-none"
+        style={{ background: "radial-gradient(circle,rgba(45,158,107,0.1),transparent 70%)" }}
+        animate={{ scale: [1, 1.25, 1] }}
+        transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 3 }}
+      />
 
       {/* Card */}
       <motion.div
         initial={{ opacity: 0, y: 32, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.55, ease: "easeOut" }}
-        className="relative z-10 w-full max-w-md backdrop-blur-none lg:backdrop-blur-xl"
+        className="relative z-10 w-full max-w-md"
         style={{
           background: "rgba(13,61,39,0.85)",
+          backdropFilter: "blur(20px)",
           border: "1px solid rgba(201,168,76,0.25)",
           borderRadius: 28,
           padding: 40,
