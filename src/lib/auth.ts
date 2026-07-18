@@ -18,6 +18,11 @@ export interface JWTPayload {
   phone: string;
   role: string;
   name: string;
+  // AUTH-002: single-device login enforcement. Set to a fresh random value
+  // on every login; compared against User.currentSessionId in
+  // /api/auth/me. A token with a stale `sid` means a newer login happened
+  // elsewhere and this session should be treated as logged out.
+  sid: string;
   iat?: number;
   exp?: number;
 }
@@ -27,7 +32,12 @@ export async function signToken(payload: Omit<JWTPayload, "iat" | "exp">): Promi
   return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime(process.env.JWT_EXPIRES_IN || "7d")
+    // AUTH-003 ("remember me"): raised from 7d to 60d so a student doesn't
+    // have to log back in every week. This is the *ceiling* — the cookie
+    // below expires at the same time, and a fresh login (any device)
+    // always resets the clock, so an actively-used account effectively
+    // never prompts for a re-login; only ~2 months of total inactivity does.
+    .setExpirationTime(process.env.JWT_EXPIRES_IN || "60d")
     .sign(SECRET);
 }
 
@@ -73,7 +83,7 @@ export async function setAuthCookie(token: string) {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 7, // 7 days
+    maxAge: 60 * 60 * 24 * 60, // AUTH-003: 60 days, matches JWT expiry above
     path: "/",
   });
 }
@@ -82,6 +92,11 @@ export async function setAuthCookie(token: string) {
 export async function clearAuthCookie() {
   const cookieStore = await cookies();
   cookieStore.delete(AUTH_COOKIE_NAME);
+}
+
+// ---- AUTH-002: generate a fresh single-device session id ----
+export function generateSessionId(): string {
+  return crypto.randomUUID();
 }
 
 // ---- Role guards ----
