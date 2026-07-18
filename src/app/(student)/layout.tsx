@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { ToastContainer } from "@/components/ui/Toast";
 import { FullScreenSpinner } from "@/components/ui/FullScreenSpinner";
+import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
 import { useAuth } from "@/hooks/useAuth";
 import type { SidebarItem } from "@/components/layout/Sidebar";
 
@@ -84,6 +85,10 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
               {user.avatar ?? user.name.charAt(0)}
             </div>
           </div>
+          {/* CUSTOM-010 v2: student-dashboard-only placement (per request) —
+              not in providers.tsx anymore, so it never shows on the landing
+              page, admin, or owner sections. */}
+          <AnnouncementBar />
           {children}
         </div>
       </main>
