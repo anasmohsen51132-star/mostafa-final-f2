@@ -6,19 +6,20 @@
 // load via the httpOnly cookie. This also means `role` used for client-side
 // routing decisions is always freshly verified server-side, not trusted from disk.
 //
-// AUTH-002 v2: single-device enforcement is checked here on three triggers,
-// not just app load:
-//  1. Once on initial hydration (was already there).
-//  2. On a short interval (was 5 min — far too slow, an account logged in
-//     on two devices could sit "both active" for most of that window; now
-//     15s, giving effectively-immediate enforcement for any open tab).
-//  3. On tab focus / visibility change — the moment someone switches back
-//     to this tab (e.g. after logging in on another device), we recheck
-//     right away instead of waiting for the next interval tick. Between
-//     (2) and (3), a kicked-out session gets caught within ~15s in every
-//     realistic case, without needing WebSockets/SSE for true push-based
-//     instant invalidation (a materially bigger change — worth doing later
-//     if 15s ever proves not tight enough in practice).
+// AUTH-002: single-device enforcement is checked here on three triggers —
+// initial hydration, a short interval, and tab focus/visibility — so a
+// kicked-out session is caught within ~15s of an open tab regardless of
+// which trigger fires first. See /api/auth/me for the actual enforcement.
+//
+// BUGFIX (AUTH-002 v3): the interval/focus listeners used to keep firing
+// forever, with no check for whether there was even a logged-in user left.
+// The moment a device got logged out by another device's login, this kept
+// calling /api/auth/me every ~15s (or more, via focus events) regardless —
+// each failed call re-showed a "logged out" toast, so the same device that
+// was already logged out kept getting the same notification repeatedly.
+// Now: (1) background checks are skipped entirely once there's no user in
+// the store, and (2) the toast only fires once per logout event, not once
+// per failed check.
 import { useEffect, useRef } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useToast } from "@/store/uiStore";
@@ -33,24 +34,38 @@ export function SessionSync() {
   const liveRef = useRef({ setUser, clearAuth, setSessionVerified, toast });
   liveRef.current = { setUser, clearAuth, setSessionVerified, toast };
 
-  // Avoid overlapping checks if a slow request is still in flight when the
-  // next trigger (interval tick or focus event) fires.
   const inFlight = useRef(false);
+  // BUGFIX: tracks whether we've already told the user about *this*
+  // logout, so a background check that keeps failing (correctly — there's
+  // genuinely no session anymore) doesn't keep re-toasting the same event.
+  // Reset back to false the moment a check succeeds again (i.e. a real
+  // login happened), so a *future* logout can notify normally.
+  const notifiedThisLogout = useRef(false);
 
   const checkSession = (isBackgroundRecheck: boolean) => {
     if (inFlight.current) return;
+
+    // BUGFIX: don't even make the request if there's no logged-in user to
+    // begin with — this is what stopped the infinite repeat. Background
+    // (interval/focus) triggers only make sense while a session exists;
+    // the very first, non-background check on hydration still needs to
+    // run once even before we know `user`, which is why this guard only
+    // applies to isBackgroundRecheck.
+    if (isBackgroundRecheck && !useAuthStore.getState().user) return;
+
     inFlight.current = true;
     fetch("/api/auth/me", { credentials: "same-origin" })
       .then((res) => res.json())
       .then((res) => {
         const { setUser, clearAuth, setSessionVerified, toast } = liveRef.current;
         if (res.success) {
+          notifiedThisLogout.current = false;
           setUser(res.data.user);
         } else {
-          // AUTH-002: surface *why* — a silent logout with no explanation
-          // reads as a bug ("the site logged me out for no reason") when
-          // it's actually expected behavior from logging in elsewhere.
-          if (isBackgroundRecheck) toast.info(res.error || "انتهت الجلسة");
+          if (isBackgroundRecheck && !notifiedThisLogout.current) {
+            notifiedThisLogout.current = true;
+            toast.info(res.error || "انتهت الجلسة");
+          }
           clearAuth();
         }
       })
@@ -75,8 +90,7 @@ export function SessionSync() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isHydrated]);
 
-  // Periodic recheck + focus/visibility recheck — one set of listeners for
-  // the lifetime of the mounted app shell, independent of user/store churn.
+  // Periodic recheck + focus/visibility recheck.
   useEffect(() => {
     const interval = setInterval(() => checkSession(true), RECHECK_INTERVAL_MS);
 
