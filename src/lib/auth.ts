@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 import type { User } from "@/types";
 import { AUTH_COOKIE_NAME } from "@/lib/cookie-name";
+import prisma from "@/lib/prisma";
 
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
   throw new Error(
@@ -97,6 +98,40 @@ export async function clearAuthCookie() {
 // ---- AUTH-002: generate a fresh single-device session id ----
 export function generateSessionId(): string {
   return crypto.randomUUID();
+}
+
+// ---- AUTH-005: fully-verified current user (JWT + DB single-device check) ----
+// BUGFIX: getCurrentUser() above only checks the JWT's signature/expiry —
+// it does NOT know whether a *newer* login elsewhere has since invalidated
+// this particular token (see currentSessionId / `sid` in /api/auth/me).
+// The landing page used to call getCurrentUser() directly to decide
+// whether to redirect a visitor straight to their dashboard, which meant a
+// stale-but-cryptographically-valid cookie (e.g. from a device that was
+// since logged out by a login on another device) would still redirect
+// away from "/" into the dashboard — which would then correctly bounce
+// them to /login via the client-side check, but only *after* detouring
+// through the dashboard shell. Net effect: that device could never
+// actually see the homepage again, cycling home → dashboard → login.
+// This helper does the full check up front so "/" can make the right call
+// immediately, and clears the stale cookie so this doesn't keep recurring.
+export async function getVerifiedUser(): Promise<{ id: string; role: string; name: string } | null> {
+  const payload = await getCurrentUser();
+  if (!payload) return null;
+
+  const dbUser = await prisma.user.findUnique({
+    where: { id: payload.sub },
+    select: { isActive: true, currentSessionId: true, role: true, name: true },
+  });
+
+  if (!dbUser || !dbUser.isActive) {
+    await clearAuthCookie();
+    return null;
+  }
+  if (dbUser.currentSessionId && payload.sid !== dbUser.currentSessionId) {
+    await clearAuthCookie();
+    return null;
+  }
+  return { id: payload.sub, role: dbUser.role, name: dbUser.name };
 }
 
 // ---- Role guards ----
