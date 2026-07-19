@@ -113,25 +113,40 @@ export function generateSessionId(): string {
 // through the dashboard shell. Net effect: that device could never
 // actually see the homepage again, cycling home → dashboard → login.
 // This helper does the full check up front so "/" can make the right call
-// immediately, and clears the stale cookie so this doesn't keep recurring.
+// immediately.
+//
+// BUGFIX (crash on "/"): this used to also call clearAuthCookie() here to
+// proactively clear the stale cookie. But getVerifiedUser() is called from
+// the homepage's Server Component during rendering (page.tsx), and Next.js
+// only allows cookies to be set/deleted from a Server Action or Route
+// Handler — doing it during a render throws "Cookies can only be modified
+// in a Server Action or Route Handler", which crashed the entire homepage
+// (via the root error boundary) every time a visitor had a stale/invalid
+// cookie (deactivated user, or a session replaced by another device's
+// login). We just report "not verified" here instead; the stale cookie
+// still gets cleared correctly the moment SessionSync's client-side check
+// hits /api/auth/me (a real Route Handler, where clearAuthCookie() is safe)
+// right after landing on any authenticated page.
 export async function getVerifiedUser(): Promise<{ id: string; role: string; name: string } | null> {
   const payload = await getCurrentUser();
   if (!payload) return null;
 
-  const dbUser = await prisma.user.findUnique({
-    where: { id: payload.sub },
-    select: { isActive: true, currentSessionId: true, role: true, name: true },
-  });
+  try {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: { isActive: true, currentSessionId: true, role: true, name: true },
+    });
 
-  if (!dbUser || !dbUser.isActive) {
-    await clearAuthCookie();
+    if (!dbUser || !dbUser.isActive) return null;
+    if (dbUser.currentSessionId && payload.sid !== dbUser.currentSessionId) return null;
+    return { id: payload.sub, role: dbUser.role, name: dbUser.name };
+  } catch {
+    // If the DB check itself fails (transient connection issue), fail safe
+    // by treating the visitor as unverified rather than crashing the page —
+    // they'll just see the marketing homepage instead of an auto-redirect,
+    // which is a harmless degrade compared to a hard error.
     return null;
   }
-  if (dbUser.currentSessionId && payload.sid !== dbUser.currentSessionId) {
-    await clearAuthCookie();
-    return null;
-  }
-  return { id: payload.sub, role: dbUser.role, name: dbUser.name };
 }
 
 // ---- Role guards ----
