@@ -52,8 +52,13 @@ export default function RegisterPage() {
 
         {/* Brand header */}
         <div className="text-center mb-8" style={{ direction: "rtl" }}>
-          <div style={{ fontFamily: "Amiri,serif", color: "rgba(201,168,76,0.7)", fontSize: 34, marginBottom: 6 }}>
-            ﷽
+          {/* BUGFIX: see login/page.tsx for the full explanation of why ﷽
+              needs this overflow-guarded treatment instead of a plain fixed
+              font-size — this instance had no protection at all. */}
+          <div style={{ width: "100%", overflow: "hidden", display: "flex", justifyContent: "center", marginBottom: 6 }}>
+            <span style={{ fontFamily: "Amiri,serif", color: "rgba(201,168,76,0.7)", fontSize: "clamp(18px,6vw,30px)", lineHeight: 1 }}>
+              ﷽
+            </span>
           </div>
           <h1 style={{ fontFamily: "Amiri,serif", color: "#E8C97A", fontSize: 26, fontWeight: 700, marginBottom: 4 }}>
             انضم إلى الأكاديمية
