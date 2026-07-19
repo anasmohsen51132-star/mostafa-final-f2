@@ -7,7 +7,7 @@ import { FeaturesSection } from "@/components/landing/FeaturesSection";
 import { TeacherSection } from "@/components/landing/TeacherSection";
 import { CTASection } from "@/components/landing/CTASection";
 import prisma from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getVerifiedUser } from "@/lib/auth";
 import type { SiteSettings } from "@/types";
 import {
   SITE_URL,
@@ -73,7 +73,15 @@ export default async function LandingPage() {
   // is still fully re-checked client-side by SessionSync once they land on
   // the dashboard, so an already-invalidated session correctly bounces back
   // to /login from there rather than getting stuck.
-  const currentUser = await getCurrentUser();
+  // AUTH-005 BUGFIX: this used to call getCurrentUser(), which only checks
+  // the JWT's signature/expiry — not whether a newer login elsewhere has
+  // since invalidated it (single-device enforcement). A stale-but-valid
+  // cookie was redirecting straight to the dashboard, which then correctly
+  // bounced back out to /login via the client-side check — meaning that
+  // device could never actually see the homepage again. getVerifiedUser()
+  // does the same DB check up front and clears the stale cookie if it
+  // fails, so this only redirects for a session that's genuinely still valid.
+  const currentUser = await getVerifiedUser();
   if (currentUser) redirect(dashboardPathForRole(currentUser.role));
 
   const settings = await getSettings();
