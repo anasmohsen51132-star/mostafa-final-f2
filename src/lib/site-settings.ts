@@ -24,20 +24,10 @@ import type { SiteSettings } from "@/types";
 
 const readSiteSettings = unstable_cache(
   async (): Promise<SiteSettings> => {
-    // BUGFIX: find-then-create was two separate round-trips. Under
-    // concurrent requests (e.g. several admin-panel components fetching
-    // settings at once on the very first load, before this row exists),
-    // two requests could both see `null` from findUnique and both try to
-    // create the same `id: "singleton"` row — the second create() then
-    // throws a unique-constraint error, which (via generateMetadata, which
-    // runs on every route) surfaced as the site-wide error screen instead
-    // of a page-specific one. upsert is atomic: Postgres itself resolves
-    // the race, so no client-side create-vs-create collision is possible.
-    const settings = await prisma.siteSettings.upsert({
-      where: { id: "singleton" },
-      create: { id: "singleton" },
-      update: {},
-    });
+    let settings = await prisma.siteSettings.findUnique({ where: { id: "singleton" } });
+    if (!settings) {
+      settings = await prisma.siteSettings.create({ data: { id: "singleton" } });
+    }
     return settings as unknown as SiteSettings;
   },
   ["site-settings-singleton"],
