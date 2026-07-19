@@ -1,9 +1,10 @@
 "use client";
 // src/app/(auth)/register/page.tsx
+// PERF-008 FIX: see the matching note in login/page.tsx — same fix applied
+// here (no infinite animations, no backdrop-filter), for the same reason.
 import { m as motion } from "framer-motion";
 import Link from "next/link";
 import { RegisterForm } from "@/components/auth/RegisterForm";
-import { FloatingArabicBackground } from "@/components/effects/FloatingArabicBackground";
 
 export default function RegisterPage() {
   return (
@@ -11,7 +12,7 @@ export default function RegisterPage() {
       className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden"
       style={{ background: "linear-gradient(135deg,#0D3D27 0%,#1A6B47 60%,#0D3D27 100%)" }}
     >
-      {/* Background pattern */}
+      {/* Background pattern — static */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -19,36 +20,28 @@ export default function RegisterPage() {
         }}
       />
 
-      {/* Floating Arabic letters — same decorative touch as the landing hero */}
-      <FloatingArabicBackground density={6} color="rgba(201,168,76,0.1)" />
-
-      {/* Orbs */}
-      <motion.div
+      {/* Static glow blobs */}
+      <div
         className="absolute top-16 left-16 w-52 h-52 rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle,rgba(201,168,76,0.13),transparent 70%)" }}
-        animate={{ scale: [1, 1.18, 1] }}
-        transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+        style={{ background: "radial-gradient(circle,rgba(201,168,76,0.12),transparent 70%)" }}
       />
-      <motion.div
+      <div
         className="absolute bottom-16 right-16 w-44 h-44 rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle,rgba(45,158,107,0.1),transparent 70%)" }}
-        animate={{ scale: [1, 1.25, 1] }}
-        transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 3 }}
+        style={{ background: "radial-gradient(circle,rgba(45,158,107,0.09),transparent 70%)" }}
       />
 
-      {/* Card */}
+      {/* Card — one-time entrance only, no backdrop-filter */}
       <motion.div
-        initial={{ opacity: 0, y: 32, scale: 0.96 }}
+        initial={{ opacity: 0, y: 24, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.55, ease: "easeOut" }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
         className="relative z-10 w-full max-w-md"
         style={{
-          background: "rgba(13,61,39,0.85)",
-          backdropFilter: "blur(20px)",
+          background: "linear-gradient(160deg, rgba(16,68,44,0.96), rgba(10,45,29,0.97))",
           border: "1px solid rgba(201,168,76,0.25)",
           borderRadius: 28,
           padding: 40,
-          boxShadow: "0 24px 64px rgba(0,0,0,0.4)",
+          boxShadow: "0 20px 50px rgba(0,0,0,0.35)",
         }}
       >
         {/* Top accent bar */}
@@ -59,14 +52,9 @@ export default function RegisterPage() {
 
         {/* Brand header */}
         <div className="text-center mb-8" style={{ direction: "rtl" }}>
-          <motion.div
-            initial={{ scale: 0.7, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.1, type: "spring", stiffness: 300 }}
-            style={{ fontFamily: "Amiri,serif", color: "rgba(201,168,76,0.65)", fontSize: 34, marginBottom: 6 }}
-          >
+          <div style={{ fontFamily: "Amiri,serif", color: "rgba(201,168,76,0.7)", fontSize: 34, marginBottom: 6 }}>
             ﷽
-          </motion.div>
+          </div>
           <h1 style={{ fontFamily: "Amiri,serif", color: "#E8C97A", fontSize: 26, fontWeight: 700, marginBottom: 4 }}>
             انضم إلى الأكاديمية
           </h1>
@@ -75,10 +63,10 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        {/* Divider */}
+        {/* Divider — static */}
         <div className="flex items-center gap-3 mb-8">
           <div style={{ flex: 1, height: 1, background: "rgba(201,168,76,0.2)" }} />
-          <span style={{ color: "rgba(201,168,76,0.4)", fontSize: 14 }}>✦</span>
+          <span style={{ color: "rgba(201,168,76,0.5)", fontSize: 14 }}>✦</span>
           <div style={{ flex: 1, height: 1, background: "rgba(201,168,76,0.2)" }} />
         </div>
 
