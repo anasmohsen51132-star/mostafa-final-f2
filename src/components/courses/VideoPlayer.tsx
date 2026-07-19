@@ -94,7 +94,7 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
         }, 5000);
         fetchWithAuth("/api/progress", {
           method: "POST",
-          body: JSON.stringify({ lectureId, videoId, event: "heartbeat", positionSeconds: Math.floor(currentTime) }),
+          body: JSON.stringify({ lectureId, videoId, event: "heartbeat" }),
         }).catch(() => {});
       }
       if (duration > 0 && duration - currentTime < 0.75 && !trackedCompleteRef.current) {
