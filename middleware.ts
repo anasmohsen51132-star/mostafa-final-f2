@@ -106,6 +106,21 @@ export async function middleware(req: NextRequest) {
     return withCsp(NextResponse.next({ request: { headers: requestHeaders } }));
   }
 
+  // BUGFIX (mobile "stuck on /login"): auth-gate redirects (no token, invalid
+  // token, wrong role) were returned with no Cache-Control header. Browsers
+  // — mobile Safari/Chrome in particular — can cache a 307 redirect per-URL
+  // when no explicit no-store directive is present, which meant a device
+  // that ever received a redirect for "/" (e.g. from an older deployment)
+  // could keep silently replaying that cached redirect forever, never
+  // re-asking the server — so it never saw that "/" is public, and clicking
+  // back to the homepage hit the same cached redirect again. These auth
+  // decisions must always be re-evaluated per request, never cached.
+  function redirectNoStore(url: URL) {
+    const res = NextResponse.redirect(url);
+    res.headers.set("Cache-Control", "no-store");
+    return res;
+  }
+
   if (req.method === "OPTIONS" && pathname.startsWith("/api/")) {
     return withCsp(corsPreflightResponse(), false);
   }
@@ -129,7 +144,7 @@ export async function middleware(req: NextRequest) {
     if (pathname.startsWith("/api/")) {
       return withCsp(Response.json({ success: false, error: "غير مصرح" }, { status: 401 }), false);
     }
-    return withCsp(NextResponse.redirect(new URL("/login", req.url)), false);
+    return withCsp(redirectNoStore(new URL("/login", req.url)), false);
   }
 
   const payload = await verifyTokenEdge(token);
@@ -137,7 +152,7 @@ export async function middleware(req: NextRequest) {
     if (pathname.startsWith("/api/")) {
       return withCsp(Response.json({ success: false, error: "انتهت الجلسة" }, { status: 401 }), false);
     }
-    const res = NextResponse.redirect(new URL("/login", req.url));
+    const res = redirectNoStore(new URL("/login", req.url));
     res.cookies.delete(AUTH_COOKIE_NAME);
     return withCsp(res, false);
   }
@@ -148,7 +163,7 @@ export async function middleware(req: NextRequest) {
       if (pathname.startsWith("/api/")) {
         return withCsp(Response.json({ success: false, error: "ليس لديك صلاحية" }, { status: 403 }), false);
       }
-      return withCsp(NextResponse.redirect(new URL("/dashboard", req.url)), false);
+      return withCsp(redirectNoStore(new URL("/dashboard", req.url)), false);
     }
   }
 
@@ -157,7 +172,7 @@ export async function middleware(req: NextRequest) {
       if (pathname.startsWith("/api/")) {
         return withCsp(Response.json({ success: false, error: "ليس لديك صلاحية" }, { status: 403 }), false);
       }
-      return withCsp(NextResponse.redirect(new URL("/dashboard", req.url)), false);
+      return withCsp(redirectNoStore(new URL("/dashboard", req.url)), false);
     }
   }
 
