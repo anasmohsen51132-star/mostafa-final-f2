@@ -141,25 +141,9 @@ export function LoginForm() {
             border: "none",
             cursor: isLoginLoading ? "not-allowed" : "pointer",
             transition: "all 0.2s",
-            position: "relative",
-            overflow: "hidden",
           }}
         >
-          {!isLoginLoading && (
-            <motion.span
-              aria-hidden
-              style={{
-                position: "absolute",
-                top: 0, left: "-60%",
-                width: "50%", height: "100%",
-                background: "linear-gradient(100deg, transparent, rgba(255,255,255,0.45), transparent)",
-                transform: "skewX(-20deg)",
-              }}
-              animate={{ left: ["-60%", "130%"] }}
-              transition={{ duration: 2.2, repeat: Infinity, repeatDelay: 1.5, ease: "easeInOut" }}
-            />
-          )}
-          <span style={{ position: "relative", zIndex: 1 }}>
+          <span>
             {isLoginLoading ? "⏳ جارٍ تسجيل الدخول..." : "🚀 دخول"}
           </span>
         </motion.button>
