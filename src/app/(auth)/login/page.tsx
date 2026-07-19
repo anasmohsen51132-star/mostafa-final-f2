@@ -1,9 +1,27 @@
 "use client";
 // src/app/(auth)/login/page.tsx
+//
+// PERF-008 FIX: this page used to run ~8 concurrent *infinite* Framer
+// Motion animations at all times (2 pulsing orbs, 4 twinkling stars, a
+// rotating divider glyph, a glowing Bismillah, plus 6 floating Arabic
+// letters each animating y+rotate every frame) on top of a
+// `backdrop-filter: blur(20px)` card — backdrop-filter is one of the most
+// GPU/compositor-expensive CSS properties on mobile, and doing it
+// continuously *while* several other elements animate underneath it is
+// heavy even on decent phones. On the actual reported devices, opening the
+// on-screen keyboard (which forces a viewport resize + layout reflow) on
+// top of all that running animation work was what caused the freeze/lag.
+//
+// Fix: every animation below is now either static (no animation at all) or
+// a one-time entrance transition that finishes ~0.5s after mount and never
+// touches the render loop again — by the time someone taps an input to
+// bring up the keyboard, there is zero ongoing animation work competing
+// for the main thread. backdrop-filter is gone too, replaced by a solid,
+// slightly higher-opacity card background that reads the same visually
+// without the compositing cost.
 import { m as motion } from "framer-motion";
 import Link from "next/link";
 import { LoginForm } from "@/components/auth/LoginForm";
-import { FloatingArabicBackground } from "@/components/effects/FloatingArabicBackground";
 
 export default function LoginPage() {
   return (
@@ -14,63 +32,41 @@ export default function LoginPage() {
         padding: "16px",
       }}
     >
-      {/* Background pattern */}
-      <div className="absolute inset-0 pointer-events-none" style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23C9A84C' fill-opacity='0.05'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E")`,
-      }} />
+      {/* Background pattern — static, no cost */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23C9A84C' fill-opacity='0.05'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E")`,
+        }}
+      />
 
-      {/* Floating Arabic letters — same decorative touch as the landing hero */}
-      <FloatingArabicBackground density={6} color="rgba(201,168,76,0.1)" />
-
-      {/* Orbs — hidden on very small screens to avoid overflow */}
-      <motion.div
+      {/* Static glow blobs — same visual warmth as the old pulsing orbs,
+          with zero animation cost since they never move. */}
+      <div
         className="absolute top-10 right-10 w-40 h-40 sm:w-56 sm:h-56 rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle,rgba(201,168,76,0.15),transparent 70%)" }}
-        animate={{ scale: [1, 1.2, 1] }}
-        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+        style={{ background: "radial-gradient(circle,rgba(201,168,76,0.13),transparent 70%)" }}
       />
-      <motion.div
+      <div
         className="absolute bottom-10 left-10 w-28 h-28 sm:w-40 sm:h-40 rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle,rgba(45,158,107,0.12),transparent 70%)" }}
-        animate={{ scale: [1, 1.3, 1] }}
-        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+        style={{ background: "radial-gradient(circle,rgba(45,158,107,0.1),transparent 70%)" }}
       />
 
-      {/* Stars — only on screens wider than mobile */}
-      {[
-        { top: "15%", left: "12%", delay: 0 },
-        { top: "70%", left: "8%",  delay: 0.8 },
-        { top: "25%", left: "88%", delay: 1.4 },
-        { top: "80%", left: "85%", delay: 0.4 },
-      ].map((star, i) => (
-        <motion.div
-          key={i}
-          className="absolute pointer-events-none hidden sm:block"
-          style={{ top: star.top, left: star.left, fontSize: 14, color: "rgba(232,201,122,0.5)" }}
-          animate={{ opacity: [0.2, 1, 0.2], scale: [0.8, 1.2, 0.8] }}
-          transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut", delay: star.delay }}
-        >
-          ✦
-        </motion.div>
-      ))}
-
-      {/* Card */}
+      {/* Card — one-time entrance only, no backdrop-filter */}
       <motion.div
-        initial={{ opacity: 0, y: 32, scale: 0.96 }}
+        initial={{ opacity: 0, y: 24, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.55, ease: "easeOut" }}
-        className="relative z-10 w-full lux-shine-border"
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        className="relative z-10 w-full"
         style={{
           maxWidth: 440,
-          background: "rgba(13,61,39,0.88)",
-          backdropFilter: "blur(20px)",
+          background: "linear-gradient(160deg, rgba(16,68,44,0.97), rgba(10,45,29,0.98))",
           border: "1px solid rgba(201,168,76,0.25)",
           borderRadius: 24,
           padding: "clamp(24px, 5vw, 40px)",
-          boxShadow: "0 24px 64px rgba(0,0,0,0.4)",
+          boxShadow: "0 20px 50px rgba(0,0,0,0.35)",
         }}
       >
-        {/* Top accent bar */}
+        {/* Top accent bar — static */}
         <div
           className="absolute top-0 left-8 right-8 h-0.5 rounded-full"
           style={{ background: "linear-gradient(90deg,transparent,rgba(201,168,76,0.6),transparent)" }}
@@ -78,10 +74,7 @@ export default function LoginPage() {
 
         {/* Logo / Brand */}
         <div className="text-center mb-6" style={{ direction: "rtl" }}>
-          <motion.div
-            initial={{ scale: 0.7, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.1, type: "spring", stiffness: 300 }}
+          <div
             style={{
               fontFamily: "Amiri,serif",
               color: "rgba(201,168,76,0.8)",
@@ -94,13 +87,8 @@ export default function LoginPage() {
               textOverflow: "ellipsis",
             }}
           >
-            <motion.span
-              animate={{ filter: ["drop-shadow(0 0 0px rgba(232,201,122,0))","drop-shadow(0 0 10px rgba(232,201,122,0.6))","drop-shadow(0 0 0px rgba(232,201,122,0))"] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-            >
-              ﷽
-            </motion.span>
-          </motion.div>
+            ﷽
+          </div>
           <h1 style={{ fontFamily: "Amiri,serif", color: "#E8C97A", fontSize: "clamp(20px,5vw,26px)", fontWeight: 700, marginBottom: 4 }}>
             اكاديمية مستر مصطفى
           </h1>
@@ -109,16 +97,10 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Divider */}
+        {/* Divider — static */}
         <div className="flex items-center gap-3 mb-6">
           <div style={{ flex: 1, height: 1, background: "rgba(201,168,76,0.2)" }} />
-          <motion.span
-            style={{ color: "rgba(201,168,76,0.4)", fontSize: 14 }}
-            animate={{ opacity: [0.4, 1, 0.4], rotate: [0, 180, 360] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-          >
-            ✦
-          </motion.span>
+          <span style={{ color: "rgba(201,168,76,0.5)", fontSize: 14 }}>✦</span>
           <div style={{ flex: 1, height: 1, background: "rgba(201,168,76,0.2)" }} />
         </div>
 
