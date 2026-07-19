@@ -281,6 +281,13 @@ export const progressSchema = z
     lectureId: z.string().min(1),
     videoId: z.string().min(1).optional(),
     completed: z.boolean().optional(),
+    // Matches the documented contract in src/app/api/progress/route.ts
+    // ("event?: play | pause | ended | seek | completed"). Not persisted —
+    // the route only acts on `completed` — but it must be accepted here or
+    // every play/pause/completed ping from VideoPlayer.tsx is rejected
+    // outright by .strict() below, including the "completed" ping that
+    // carries a valid `completed: true`.
+    event: z.string().max(20).optional(),
   })
   .strict();
 
