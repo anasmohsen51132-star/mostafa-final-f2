@@ -113,38 +113,38 @@ export function generateSessionId(): string {
 // through the dashboard shell. Net effect: that device could never
 // actually see the homepage again, cycling home → dashboard → login.
 // This helper does the full check up front so "/" can make the right call
-// immediately.
-//
-// BUGFIX (crash on "/"): this used to also call clearAuthCookie() here to
-// proactively clear the stale cookie. But getVerifiedUser() is called from
-// the homepage's Server Component during rendering (page.tsx), and Next.js
-// only allows cookies to be set/deleted from a Server Action or Route
-// Handler — doing it during a render throws "Cookies can only be modified
-// in a Server Action or Route Handler", which crashed the entire homepage
-// (via the root error boundary) every time a visitor had a stale/invalid
-// cookie (deactivated user, or a session replaced by another device's
-// login). We just report "not verified" here instead; the stale cookie
-// still gets cleared correctly the moment SessionSync's client-side check
-// hits /api/auth/me (a real Route Handler, where clearAuthCookie() is safe)
-// right after landing on any authenticated page.
+// immediately, and clears the stale cookie so this doesn't keep recurring.
 export async function getVerifiedUser(): Promise<{ id: string; role: string; name: string } | null> {
   const payload = await getCurrentUser();
   if (!payload) return null;
 
+  // BUGFIX: this DB call had no error handling, unlike every other
+  // DB-touching helper in this codebase. A transient connection hiccup
+  // (Neon cold start, brief pool exhaustion — this project has hit both
+  // before) would throw here, uncaught, crashing the entire page render
+  // for *any* visitor who simply had a cookie present — landing them on
+  // Next.js's generic error screen instead of the homepage. Failing open
+  // to "not verified" is the right behavior here: worst case, someone who
+  // was genuinely logged in just sees the marketing homepage instead of
+  // being auto-redirected to their dashboard for this one request — a far
+  // better failure mode than a hard crash.
   try {
     const dbUser = await prisma.user.findUnique({
       where: { id: payload.sub },
       select: { isActive: true, currentSessionId: true, role: true, name: true },
     });
 
-    if (!dbUser || !dbUser.isActive) return null;
-    if (dbUser.currentSessionId && payload.sid !== dbUser.currentSessionId) return null;
+    if (!dbUser || !dbUser.isActive) {
+      await clearAuthCookie();
+      return null;
+    }
+    if (dbUser.currentSessionId && payload.sid !== dbUser.currentSessionId) {
+      await clearAuthCookie();
+      return null;
+    }
     return { id: payload.sub, role: dbUser.role, name: dbUser.name };
-  } catch {
-    // If the DB check itself fails (transient connection issue), fail safe
-    // by treating the visitor as unverified rather than crashing the page —
-    // they'll just see the marketing homepage instead of an auto-redirect,
-    // which is a harmless degrade compared to a hard error.
+  } catch (e) {
+    console.error("[getVerifiedUser]", e);
     return null;
   }
 }

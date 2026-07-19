@@ -22,23 +22,51 @@ import { unstable_cache } from "next/cache";
 import prisma from "@/lib/prisma";
 import type { SiteSettings } from "@/types";
 
+// BUGFIX: this had no error handling at all — since it backs the ROOT
+// layout's generateMetadata() (which runs for literally every route with
+// no exceptions), an uncaught DB error here didn't just break one page,
+// it could crash the *entire site*. A brief Neon connection hiccup — this
+// project has hit that before — was enough to take everything down. These
+// fallback values mirror the Prisma schema's own @default(...) values, so
+// failing here just means "the site looks like a fresh, uncustomized
+// install for this one request" instead of a hard crash.
+const FALLBACK_SETTINGS: SiteSettings = {
+  id: "singleton",
+  heroTitle: "اتقن اللغة العربية",
+  heroSubtitle: "مع نخبة من أفضل الأساتذة",
+  heroDesc: "انضم إلى آلاف الطلاب في رحلة تعليمية استثنائية تجمع بين الأصالة والحداثة",
+  teacherName: "مستر مصطفى",
+  teacherTitle: "خبير تدريس اللغة العربية",
+  teacherBio: "معلم متميز بخبرة تزيد عن خمس عشرة عاماً في تدريس اللغة العربية لجميع المراحل الدراسية",
+  teacherStats: [],
+  features: [],
+  platformName: "اكاديمية مستر مصطفى",
+  platformTagline: "لتدريس اللغة العربية",
+  loginBgGradient: "135deg, #0D3D27 0%, #1A6B47 100%",
+  dashboardWelcome: "أهلاً وسهلاً بك في منصتك التعليمية",
+  footerText: "© ٢٠٢٤ اكاديمية مستر مصطفى — جميع الحقوق محفوظة",
+  statsBar: [],
+  primaryColor: "#C9A84C", secondaryColor: "#1A6B47", accentColor: "#1A6B47",
+  backgroundColor: "#F5F1E8", surfaceColor: "#FFFFFF", textColor: "#1A1208",
+  buttonColor: "#C9A84C", hoverColor: "#8B6914",
+  successColor: "#16A34A", warningColor: "#D97706", errorColor: "#DC2626",
+  ctaButtons: [],
+  announcementEnabled: false,
+  announcementDismissible: true,
+};
+
 const readSiteSettings = unstable_cache(
   async (): Promise<SiteSettings> => {
-    // BUGFIX: find-then-create was two separate round-trips. Under
-    // concurrent requests (e.g. several admin-panel components fetching
-    // settings at once on the very first load, before this row exists),
-    // two requests could both see `null` from findUnique and both try to
-    // create the same `id: "singleton"` row — the second create() then
-    // throws a unique-constraint error, which (via generateMetadata, which
-    // runs on every route) surfaced as the site-wide error screen instead
-    // of a page-specific one. upsert is atomic: Postgres itself resolves
-    // the race, so no client-side create-vs-create collision is possible.
-    const settings = await prisma.siteSettings.upsert({
-      where: { id: "singleton" },
-      create: { id: "singleton" },
-      update: {},
-    });
-    return settings as unknown as SiteSettings;
+    try {
+      let settings = await prisma.siteSettings.findUnique({ where: { id: "singleton" } });
+      if (!settings) {
+        settings = await prisma.siteSettings.create({ data: { id: "singleton" } });
+      }
+      return settings as unknown as SiteSettings;
+    } catch (e) {
+      console.error("[getSiteSettings]", e);
+      return FALLBACK_SETTINGS;
+    }
   },
   ["site-settings-singleton"],
   { revalidate: 60, tags: ["site-settings"] }
