@@ -50,13 +50,19 @@ export function CTASection() {
 
           {/* Content */}
           <div className="relative z-10">
+            {/* BUGFIX: see HeroSection.tsx for the full explanation — the
+                ﷽ ligature renders far wider than its font-size suggests,
+                and this instance had no overflow protection at all, which
+                is what caused the visible clipping on mobile. */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.5, delay: 0.15 }}
-              style={{ fontFamily: "Amiri,serif", color: "rgba(201,168,76,0.7)", fontSize: 32, marginBottom: 8 }}
+              style={{ width: "100%", overflow: "hidden", display: "flex", justifyContent: "center", marginBottom: 8 }}
             >
-              ﷽
+              <span style={{ fontFamily: "Amiri,serif", color: "rgba(201,168,76,0.7)", fontSize: "clamp(18px,5vw,32px)", lineHeight: 1 }}>
+                ﷽
+              </span>
             </motion.div>
 
             <motion.h2

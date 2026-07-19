@@ -162,12 +162,20 @@ export function HeroSection({ settings }: Props) {
           </span>
         </motion.div>
 
-        {/* Basmala */}
+        {/* Basmala
+            BUGFIX: ﷽ (U+FDFD) is a single Unicode codepoint, but the glyph
+            itself is a wide multi-word calligraphic composition — fonts
+            render it far wider than a normal character at the same
+            font-size. Without an explicit overflow guard, on narrow mobile
+            viewports it was rendering wider than the screen and getting
+            clipped at the edges instead of scaling down to fit. */}
         <motion.div
           initial="hidden" animate="show" custom={0.1} variants={fadeUp}
-          style={{ fontFamily: "Amiri,serif", color: "rgba(201,168,76,0.65)", fontSize: "clamp(24px,7vw,36px)", marginBottom: 8 }}
+          style={{ width: "100%", overflow: "hidden", display: "flex", justifyContent: "center", marginBottom: 8 }}
         >
-          ﷽
+          <span style={{ fontFamily: "Amiri,serif", color: "rgba(201,168,76,0.65)", fontSize: "clamp(20px,6vw,36px)", lineHeight: 1 }}>
+            ﷽
+          </span>
         </motion.div>
 
         {/* Main heading — drawn stroke-by-stroke, then settles into solid text */}
