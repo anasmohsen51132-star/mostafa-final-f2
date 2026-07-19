@@ -123,6 +123,20 @@ export default async function LandingPage() {
           >
             {settings?.footerText ?? "© ٢٠٢٤ اكاديمية مستر مصطفى — جميع الحقوق محفوظة"}
           </p>
+          <p
+            className="text-xs"
+            style={{ color: "rgba(201,168,76,0.35)", fontFamily: "Cairo, sans-serif", marginTop: 8 }}
+          >
+            Developed by{" "}
+            <a
+              href="https://wa.me/201092828464"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "#C9A84C", textDecoration: "none", fontWeight: 600 }}
+            >
+              Anas
+            </a>
+          </p>
         </footer>
       </main>
     </>
