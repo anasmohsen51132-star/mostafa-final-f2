@@ -224,6 +224,26 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
     transform: "translate(-50%, -50%)",
   };
 
+  // Same crop trick as coverStyle above, but for the normal (non-fullscreen)
+  // player box. That box is already pinned to aspect-ratio: 16/9 via CSS
+  // (unlike fullscreen, which is a raw 100vw x 100dvh viewport rectangle),
+  // so a flat percentage overscan in both dimensions is enough — no
+  // viewport units needed. This is what actually stops YouTube's own
+  // pillarboxing (see comment above coverStyle: source videos that aren't
+  // exactly 16:9 get letterboxed by YouTube *inside* our box) from showing
+  // as visible side bars in the normal, inline player — previously this
+  // crop was only applied in fullscreen, so non-fullscreen viewing (i.e.
+  // every device screenshot so far) still showed bars whenever a lecture's
+  // source video wasn't exactly 16:9.
+  const normalCoverStyle: React.CSSProperties = {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    width: `${100 * COVER_OVERSCAN}%`,
+    height: `${100 * COVER_OVERSCAN}%`,
+    transform: "translate(-50%, -50%)",
+  };
+
   const toggleFullscreen = useCallback(async () => {
     const el = playerBoxRef.current;
     if (!el) return;
@@ -487,7 +507,7 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
             <div
               ref={mountRef}
               className="absolute"
-              style={isFullscreen ? coverStyle : { inset: 0, width: "100%", height: "100%" }}
+              style={isFullscreen ? coverStyle : normalCoverStyle}
             />
 
             {/* Gesture / interaction capture layer — sits ABOVE the iframe so
