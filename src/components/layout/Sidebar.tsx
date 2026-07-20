@@ -155,7 +155,7 @@ export function Sidebar({
   return (
     <>
       {/* ══ DESKTOP ≥768px — fixed sidebar ══ */}
-      <aside className="hidden md:flex fixed top-0 right-0 h-screen w-64 flex-col z-50"
+      <aside className="hidden lg:flex fixed top-0 right-0 h-screen w-64 flex-col z-50"
         style={{ background: "#0D3D27" }}>
         {inner}
       </aside>
@@ -168,7 +168,7 @@ export function Sidebar({
             <motion.div key="backdrop"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               transition={{ duration: 0.22 }}
-              className="fixed inset-0 z-40 md:hidden"
+              className="fixed inset-0 z-40 lg:hidden"
               style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(3px)" }}
               onClick={onClose}
             />
@@ -176,7 +176,7 @@ export function Sidebar({
             <motion.aside key="drawer"
               initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
               transition={{ type: "spring", stiffness: 340, damping: 32 }}
-              className="fixed top-0 right-0 h-full w-72 z-50 md:hidden shadow-2xl"
+              className="fixed top-0 right-0 h-full w-72 z-50 lg:hidden shadow-2xl"
               style={{ background: "#0D3D27" }}
             >
               {/* Close button */}
