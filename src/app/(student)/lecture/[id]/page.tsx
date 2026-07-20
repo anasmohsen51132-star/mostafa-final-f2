@@ -262,7 +262,15 @@ export default function LecturePage() {
                       <motion.div key={quiz.id} whileHover={{ x:-4 }}
                         className="p-5 rounded-2xl cursor-pointer"
                         style={{ background:"#fff", border:"1px solid rgba(201,168,76,0.2)", boxShadow:"0 2px 8px rgba(26,18,8,0.04)" }}
-                        onClick={() => { setSelectedQuizId(quiz.id); setQuizAnswers({}); setQuizResult(null); }}>
+                        onClick={() => { setSelectedQuizId(quiz.id); setQuizAnswers({}); setQuizResult(null); }}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setSelectedQuizId(quiz.id); setQuizAnswers({}); setQuizResult(null);
+                          }
+                        }}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl" style={{ background:"rgba(201,168,76,0.12)" }}>📝</div>
@@ -324,7 +332,15 @@ export default function LecturePage() {
                       <motion.div key={hw.id} whileHover={{ x:-4 }}
                         className="p-5 rounded-2xl cursor-pointer"
                         style={{ background:"#fff", border:"1px solid rgba(201,168,76,0.2)", boxShadow:"0 2px 8px rgba(26,18,8,0.04)" }}
-                        onClick={() => { setSelectedHomeworkId(hw.id); setHwAnswers({}); setHwResult(null); }}>
+                        onClick={() => { setSelectedHomeworkId(hw.id); setHwAnswers({}); setHwResult(null); }}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setSelectedHomeworkId(hw.id); setHwAnswers({}); setHwResult(null);
+                          }
+                        }}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl" style={{ background:"rgba(201,168,76,0.12)" }}>📋</div>
