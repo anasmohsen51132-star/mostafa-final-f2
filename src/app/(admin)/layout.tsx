@@ -56,9 +56,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         onClose={handleClose}
       />
       <main className="min-h-screen">
-        <div className="md:mr-64 px-3 sm:px-4 md:px-5 py-4 sm:py-5 md:py-6">
+        <div className="lg:mr-64 px-3 sm:px-4 md:px-5 py-4 sm:py-5 md:py-6">
           {/* Mobile top bar */}
-          <div className="flex md:hidden items-center justify-between mb-5">
+          <div className="flex lg:hidden items-center justify-between mb-5">
             <button onClick={() => setSidebarOpen(true)}
               className="flex items-center justify-center w-10 h-10 rounded-xl"
               style={{ background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.25)", cursor: "pointer" }}
