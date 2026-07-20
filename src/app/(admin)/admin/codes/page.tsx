@@ -168,9 +168,19 @@ export default function AdminCodesPage() {
                 </button>
               </div>
             </div>
-            {/* Print grid */}
+            {/* Print grid
+                BUGFIX: this div previously had className="grid gap-3 no-print"
+                with no id. The print stylesheet (globals.css) works as an
+                allowlist — it hides *everything* (`body > * { display:none }`)
+                and then explicitly re-shows only #print-sheet-root or
+                #codes-print-grid. Since this grid had neither that id NOR
+                the id, AND had .no-print applied to itself (which hides
+                anything, printable or not), printing produced a
+                completely blank page — the codes never had a chance to
+                render into the print output at all. */}
             <div ref={printRef}
-              className="grid gap-3 no-print"
+              id="codes-print-grid"
+              className="grid gap-3"
               style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
               {newCodes.map((c) => (
                 <div key={c.id} className="rounded-xl p-4 text-center code-card-print"
