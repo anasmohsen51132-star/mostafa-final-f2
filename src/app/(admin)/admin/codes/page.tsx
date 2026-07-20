@@ -1,6 +1,7 @@
 "use client";
 // src/app/(admin)/admin/codes/page.tsx
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { m as motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchWithAuth } from "@/hooks/useAuth";
@@ -8,10 +9,46 @@ import { useToast } from "@/store/uiStore";
 import { formatDate } from "@/lib/utils";
 import type { AccessCode, Course } from "@/types";
 
+// Shared by the on-screen grid and the print portal below, so the two
+// copies can never visually drift apart from each other.
+function renderCodeCard(c: AccessCode) {
+  return (
+    <div key={c.id} className="rounded-xl p-4 text-center code-card-print"
+      style={{ background: "#fff", border: "2px solid rgba(201,168,76,0.3)",
+        boxShadow: "0 2px 8px rgba(26,18,8,0.06)" }}>
+      <div style={{ fontFamily: "Amiri,serif", color: "#C9A84C", fontSize: 10, marginBottom: 5, fontWeight: 700 }}>
+        اكاديمية مستر مصطفى
+      </div>
+      <div style={{ height: 1, background: "rgba(201,168,76,0.25)", marginBottom: 6 }} />
+      <div style={{ fontFamily: "Cairo,sans-serif", color: "#4A3F2A", fontSize: 9, marginBottom: 6, lineHeight: 1.4 }}>
+        {c.courses?.map((cc) => cc.course.title).join("، ")}
+      </div>
+      <div style={{ background: "linear-gradient(135deg,#0D3D27,#1A6B47)", borderRadius: 6, padding: "6px 4px", marginBottom: 6 }}>
+        <p style={{ fontFamily: "monospace", fontSize: 14, fontWeight: 700, color: "#E8C97A", letterSpacing: "0.1em" }}>
+          {c.code}
+        </p>
+      </div>
+      {c.expiresAt && (
+        <p style={{ fontFamily: "Cairo,sans-serif", fontSize: 8, color: "#DC2626", marginTop: 4 }}>
+          ينتهي: {new Date(c.expiresAt).toLocaleDateString("ar-EG")}
+        </p>
+      )}
+      <p style={{ fontFamily: "Cairo,sans-serif", fontSize: 7, color: "#7A6E5A", marginTop: 4, lineHeight: 1.4 }}>
+        يُستخدم مرة واحدة فقط
+      </p>
+    </div>
+  );
+}
+
 export default function AdminCodesPage() {
   const toast    = useToast();
   const qc       = useQueryClient();
   const printRef = useRef<HTMLDivElement>(null);
+
+  // Portals need a real `document`, which doesn't exist during server
+  // rendering — this just delays the portal render until after mount.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   const [showGenerator,    setShowGenerator]    = useState(false);
   const [selectedCourses,  setSelectedCourses]  = useState<string[]>([]);
@@ -168,47 +205,37 @@ export default function AdminCodesPage() {
                 </button>
               </div>
             </div>
-            {/* Print grid
-                BUGFIX: this div previously had className="grid gap-3 no-print"
-                with no id. The print stylesheet (globals.css) works as an
-                allowlist — it hides *everything* (`body > * { display:none }`)
-                and then explicitly re-shows only #print-sheet-root or
-                #codes-print-grid. Since this grid had neither that id NOR
-                the id, AND had .no-print applied to itself (which hides
-                anything, printable or not), printing produced a
-                completely blank page — the codes never had a chance to
-                render into the print output at all. */}
+            {/* On-screen grid — what the admin actually sees/interacts with.
+                No print id needed here anymore (see the portal below for
+                why keeping print output on this element doesn't work). */}
             <div ref={printRef}
-              id="codes-print-grid"
               className="grid gap-3"
               style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
-              {newCodes.map((c) => (
-                <div key={c.id} className="rounded-xl p-4 text-center code-card-print"
-                  style={{ background: "#fff", border: "2px solid rgba(201,168,76,0.3)",
-                    boxShadow: "0 2px 8px rgba(26,18,8,0.06)" }}>
-                  <div style={{ fontFamily: "Amiri,serif", color: "#C9A84C", fontSize: 10, marginBottom: 5, fontWeight: 700 }}>
-                    اكاديمية مستر مصطفى
-                  </div>
-                  <div style={{ height: 1, background: "rgba(201,168,76,0.25)", marginBottom: 6 }} />
-                  <div style={{ fontFamily: "Cairo,sans-serif", color: "#4A3F2A", fontSize: 9, marginBottom: 6, lineHeight: 1.4 }}>
-                    {c.courses?.map((cc) => cc.course.title).join("، ")}
-                  </div>
-                  <div style={{ background: "linear-gradient(135deg,#0D3D27,#1A6B47)", borderRadius: 6, padding: "6px 4px", marginBottom: 6 }}>
-                    <p style={{ fontFamily: "monospace", fontSize: 14, fontWeight: 700, color: "#E8C97A", letterSpacing: "0.1em" }}>
-                      {c.code}
-                    </p>
-                  </div>
-                  {c.expiresAt && (
-                    <p style={{ fontFamily: "Cairo,sans-serif", fontSize: 8, color: "#DC2626", marginTop: 4 }}>
-                      ينتهي: {new Date(c.expiresAt).toLocaleDateString("ar-EG")}
-                    </p>
-                  )}
-                  <p style={{ fontFamily: "Cairo,sans-serif", fontSize: 7, color: "#7A6E5A", marginTop: 4, lineHeight: 1.4 }}>
-                    يُستخدم مرة واحدة فقط
-                  </p>
-                </div>
-              ))}
+              {newCodes.map((c) => renderCodeCard(c))}
             </div>
+
+            {/* BUGFIX (round 2): giving this same on-screen grid the id
+                #codes-print-grid was NOT enough to make it print. The print
+                stylesheet works as an allowlist: it hides *every* direct
+                child of <body> (`body > * { display:none }`) and re-shows
+                only elements matching specific ids — but this grid sits many
+                layout levels deep (body → Providers → AdminLayout → ... →
+                this grid), not as a direct child of body. display:none on
+                an ancestor removes its entire subtree from rendering; no
+                display:grid !important on a *descendant* can undo that.
+                The fix: a React portal renders a second, print-only copy of
+                the same cards directly onto <body> itself, genuinely
+                satisfying `body > *` — bypassing all the nested layout
+                wrappers entirely. It's invisible in normal browsing
+                (`className="hidden"`) and only appears via the print
+                stylesheet's `#codes-print-grid { display:grid !important }`
+                rule, exactly as originally intended. */}
+            {mounted && newCodes.length > 0 && createPortal(
+              <div id="codes-print-grid" className="hidden">
+                {newCodes.map((c) => renderCodeCard(c))}
+              </div>,
+              document.body
+            )}
           </motion.div>
         )}
       </AnimatePresence>
