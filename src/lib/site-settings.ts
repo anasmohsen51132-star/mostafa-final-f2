@@ -57,11 +57,22 @@ const FALLBACK_SETTINGS: SiteSettings = {
 
 const readSiteSettings = unstable_cache(
   async (): Promise<SiteSettings> => {
+    // BUGFIX: find-then-create was two separate round-trips. Under
+    // concurrent requests (e.g. several admin-panel components fetching
+    // settings at once on the very first load, before this row exists),
+    // two requests could both see `null` from findUnique and both try to
+    // create the same `id: "singleton"` row — the second create() then
+    // throws a unique-constraint error. upsert is atomic: Postgres itself
+    // resolves the race, so no client-side create-vs-create collision is
+    // possible. The try/catch below still guards against any *other* DB
+    // error (e.g. a connection hiccup) so a failure here degrades to
+    // FALLBACK_SETTINGS instead of crashing every route on the site.
     try {
-      let settings = await prisma.siteSettings.findUnique({ where: { id: "singleton" } });
-      if (!settings) {
-        settings = await prisma.siteSettings.create({ data: { id: "singleton" } });
-      }
+      const settings = await prisma.siteSettings.upsert({
+        where: { id: "singleton" },
+        create: { id: "singleton" },
+        update: {},
+      });
       return settings as unknown as SiteSettings;
     } catch (e) {
       console.error("[getSiteSettings]", e);
