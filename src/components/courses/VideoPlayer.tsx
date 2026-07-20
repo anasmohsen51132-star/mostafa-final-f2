@@ -40,6 +40,7 @@ interface Props {
 
 const AUTO_HIDE_MS = 2000;
 const SEEK_STEP = 10;
+const VIDEO_ASPECT = 16 / 9;
 
 export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
   const { user } = useAuth();
@@ -57,28 +58,18 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
   const [started, setStarted] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [ripple, setRipple] = useState<{
-    side: "left" | "right";
-    key: number;
-  } | null>(null);
+  const [ripple, setRipple] = useState<{ side: "left" | "right"; key: number } | null>(null);
 
   // ── Progress tracking (server) ────────────────────────────
   const trackEvent = useCallback(
     async (event: string) => {
       if (!lectureId || !videoId) return;
       if (lastEventRef.current === event) return;
-
       lastEventRef.current = event;
-
       try {
         await fetchWithAuth("/api/progress", {
           method: "POST",
-          body: JSON.stringify({
-            lectureId,
-            videoId,
-            event,
-            completed: event === "ended" || event === "completed",
-          }),
+          body: JSON.stringify({ lectureId, videoId, event, completed: event === "ended" || event === "completed" }),
         });
       } catch {
         /* non-critical */
@@ -90,34 +81,23 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
   const onProgressTick = useCallback(
     (currentTime: number, duration: number) => {
       if (!videoId) return;
-
       // Save resume position locally immediately (cheap)...
       try {
-        localStorage.setItem(
-          `resume:${videoId}`,
-          String(Math.floor(currentTime))
-        );
+        localStorage.setItem(`resume:${videoId}`, String(Math.floor(currentTime)));
       } catch {
         /* storage unavailable (private mode, etc.) — non-critical */
       }
-
       // ...and to the server at most once every 5s.
       if (saveTimerRef.current == null) {
         saveTimerRef.current = window.setTimeout(() => {
           saveTimerRef.current = null;
         }, 5000);
-
         fetchWithAuth("/api/progress", {
           method: "POST",
           body: JSON.stringify({ lectureId, videoId, event: "heartbeat" }),
         }).catch(() => {});
       }
-
-      if (
-        duration > 0 &&
-        duration - currentTime < 0.75 &&
-        !trackedCompleteRef.current
-      ) {
+      if (duration > 0 && duration - currentTime < 0.75 && !trackedCompleteRef.current) {
         trackedCompleteRef.current = true;
         trackEvent("completed");
       }
@@ -146,9 +126,7 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
     if (!videoId || resumeAppliedRef.current) return;
     if (state.status !== "cued" && state.status !== "paused") return;
     if (state.duration <= 0) return;
-
     resumeAppliedRef.current = true;
-
     try {
       const saved = Number(localStorage.getItem(`resume:${videoId}`));
       if (saved > 5 && saved < state.duration - 15) {
@@ -163,13 +141,10 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-
     const block = (e: Event) => e.preventDefault();
-
     el.addEventListener("contextmenu", block);
     el.addEventListener("dragstart", block);
     el.addEventListener("selectstart", block);
-
     return () => {
       el.removeEventListener("contextmenu", block);
       el.removeEventListener("dragstart", block);
@@ -180,11 +155,7 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
   // ── Auto-hide controls after 2s of inactivity while playing ──
   const resetHideTimer = useCallback(() => {
     setShowControls(true);
-
-    if (hideTimerRef.current) {
-      window.clearTimeout(hideTimerRef.current);
-    }
-
+    if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
     hideTimerRef.current = window.setTimeout(() => {
       if (state.status === "playing") setShowControls(false);
     }, AUTO_HIDE_MS);
@@ -195,179 +166,109 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
       setShowControls(true);
       return;
     }
-
     resetHideTimer();
-
     return () => {
-      if (hideTimerRef.current) {
-        window.clearTimeout(hideTimerRef.current);
-      }
+      if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.status]);
 
-  // ── Fullscreen + orientation lock ──────────────────────────
+  // ── Fullscreen + orientation lock + black-bar cropping ──────
   useEffect(() => {
     const handleChange = () => {
       const fsEl =
         document.fullscreenElement ||
-        (
-          document as unknown as {
-            webkitFullscreenElement?: Element;
-          }
-        ).webkitFullscreenElement;
-
+        (document as unknown as { webkitFullscreenElement?: Element }).webkitFullscreenElement;
       setIsFullscreen(fsEl === playerBoxRef.current);
     };
-
     document.addEventListener("fullscreenchange", handleChange);
     document.addEventListener("webkitfullscreenchange", handleChange);
-
     return () => {
       document.removeEventListener("fullscreenchange", handleChange);
       document.removeEventListener("webkitfullscreenchange", handleChange);
     };
   }, []);
 
-  // Keep the YouTube iframe perfectly aligned with the responsive player box.
-  // ResizeObserver covers parent/grid/flex layout changes. VisualViewport covers
-  // mobile browser UI, orientation changes, split-screen, and dynamic viewport
-  // changes without triggering React renders or forcing layout measurements.
-  useEffect(() => {
-    if (!started) return;
+  // BUGFIX: this used to measure window.innerWidth/innerHeight in JS and
+  // compute a pixel width/height to "cover" the screen. The problem: right
+  // after entering fullscreen (especially combined with the orientation
+  // lock), the browser hasn't finished resizing the viewport yet when this
+  // ran, so it read stale (pre-fullscreen) dimensions — the video ended up
+  // too small, leaving a big black area around it.
+  // Fix: a pure-CSS "cover" trick. Setting both a width/height pair AND a
+  // min-width/min-height pair (in the opposite unit) makes the browser pick
+  // whichever pair produces the LARGER box — that's exactly cover behaviour,
+  // and it's recalculated by the browser itself on every resize/rotation,
+  // so there's no JS measurement to go stale. No state, no listeners needed.
+  //
+  // REMAINING BARS: this math is exact *if the source video is really
+  // 16:9*. It sizes our <iframe> box to fully cover the screen, but YouTube
+  // still letterboxes/pillarboxes *inside* that box to match the video's
+  // own native resolution — and lecture recordings (whiteboard apps, screen
+  // captures) are very often NOT exactly 16:9 (e.g. 4:3, 16:10, or an odd
+  // capture resolution). The IFrame API has no way to ask YouTube for the
+  // real source aspect ratio, so we can't compute an exact crop. The
+  // practical fix is to deliberately oversize the cover box by a safety
+  // margin (COVER_OVERSCAN) so YouTube's internal letterbox bars get pushed
+  // outside the visible viewport and cropped away instead of showing —
+  // trading a bit of extra edge-cropping for guaranteed no black bars.
+  const COVER_OVERSCAN = 1.28; // ~28% extra zoom; raise this if bars still show on very off-ratio videos
+  const coverStyle: React.CSSProperties = {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    width: `${100 * COVER_OVERSCAN}vw`,
+    height: `${(100 / VIDEO_ASPECT) * COVER_OVERSCAN}vw`, // 100vw * 9/16, scaled up
+    minWidth: `${100 * VIDEO_ASPECT * COVER_OVERSCAN}dvh`, // 100dvh * 16/9, scaled up
+    minHeight: `${100 * COVER_OVERSCAN}dvh`,
+    transform: "translate(-50%, -50%)",
+  };
 
-    const playerBox = playerBoxRef.current;
-    if (!playerBox) return;
-
-    let frameId: number | null = null;
-
-    const syncIframeSize = () => {
-      if (frameId !== null) return;
-
-      frameId = window.requestAnimationFrame(() => {
-        frameId = null;
-
-        const iframe = playerBox.querySelector("iframe");
-        if (!iframe) return;
-
-        Object.assign(iframe.style, {
-          position: "absolute",
-          inset: "0",
-          display: "block",
-          width: "100%",
-          height: "100%",
-          minWidth: "0",
-          minHeight: "0",
-          maxWidth: "none",
-          border: "0",
-        });
-
-        iframe.setAttribute("allowfullscreen", "true");
-
-        const currentAllow = iframe.getAttribute("allow") ?? "";
-        if (!currentAllow.includes("picture-in-picture")) {
-          iframe.setAttribute(
-            "allow",
-            `${currentAllow}${currentAllow ? "; " : ""}picture-in-picture`
-          );
-        }
-      });
-    };
-
-    const resizeObserver = new ResizeObserver(syncIframeSize);
-    resizeObserver.observe(playerBox);
-
-    // The IFrame Player API creates its iframe asynchronously.
-    const mutationObserver = new MutationObserver(syncIframeSize);
-    mutationObserver.observe(playerBox, {
-      childList: true,
-      subtree: true,
-    });
-
-    const viewport = window.visualViewport;
-
-    window.addEventListener("resize", syncIframeSize, { passive: true });
-    window.addEventListener("orientationchange", syncIframeSize, {
-      passive: true,
-    });
-    document.addEventListener("fullscreenchange", syncIframeSize);
-
-    viewport?.addEventListener("resize", syncIframeSize, { passive: true });
-    viewport?.addEventListener("scroll", syncIframeSize, { passive: true });
-
-    syncIframeSize();
-
-    return () => {
-      if (frameId !== null) {
-        window.cancelAnimationFrame(frameId);
-      }
-
-      resizeObserver.disconnect();
-      mutationObserver.disconnect();
-
-      window.removeEventListener("resize", syncIframeSize);
-      window.removeEventListener("orientationchange", syncIframeSize);
-      document.removeEventListener("fullscreenchange", syncIframeSize);
-
-      viewport?.removeEventListener("resize", syncIframeSize);
-      viewport?.removeEventListener("scroll", syncIframeSize);
-    };
-  }, [started, isFullscreen]);
+  // Same crop trick as coverStyle above, but for the normal (non-fullscreen)
+  // player box. That box is already pinned to aspect-ratio: 16/9 via CSS
+  // (unlike fullscreen, which is a raw 100vw x 100dvh viewport rectangle),
+  // so a flat percentage overscan in both dimensions is enough — no
+  // viewport units needed. This is what actually stops YouTube's own
+  // pillarboxing (see comment above coverStyle: source videos that aren't
+  // exactly 16:9 get letterboxed by YouTube *inside* our box) from showing
+  // as visible side bars in the normal, inline player — previously this
+  // crop was only applied in fullscreen, so non-fullscreen viewing (i.e.
+  // every device screenshot so far) still showed bars whenever a lecture's
+  // source video wasn't exactly 16:9.
+  const normalCoverStyle: React.CSSProperties = {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    width: `${100 * COVER_OVERSCAN}%`,
+    height: `${100 * COVER_OVERSCAN}%`,
+    transform: "translate(-50%, -50%)",
+  };
 
   const toggleFullscreen = useCallback(async () => {
     const el = playerBoxRef.current;
     if (!el) return;
-
     const fsEl =
       document.fullscreenElement ||
-      (
-        document as unknown as {
-          webkitFullscreenElement?: Element;
-        }
-      ).webkitFullscreenElement;
+      (document as unknown as { webkitFullscreenElement?: Element }).webkitFullscreenElement;
 
     if (fsEl) {
-      if (document.exitFullscreen) {
-        await document.exitFullscreen();
-      } else {
-        (
-          document as unknown as {
-            webkitExitFullscreen?: () => void;
-          }
-        ).webkitExitFullscreen?.();
-      }
-
+      if (document.exitFullscreen) await document.exitFullscreen();
+      else (document as unknown as { webkitExitFullscreen?: () => void }).webkitExitFullscreen?.();
       try {
-        (
-          screen.orientation as unknown as {
-            unlock?: () => void;
-          }
-        )?.unlock?.();
+        (screen.orientation as unknown as { unlock?: () => void })?.unlock?.();
       } catch {
         /* ignore */
       }
-
       return;
     }
-
     try {
-      if (el.requestFullscreen) {
-        await el.requestFullscreen();
-      } else {
-        (
-          el as unknown as {
-            webkitRequestFullscreen?: () => void;
-          }
-        ).webkitRequestFullscreen?.();
-      }
+      if (el.requestFullscreen) await el.requestFullscreen();
+      else (el as unknown as { webkitRequestFullscreen?: () => void }).webkitRequestFullscreen?.();
 
       // Only meaningful on phone/tablet-portrait; desktop doesn't need it.
       // Not supported on iOS Safari — that's fine, iOS handles rotation via
       // its own native fullscreen video UI regardless.
-      const orientation = screen.orientation as unknown as {
-        lock?: (o: string) => Promise<void>;
-      };
-
+      const orientation = screen.orientation as unknown as { lock?: (o: string) => Promise<void> };
       if (window.innerWidth < 900 && orientation?.lock) {
         orientation.lock("landscape").catch(() => {
           /* rejected outside a user gesture, or unsupported — safe to ignore */
@@ -386,7 +287,6 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
     const onKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
-
       switch (e.key) {
         case " ":
         case "k":
@@ -429,27 +329,15 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
     };
 
     el.addEventListener("keydown", onKeyDown);
-
-    return () => {
-      el.removeEventListener("keydown", onKeyDown);
-    };
-  }, [
-    started,
-    controls,
-    state.volume,
-    state.duration,
-    resetHideTimer,
-    toggleFullscreen,
-  ]);
+    return () => el.removeEventListener("keydown", onKeyDown);
+  }, [started, controls, state.volume, state.duration, resetHideTimer, toggleFullscreen]);
 
   // ── Touch gestures: single tap = toggle controls, double tap L/R = seek ──
   const lastHandledRef = useRef(0);
-
   const handleTap = useCallback(
     (clientX: number) => {
       const el = playerBoxRef.current;
       if (!el) return;
-
       const now = Date.now();
 
       // Extra defense on top of using a single onPointerUp handler: ignore
@@ -465,18 +353,12 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
       if (tapRef.current && now - tapRef.current.time < 300) {
         // Double tap
         const delta = isLeftHalf ? -SEEK_STEP : SEEK_STEP;
-
         controls.seekBy(delta);
-        setRipple({
-          side: isLeftHalf ? "left" : "right",
-          key: now,
-        });
-
+        setRipple({ side: isLeftHalf ? "left" : "right", key: now });
         tapRef.current = null;
         resetHideTimer();
       } else {
         tapRef.current = { time: now, x: clientX };
-
         window.setTimeout(() => {
           // If no second tap arrived, treat as a single tap → toggle controls
           if (tapRef.current?.time === now) {
@@ -494,38 +376,15 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
     return (
       <div
         className="rounded-2xl p-6 text-center"
-        style={{
-          background: "rgba(239,68,68,0.06)",
-          border: "1px solid rgba(239,68,68,0.2)",
-        }}
+        style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)" }}
       >
-        <p
-          style={{
-            fontFamily: "Cairo,sans-serif",
-            color: "#DC2626",
-            fontSize: 14,
-          }}
-        >
-          ⚠️ رابط الفيديو غير صالح
-        </p>
+        <p style={{ fontFamily: "Cairo,sans-serif", color: "#DC2626", fontSize: 14 }}>⚠️ رابط الفيديو غير صالح</p>
       </div>
     );
   }
 
   return (
-    <div
-      ref={containerRef}
-      tabIndex={0}
-      className="w-full min-w-0"
-      style={{
-        width: "100%",
-        maxWidth: "100%",
-        minWidth: 0,
-        userSelect: "none",
-        WebkitUserSelect: "none",
-        outline: "none",
-      }}
-    >
+    <div ref={containerRef} tabIndex={0} style={{ userSelect: "none", WebkitUserSelect: "none", outline: "none" }}>
       <AnimatePresence mode="wait">
         {!started ? (
           <motion.div
@@ -534,15 +393,19 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.22 }}
-            className="relative w-full min-w-0 cursor-pointer overflow-hidden rounded-2xl"
-            style={{
-              width: "100%",
-              maxWidth: "100%",
-              aspectRatio: "16 / 9",
-              background: "#0a1f14",
-            }}
+            className="relative cursor-pointer overflow-hidden rounded-2xl"
+            style={{ aspectRatio: "16/9", background: "#0a1f14" }}
             onClick={() => setStarted(true)}
             onContextMenu={(e) => e.preventDefault()}
+            role="button"
+            tabIndex={0}
+            aria-label="تشغيل الفيديو"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setStarted(true);
+              }
+            }}
           >
             <img
               src={`https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`}
@@ -552,11 +415,9 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
               draggable={false}
               onContextMenu={(e) => e.preventDefault()}
               onError={(e) => {
-                (e.target as HTMLImageElement).src =
-                  `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`;
+                (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`;
               }}
             />
-
             <div
               className="absolute inset-0"
               style={{
@@ -564,16 +425,10 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
                   "linear-gradient(to top,rgba(13,61,39,0.92) 0%,rgba(13,61,39,0.25) 60%,rgba(13,61,39,0.08) 100%)",
               }}
             />
-
             <div className="absolute inset-0 flex items-center justify-center">
               <motion.div
                 className="flex items-center justify-center rounded-full"
-                style={{
-                  width: 72,
-                  height: 72,
-                  background: "linear-gradient(135deg,#C9A84C,#8B6914)",
-                  boxShadow: "0 8px 32px rgba(201,168,76,0.55)",
-                }}
+                style={{ width: 72, height: 72, background: "linear-gradient(135deg,#C9A84C,#8B6914)", boxShadow: "0 8px 32px rgba(201,168,76,0.55)" }}
                 whileHover={{ scale: 1.12 }}
                 whileTap={{ scale: 0.94 }}
               >
@@ -582,33 +437,12 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
                 </svg>
               </motion.div>
             </div>
-
             <div
               className="absolute inset-x-0 bottom-0 px-4 py-4"
-              style={{
-                background:
-                  "linear-gradient(to top,rgba(13,61,39,0.98),transparent)",
-              }}
+              style={{ background: "linear-gradient(to top,rgba(13,61,39,0.98),transparent)" }}
             >
-              <p
-                style={{
-                  fontFamily: "Cairo,sans-serif",
-                  color: "#E8C97A",
-                  fontSize: 14,
-                  fontWeight: 600,
-                }}
-              >
-                {title}
-              </p>
-
-              <p
-                style={{
-                  fontFamily: "Cairo,sans-serif",
-                  color: "rgba(250,247,240,0.5)",
-                  fontSize: 11,
-                  marginTop: 2,
-                }}
-              >
+              <p style={{ fontFamily: "Cairo,sans-serif", color: "#E8C97A", fontSize: 14, fontWeight: 600 }}>{title}</p>
+              <p style={{ fontFamily: "Cairo,sans-serif", color: "rgba(250,247,240,0.5)", fontSize: 11, marginTop: 2 }}>
                 اضغط للتشغيل
               </p>
             </div>
@@ -620,28 +454,8 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.28, ease: "easeOut" }}
-            className={
-              isFullscreen
-                ? "relative h-full w-full overflow-hidden"
-                : "relative w-full min-w-0 overflow-hidden rounded-2xl"
-            }
-            style={
-              isFullscreen
-                ? {
-                    width: "100vw",
-                    height: "100dvh",
-                    minWidth: 0,
-                    minHeight: 0,
-                    background: "#000",
-                  }
-                : {
-                    width: "100%",
-                    maxWidth: "100%",
-                    minWidth: 0,
-                    aspectRatio: "16 / 9",
-                    background: "#000",
-                  }
-            }
+            className={isFullscreen ? "relative overflow-hidden" : "relative overflow-hidden rounded-2xl"}
+            style={isFullscreen ? { width: "100vw", height: "100dvh", background: "#000" } : { aspectRatio: "16/9", background: "#000" }}
             onContextMenu={(e) => e.preventDefault()}
             onMouseMove={resetHideTimer}
           >
@@ -661,28 +475,12 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
                         key={i}
                         className="h-2 w-2 rounded-full"
                         style={{ background: "#C9A84C" }}
-                        animate={{
-                          scale: [1, 1.5, 1],
-                          opacity: [0.4, 1, 0.4],
-                        }}
-                        transition={{
-                          duration: 0.8,
-                          delay: i * 0.18,
-                          repeat: Infinity,
-                        }}
+                        animate={{ scale: [1, 1.5, 1], opacity: [0.4, 1, 0.4] }}
+                        transition={{ duration: 0.8, delay: i * 0.18, repeat: Infinity }}
                       />
                     ))}
                   </div>
-
-                  <p
-                    style={{
-                      fontFamily: "Cairo,sans-serif",
-                      color: "rgba(201,168,76,0.7)",
-                      fontSize: 12,
-                    }}
-                  >
-                    جارٍ تحميل الفيديو...
-                  </p>
+                  <p style={{ fontFamily: "Cairo,sans-serif", color: "rgba(201,168,76,0.7)", fontSize: 12 }}>جارٍ تحميل الفيديو...</p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -693,28 +491,12 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
                 className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 px-4 text-center"
                 style={{ background: "#0a1f14" }}
               >
-                <p
-                  style={{
-                    fontFamily: "Cairo,sans-serif",
-                    color: "#E8967A",
-                    fontSize: 13,
-                    fontWeight: 600,
-                  }}
-                >
+                <p style={{ fontFamily: "Cairo,sans-serif", color: "#E8967A", fontSize: 13, fontWeight: 600 }}>
                   ⚠️ تعذّر تحميل الفيديو
                 </p>
-
-                <p
-                  style={{
-                    fontFamily: "Cairo,sans-serif",
-                    color: "rgba(250,247,240,0.5)",
-                    fontSize: 11,
-                  }}
-                >
-                  تأكد من اتصال الإنترنت، أو أن أي أداة حجب إعلانات لا تمنع
-                  youtube.com
+                <p style={{ fontFamily: "Cairo,sans-serif", color: "rgba(250,247,240,0.5)", fontSize: 11 }}>
+                  تأكد من اتصال الإنترنت، أو أن أي أداة حجب إعلانات لا تمنع youtube.com
                 </p>
-
                 <button
                   type="button"
                   onClick={() => {
@@ -723,12 +505,7 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
                     window.setTimeout(() => setStarted(true), 50);
                   }}
                   className="mt-2 rounded-lg px-3 py-1.5"
-                  style={{
-                    fontFamily: "Cairo,sans-serif",
-                    fontSize: 12,
-                    color: "#C9A84C",
-                    border: "1px solid rgba(201,168,76,0.3)",
-                  }}
+                  style={{ fontFamily: "Cairo,sans-serif", fontSize: 12, color: "#C9A84C", border: "1px solid rgba(201,168,76,0.3)" }}
                 >
                   إعادة المحاولة
                 </button>
@@ -738,7 +515,8 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
             {/* The actual YT iframe is created inside this mount div by the IFrame API */}
             <div
               ref={mountRef}
-              className="absolute inset-0 h-full w-full overflow-hidden"
+              className="absolute"
+              style={isFullscreen ? coverStyle : normalCoverStyle}
             />
 
             {/* Gesture / interaction capture layer — sits ABOVE the iframe so
@@ -778,16 +556,8 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
                     background: "rgba(255,255,255,0.15)",
                   }}
                 >
-                  <span
-                    style={{
-                      color: "#fff",
-                      fontFamily: "Cairo,sans-serif",
-                      fontSize: 13,
-                    }}
-                  >
-                    {ripple.side === "left"
-                      ? `⏪ ${SEEK_STEP}`
-                      : `${SEEK_STEP} ⏩`}
+                  <span style={{ color: "#fff", fontFamily: "Cairo,sans-serif", fontSize: 13 }}>
+                    {ripple.side === "left" ? `⏪ ${SEEK_STEP}` : `${SEEK_STEP} ⏩`}
                   </span>
                 </motion.div>
               )}
@@ -812,17 +582,8 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
         )}
       </AnimatePresence>
 
-      <p
-        className="mt-2"
-        style={{
-          fontFamily: "Cairo,sans-serif",
-          color: "rgba(122,110,90,0.4)",
-          fontSize: 11,
-          direction: "rtl",
-        }}
-      >
-        🔒 هذا المحتوى مسجَّل باسم المستخدم — أي تسجيل غير مصرح به يُعدّ
-        انتهاكاً
+      <p className="mt-2" style={{ fontFamily: "Cairo,sans-serif", color: "rgba(122,110,90,0.4)", fontSize: 11, direction: "rtl" }}>
+        🔒 هذا المحتوى مسجَّل باسم المستخدم — أي تسجيل غير مصرح به يُعدّ انتهاكاً
       </p>
     </div>
   );
