@@ -1,38 +1,23 @@
 "use client";
 // src/app/(auth)/login/page.tsx
-//
-// PERF-008 FIX: this page used to run ~8 concurrent *infinite* Framer
-// Motion animations at all times (2 pulsing orbs, 4 twinkling stars, a
-// rotating divider glyph, a glowing Bismillah, plus 6 floating Arabic
-// letters each animating y+rotate every frame) on top of a
-// `backdrop-filter: blur(20px)` card — backdrop-filter is one of the most
-// GPU/compositor-expensive CSS properties on mobile, and doing it
-// continuously *while* several other elements animate underneath it is
-// heavy even on decent phones. On the actual reported devices, opening the
-// on-screen keyboard (which forces a viewport resize + layout reflow) on
-// top of all that running animation work was what caused the freeze/lag.
-//
-// Fix: every animation below is now either static (no animation at all) or
-// a one-time entrance transition that finishes ~0.5s after mount and never
-// touches the render loop again — by the time someone taps an input to
-// bring up the keyboard, there is zero ongoing animation work competing
-// for the main thread. backdrop-filter is gone too, replaced by a solid,
-// slightly higher-opacity card background that reads the same visually
-// without the compositing cost.
+
 import { m as motion } from "framer-motion";
 import Link from "next/link";
 import { LoginForm } from "@/components/auth/LoginForm";
 
 export default function LoginPage() {
   return (
-    <div
-      className="min-h-screen flex items-center justify-center relative overflow-hidden"
+    <main
+      className="min-h-screen relative flex justify-center overflow-x-hidden"
       style={{
-        background: "linear-gradient(135deg,#0D3D27 0%,#1A6B47 60%,#0D3D27 100%)",
-        padding: "16px",
+        minHeight: "100dvh",
+        alignItems: "center",
+        background:
+          "linear-gradient(135deg,#0D3D27 0%,#1A6B47 60%,#0D3D27 100%)",
+        padding: "clamp(16px, 4vw, 32px)",
       }}
     >
-      {/* Background pattern — static, no cost */}
+      {/* Background pattern */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -40,83 +25,184 @@ export default function LoginPage() {
         }}
       />
 
-      {/* Static glow blobs — same visual warmth as the old pulsing orbs,
-          with zero animation cost since they never move. */}
+      {/* Static decorative glows */}
       <div
-        className="absolute top-10 right-10 w-40 h-40 sm:w-56 sm:h-56 rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle,rgba(201,168,76,0.13),transparent 70%)" }}
-      />
-      <div
-        className="absolute bottom-10 left-10 w-28 h-28 sm:w-40 sm:h-40 rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle,rgba(45,158,107,0.1),transparent 70%)" }}
+        className="absolute top-0 right-0 w-40 h-40 sm:w-56 sm:h-56 rounded-full pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(circle,rgba(201,168,76,0.13),transparent 70%)",
+        }}
       />
 
-      {/* Card — one-time entrance only, no backdrop-filter */}
+      <div
+        className="absolute bottom-0 left-0 w-28 h-28 sm:w-40 sm:h-40 rounded-full pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(circle,rgba(45,158,107,0.13),transparent 70%)",
+        }}
+      />
+
+      {/* Login card */}
       <motion.div
         initial={{ opacity: 0, y: 24, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
         className="relative z-10 w-full"
         style={{
-          maxWidth: 440,
-          background: "linear-gradient(160deg, rgba(16,68,44,0.97), rgba(10,45,29,0.98))",
+          maxWidth: 460,
+          margin: "auto",
+          background:
+            "linear-gradient(160deg,rgba(16,68,44,0.97),rgba(10,45,29,0.98))",
           border: "1px solid rgba(201,168,76,0.25)",
-          borderRadius: 24,
-          padding: "clamp(24px, 5vw, 40px)",
+          borderRadius: "clamp(20px, 5vw, 24px)",
+          padding: "clamp(22px, 6vw, 40px)",
           boxShadow: "0 20px 50px rgba(0,0,0,0.35)",
         }}
       >
-        {/* Top accent bar — static */}
+        {/* Top accent */}
         <div
           className="absolute top-0 left-8 right-8 h-0.5 rounded-full"
-          style={{ background: "linear-gradient(90deg,transparent,rgba(201,168,76,0.6),transparent)" }}
+          style={{
+            background:
+              "linear-gradient(90deg,transparent,rgba(201,168,76,0.7),transparent)",
+          }}
         />
 
-        {/* Logo / Brand */}
-        <div className="text-center mb-6" style={{ direction: "rtl" }}>
+        {/* Brand */}
+        <div
+          className="text-center"
+          dir="rtl"
+          style={{ marginBottom: "clamp(20px, 5vw, 28px)" }}
+        >
+          {/* Basmala */}
           <div
+            className="flex items-center justify-center gap-2 sm:gap-3"
+            style={{ marginBottom: 14 }}
+          >
+            <div
+              style={{
+                width: "clamp(18px,6vw,44px)",
+                height: 1,
+                background:
+                  "linear-gradient(to left,transparent,rgba(201,168,76,0.7))",
+              }}
+            />
+
+            <div
+              style={{
+                position: "relative",
+                padding: "7px clamp(8px,2vw,14px)",
+                borderTop: "1px solid rgba(201,168,76,0.25)",
+                borderBottom: "1px solid rgba(201,168,76,0.25)",
+                background:
+                  "linear-gradient(90deg,transparent,rgba(201,168,76,0.07),transparent)",
+              }}
+            >
+              <span
+                style={{
+                  display: "block",
+                  fontFamily: "Amiri, serif",
+                  color: "#E8C97A",
+                  fontSize: "clamp(13px,4.1vw,27px)",
+                  fontWeight: 700,
+                  lineHeight: 1.25,
+                  whiteSpace: "nowrap",
+                  textShadow: "0 2px 12px rgba(201,168,76,0.35)",
+                }}
+              >
+                بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+              </span>
+
+              <span
+                style={{
+                  position: "absolute",
+                  top: -12,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  color: "#C9A84C",
+                  fontSize: 16,
+                  lineHeight: 1,
+                }}
+              >
+                ✦
+              </span>
+            </div>
+
+            <div
+              style={{
+                width: "clamp(18px,6vw,44px)",
+                height: 1,
+                background:
+                  "linear-gradient(to right,transparent,rgba(201,168,76,0.7))",
+              }}
+            />
+          </div>
+
+          <h1
             style={{
-              fontFamily: "Amiri,serif",
-              color: "rgba(201,168,76,0.8)",
-              fontSize: "clamp(22px, 6vw, 34px)",
-              marginBottom: 6,
-              lineHeight: 1.4,
-              wordBreak: "keep-all",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
+              fontFamily: "Amiri, serif",
+              color: "#E8C97A",
+              fontSize: "clamp(22px,5.5vw,30px)",
+              fontWeight: 700,
+              lineHeight: 1.3,
+              marginBottom: 5,
             }}
           >
-            ﷽
-          </div>
-          <h1 style={{ fontFamily: "Amiri,serif", color: "#E8C97A", fontSize: "clamp(20px,5vw,26px)", fontWeight: 700, marginBottom: 4 }}>
             اكاديمية مستر مصطفى
           </h1>
-          <p style={{ fontFamily: "Cairo,sans-serif", color: "rgba(250,247,240,0.5)", fontSize: 13 }}>
+
+          <p
+            style={{
+              fontFamily: "Cairo, sans-serif",
+              color: "rgba(250,247,240,0.55)",
+              fontSize: "clamp(12px,3.5vw,13px)",
+              margin: 0,
+            }}
+          >
             تسجيل الدخول إلى حسابك
           </p>
         </div>
 
-        {/* Divider — static */}
-        <div className="flex items-center gap-3 mb-6">
-          <div style={{ flex: 1, height: 1, background: "rgba(201,168,76,0.2)" }} />
-          <span style={{ color: "rgba(201,168,76,0.5)", fontSize: 14 }}>✦</span>
-          <div style={{ flex: 1, height: 1, background: "rgba(201,168,76,0.2)" }} />
+        {/* Divider */}
+        <div
+          className="flex items-center gap-3"
+          style={{ marginBottom: "clamp(20px, 5vw, 28px)" }}
+        >
+          <div
+            style={{
+              flex: 1,
+              height: 1,
+              background: "rgba(201,168,76,0.2)",
+            }}
+          />
+          <span style={{ color: "rgba(201,168,76,0.6)", fontSize: 14 }}>
+            ✦
+          </span>
+          <div
+            style={{
+              flex: 1,
+              height: 1,
+              background: "rgba(201,168,76,0.2)",
+            }}
+          />
         </div>
 
-        {/* The form */}
         <LoginForm />
 
-        {/* Back to home */}
-        <div className="text-center mt-4">
+        <div className="text-center" style={{ marginTop: 18 }}>
           <Link
             href="/"
-            style={{ fontFamily: "Cairo,sans-serif", color: "rgba(250,247,240,0.3)", fontSize: 12, textDecoration: "none" }}
+            style={{
+              fontFamily: "Cairo, sans-serif",
+              color: "rgba(250,247,240,0.4)",
+              fontSize: "clamp(11px,3vw,12px)",
+              textDecoration: "none",
+            }}
           >
             ← العودة للصفحة الرئيسية
           </Link>
         </div>
       </motion.div>
-    </div>
+    </main>
   );
 }
