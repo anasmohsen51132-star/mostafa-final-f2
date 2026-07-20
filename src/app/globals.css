@@ -251,6 +251,22 @@ input, textarea, select {
   .code-card-print                    { break-inside: avoid; page-break-inside: avoid; }
   body  { background: white; direction: rtl; }
   @page { margin: 10mm; size: A4 portrait; }
+
+  /* Recharge-card-style cut frame: a dashed border reads clearly as
+     "cut along this line" (the same convention printed phone-credit and
+     gift cards use), and prints reliably in plain black regardless of the
+     card's on-screen gold/green theme colors — a light gold border can
+     come out too faint on some printers to actually see while cutting.
+     The extra gap between cards leaves room for scissors/a paper cutter
+     without nicking the next card over. */
+  #codes-print-grid {
+    gap: 10mm !important;
+  }
+  .code-card-print {
+    border: 1.5px dashed #444 !important;
+    outline: 1px solid transparent; /* avoids double-border rendering some browsers add on top of the existing inline border */
+    position: relative;
+  }
 }
 .print-only { display: none; }
 
