@@ -91,6 +91,7 @@ export default function LectureEditPage() {
 
   const deletePDF    = useMutation({ mutationFn: (pdfId: string) => fetchWithAuth(`/api/pdfs?id=${pdfId}`, { method: "DELETE" }), onSuccess: () => { toast.success("✅ تم الحذف"); qc.invalidateQueries({ queryKey: ["admin-lecture", id] }); } });
   const deleteQuiz   = useMutation({ mutationFn: (qId: string)   => fetchWithAuth(`/api/quizzes?id=${qId}`, { method: "DELETE" }), onSuccess: () => { toast.success("✅ تم الحذف"); qc.invalidateQueries({ queryKey: ["admin-lecture", id] }); } });
+  const deleteHomework = useMutation({ mutationFn: (hwId: string) => fetchWithAuth(`/api/homework?id=${hwId}`, { method: "DELETE" }), onSuccess: () => { toast.success("✅ تم الحذف"); qc.invalidateQueries({ queryKey: ["admin-lecture", id] }); } });
 
   const updateSettings = useMutation({
     mutationFn: (body: { quizRequirement: QuizRequirement; quizPassScore: number }) =>
@@ -309,6 +310,7 @@ export default function LectureEditPage() {
                         <p style={{ fontFamily:"Cairo,sans-serif", color:"#1A1208", fontSize:14, fontWeight:600 }}>{hw.title}</p>
                         <p style={{ fontFamily:"Cairo,sans-serif", color:"#7A6E5A", fontSize:12 }}>{hw.questions?.length ?? hw._count?.questions ?? 0} سؤال</p>
                       </div>
+                      <button onClick={() => deleteHomework.mutate(hw.id)} style={{ padding:"5px 12px", borderRadius:8, border:"1px solid rgba(239,68,68,0.25)", color:"#DC2626", background:"none", fontFamily:"Cairo,sans-serif", fontSize:12, cursor:"pointer" }}>حذف</button>
                     </div>
                   ))}
                 </div>
