@@ -21,6 +21,10 @@ export function CTASection({ settings }: Props = {}) {
     ? [...settings!.ctaButtons!].filter((b) => b.visible).sort((a, b) => a.order - b.order)
     : [];
 
+  // CUSTOM-001 (scoped): same brand-color wiring as HeroSection — falls
+  // back to the exact hardcoded gold gradient when unset.
+  const btnGradient = `linear-gradient(135deg,${settings?.buttonColor || "#C9A84C"},${settings?.hoverColor || "#8B6914"})`;
+
   return (
     <section
       ref={ref}
@@ -115,7 +119,7 @@ export function CTASection({ settings }: Props = {}) {
                       style={{
                         padding: "16px 44px",
                         borderRadius: 16,
-                        background: "linear-gradient(135deg,#C9A84C,#8B6914)",
+                        background: btnGradient,
                         boxShadow: "0 6px 24px rgba(201,168,76,0.45)",
                         color: "#1A1208",
                         fontFamily: "Cairo,sans-serif",
@@ -137,7 +141,7 @@ export function CTASection({ settings }: Props = {}) {
                       style={{
                         padding: "16px 44px",
                         borderRadius: 16,
-                        background: "linear-gradient(135deg,#C9A84C,#8B6914)",
+                        background: btnGradient,
                         boxShadow: "0 6px 24px rgba(201,168,76,0.45)",
                         color: "#1A1208",
                         fontFamily: "Cairo,sans-serif",
