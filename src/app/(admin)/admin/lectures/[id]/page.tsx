@@ -1,6 +1,6 @@
 "use client";
 // src/app/(admin)/admin/lectures/[id]/page.tsx
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { m as motion, AnimatePresence } from "framer-motion";
@@ -28,6 +28,32 @@ export default function LectureEditPage() {
   const [videoUrl,   setVideoUrl]   = useState("");
   const [pdfTitle,   setPdfTitle]   = useState("");
   const [pdfUrl,     setPdfUrl]     = useState("");
+  const [pdfUploading, setPdfUploading] = useState(false);
+  const pdfFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Same /api/upload + FormData pattern already used for image uploads
+  // elsewhere in this app (quiz-builder, ImageUploadField). Fills pdfUrl
+  // with the resulting storage URL — the only kind of URL /api/pdfs will
+  // actually accept — so admins have a real way to add a PDF, instead of
+  // needing to already have a Vercel Blob link to paste in manually.
+  async function handlePdfFileSelect(file: File | undefined) {
+    if (!file) return;
+    setPdfUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("type", "pdf");
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error ?? "فشل رفع الملف");
+      setPdfUrl(json.data.url as string);
+      if (!pdfTitle.trim()) setPdfTitle(file.name.replace(/\.pdf$/i, ""));
+    } catch (e: any) {
+      toast.error(e?.message ?? "فشل رفع الملف");
+    } finally {
+      setPdfUploading(false);
+    }
+  }
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-lecture", id],
@@ -193,9 +219,23 @@ export default function LectureEditPage() {
             <div className="space-y-5">
               <div className="rounded-2xl p-6" style={{ background:"#fff", border:"1px solid rgba(201,168,76,0.15)", boxShadow:"0 2px 12px rgba(26,18,8,0.04)" }}>
                 <h3 style={{ fontFamily:"Amiri,serif", color:"#1A1208", fontSize:17, marginBottom:14 }}>إضافة ملف PDF</h3>
-                <div className="flex gap-3 flex-wrap">
+                <div className="flex gap-3 flex-wrap items-center">
                   <input value={pdfTitle} onChange={(e) => setPdfTitle(e.target.value)} placeholder="عنوان الملف" style={fieldInput} onFocus={(e) => (e.target.style.borderColor="rgba(201,168,76,0.6)")} onBlur={(e) => (e.target.style.borderColor="rgba(201,168,76,0.25)")} />
-                  <input value={pdfUrl} onChange={(e) => setPdfUrl(e.target.value)} placeholder="رابط الملف (Google Drive, etc.)" style={{ ...fieldInput, direction:"ltr" }} onFocus={(e) => (e.target.style.borderColor="rgba(201,168,76,0.6)")} onBlur={(e) => (e.target.style.borderColor="rgba(201,168,76,0.25)")} />
+                  <input value={pdfUrl} onChange={(e) => setPdfUrl(e.target.value)} placeholder="أو الصق رابط ملف مرفوع مسبقًا" style={{ ...fieldInput, direction:"ltr" }} onFocus={(e) => (e.target.style.borderColor="rgba(201,168,76,0.6)")} onBlur={(e) => (e.target.style.borderColor="rgba(201,168,76,0.25)")} />
+                  <input
+                    ref={pdfFileInputRef}
+                    type="file"
+                    accept="application/pdf"
+                    style={{ display: "none" }}
+                    onChange={(e) => handlePdfFileSelect(e.target.files?.[0])}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => pdfFileInputRef.current?.click()}
+                    disabled={pdfUploading}
+                    style={{ padding:"10px 18px", borderRadius:10, border:"1px solid rgba(201,168,76,0.35)", background:"transparent", color:"#7A6E5A", fontFamily:"Cairo,sans-serif", fontSize:13, cursor:"pointer", whiteSpace:"nowrap" }}>
+                    {pdfUploading ? "⏳ جارِ الرفع..." : "📤 رفع ملف PDF"}
+                  </button>
                   <button onClick={() => { if (!pdfTitle.trim() || !pdfUrl.trim()) { toast.error("أدخل عنوان ورابط الملف"); return; } addPDF.mutate(); }}
                     disabled={addPDF.isPending}
                     style={{ padding:"10px 22px", borderRadius:10, border:"none", background:"linear-gradient(135deg,#C9A84C,#8B6914)", color:"#1A1208", fontFamily:"Cairo,sans-serif", fontWeight:700, fontSize:13, cursor:"pointer", whiteSpace:"nowrap" }}>
