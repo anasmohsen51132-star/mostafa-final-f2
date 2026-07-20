@@ -112,7 +112,7 @@ export default async function LandingPage() {
         <HeroSection settings={settings} />
         <FeaturesSection settings={settings} />
         <TeacherSection settings={settings} />
-        <CTASection />
+        <CTASection settings={settings} />
         <footer
           className="py-8 text-center"
           style={{ background: "#0D3D27", borderTop: "1px solid rgba(201,168,76,0.15)" }}
