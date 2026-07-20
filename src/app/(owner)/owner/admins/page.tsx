@@ -17,13 +17,15 @@ export default function AdminsManagementPage() {
   const [newPhone,    setNewPhone]    = useState("");
   const [newPassword, setNewPassword] = useState("");
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["admins-list"],
-    queryFn:  () => fetchWithAuth("/api/students?role=ADMIN&limit=100"),
-  });
-
-  // Fetch all non-student users (admins + owner)
-  const { data: usersRes } = useQuery({
+  // Fetch all non-student users (admins + owner) — this is the query the
+  // rendered admin list actually comes from, so its isLoading is what the
+  // loading state below should reflect. (A separate "admins-list" query
+  // used to exist here calling /api/students?role=ADMIN, but that API
+  // ignores the role param and always returns students — its data was
+  // never used, only its unrelated isLoading flag, which meant the
+  // loading spinner could resolve independently of whether the actual
+  // admin data had arrived.)
+  const { data: usersRes, isLoading } = useQuery({
     queryKey: ["all-staff"],
     queryFn:  () => fetchWithAuth("/api/users/staff"),
   });
