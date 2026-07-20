@@ -1,18 +1,32 @@
 "use client";
 // src/components/landing/CTASection.tsx
-
 import { m as motion, useInView } from "framer-motion";
 import Link from "next/link";
 import { useRef } from "react";
 import { FloatingArabicBackground } from "@/components/effects/FloatingArabicBackground";
 import { TwinklingStars } from "@/components/effects/TwinklingStars";
+import type { SiteSettings } from "@/types";
 
-export function CTASection() {
+interface Props {
+  settings?: Partial<SiteSettings> | null;
+}
+
+export function CTASection({ settings }: Props = {}) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-60px" });
 
+  // Owner-configured CTA buttons (CUSTOM-003), if any are set to visible;
+  // falls back to the original hardcoded register/login pair otherwise.
+  const customButtons = Array.isArray(settings?.ctaButtons)
+    ? [...settings!.ctaButtons!].filter((b) => b.visible).sort((a, b) => a.order - b.order)
+    : [];
+
   return (
-    <section ref={ref} className="py-24 px-6" style={{ background: "#FAF7F0" }}>
+    <section
+      ref={ref}
+      className="py-24 px-6"
+      style={{ background: "#FAF7F0" }}
+    >
       <div className="max-w-3xl mx-auto text-center">
         <motion.div
           initial={{ opacity: 0, scale: 0.85 }}
@@ -24,10 +38,8 @@ export function CTASection() {
             boxShadow: "0 20px 60px rgba(13,61,39,0.35)",
           }}
         >
-          <FloatingArabicBackground
-            density={4}
-            color="rgba(201,168,76,0.09)"
-          />
+          {/* Floating Arabic letters — subtle, matches the hero's decorative touch */}
+          <FloatingArabicBackground density={4} color="rgba(201,168,76,0.09)" />
           <TwinklingStars density={6} maxOpacity={0.4} />
 
           {/* Pattern overlay */}
@@ -38,85 +50,24 @@ export function CTASection() {
             }}
           />
 
-          {/* Gold accent */}
+          {/* Gold accent top */}
           <motion.div
             className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 rounded-full"
-            style={{
-              background:
-                "linear-gradient(90deg,transparent,#C9A84C,transparent)",
-            }}
+            style={{ background: "linear-gradient(90deg,transparent,#C9A84C,transparent)" }}
             initial={{ scaleX: 0 }}
             animate={inView ? { scaleX: 1 } : {}}
             transition={{ duration: 0.8, delay: 0.3 }}
           />
 
+          {/* Content */}
           <div className="relative z-10">
-            {/* Basmala */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.5, delay: 0.15 }}
-              dir="rtl"
-              className="flex items-center justify-center gap-3 sm:gap-5"
-              style={{ marginBottom: 18, paddingInline: 4 }}
+              style={{ fontFamily: "Amiri,serif", color: "rgba(201,168,76,0.7)", fontSize: 32, marginBottom: 8 }}
             >
-              <div
-                style={{
-                  width: "clamp(18px,6vw,52px)",
-                  height: 1,
-                  background:
-                    "linear-gradient(to left,transparent,rgba(201,168,76,0.7))",
-                }}
-              />
-
-              <div
-                style={{
-                  position: "relative",
-                  padding: "8px clamp(9px,2.5vw,18px)",
-                  borderTop: "1px solid rgba(201,168,76,0.28)",
-                  borderBottom: "1px solid rgba(201,168,76,0.28)",
-                  background:
-                    "linear-gradient(90deg,transparent,rgba(201,168,76,0.08),transparent)",
-                }}
-              >
-                <span
-                  style={{
-                    display: "block",
-                    fontFamily: "Amiri, serif",
-                    color: "#E8C97A",
-                    fontSize: "clamp(14px,4.4vw,32px)",
-                    fontWeight: 700,
-                    lineHeight: 1.25,
-                    whiteSpace: "nowrap",
-                    textShadow: "0 2px 14px rgba(201,168,76,0.4)",
-                  }}
-                >
-                  بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-                </span>
-
-                <span
-                  style={{
-                    position: "absolute",
-                    top: -13,
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    color: "#C9A84C",
-                    fontSize: 18,
-                    lineHeight: 1,
-                  }}
-                >
-                  ✦
-                </span>
-              </div>
-
-              <div
-                style={{
-                  width: "clamp(18px,6vw,52px)",
-                  height: 1,
-                  background:
-                    "linear-gradient(to right,transparent,rgba(201,168,76,0.7))",
-                }}
-              />
+              ﷽
             </motion.div>
 
             <motion.h2
@@ -124,7 +75,7 @@ export function CTASection() {
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.6, delay: 0.2 }}
               style={{
-                fontFamily: "Amiri, serif",
+                fontFamily: "Amiri,serif",
                 color: "#E8C97A",
                 fontSize: "clamp(26px,5vw,46px)",
                 lineHeight: 1.3,
@@ -139,7 +90,7 @@ export function CTASection() {
               animate={inView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.5, delay: 0.32 }}
               style={{
-                fontFamily: "Cairo, sans-serif",
+                fontFamily: "Cairo,sans-serif",
                 color: "rgba(250,247,240,0.7)",
                 fontSize: 16,
                 lineHeight: 1.8,
@@ -147,8 +98,7 @@ export function CTASection() {
                 margin: "0 auto 40px",
               }}
             >
-              انضم إلى آلاف الطلاب وابدأ في إتقان اللغة العربية مع أفضل
-              الأساتذة على منصة واحدة
+              انضم إلى آلاف الطلاب وابدأ في إتقان اللغة العربية مع أفضل الأساتذة على منصة واحدة
             </motion.p>
 
             <motion.div
@@ -157,61 +107,79 @@ export function CTASection() {
               transition={{ duration: 0.5, delay: 0.42 }}
               className="flex gap-4 justify-center flex-wrap"
             >
-              <motion.div
-                whileHover={{ y: -6, scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                transition={{ type: "spring", stiffness: 400, damping: 15 }}
-              >
-                <Link
-                  href="/register"
-                  style={{
-                    padding: "16px 44px",
-                    borderRadius: 16,
-                    background: "linear-gradient(135deg,#C9A84C,#8B6914)",
-                    boxShadow: "0 6px 24px rgba(201,168,76,0.45)",
-                    color: "#1A1208",
-                    fontFamily: "Cairo, sans-serif",
-                    fontWeight: 700,
-                    fontSize: 17,
-                    textDecoration: "none",
-                    display: "inline-block",
-                  }}
-                >
-                  سجّل الآن مجاناً ✨
-                </Link>
-              </motion.div>
-
-              <motion.div
-                whileHover={{ y: -6, scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                transition={{ type: "spring", stiffness: 400, damping: 15 }}
-              >
-                <Link
-                  href="/login"
-                  style={{
-                    padding: "16px 36px",
-                    borderRadius: 16,
-                    border: "1.5px solid rgba(201,168,76,0.4)",
-                    background: "rgba(201,168,76,0.08)",
-                    color: "#E8C97A",
-                    fontFamily: "Cairo, sans-serif",
-                    fontWeight: 600,
-                    fontSize: 17,
-                    textDecoration: "none",
-                    display: "inline-block",
-                  }}
-                >
-                  لديّ حساب
-                </Link>
-              </motion.div>
+              {customButtons.length > 0 ? (
+                customButtons.map((b) => (
+                  <motion.div key={b.id} whileHover={{ y: -6, scale: 1.05 }} whileTap={{ scale: 0.95 }} transition={{ type: "spring", stiffness: 400, damping: 15 }}>
+                    <Link
+                      href={b.href}
+                      style={{
+                        padding: "16px 44px",
+                        borderRadius: 16,
+                        background: "linear-gradient(135deg,#C9A84C,#8B6914)",
+                        boxShadow: "0 6px 24px rgba(201,168,76,0.45)",
+                        color: "#1A1208",
+                        fontFamily: "Cairo,sans-serif",
+                        fontWeight: 700,
+                        fontSize: 17,
+                        textDecoration: "none",
+                        display: "inline-block",
+                      }}
+                    >
+                      {b.label}
+                    </Link>
+                  </motion.div>
+                ))
+              ) : (
+                <>
+                  <motion.div whileHover={{ y: -6, scale: 1.05 }} whileTap={{ scale: 0.95 }} transition={{ type: "spring", stiffness: 400, damping: 15 }}>
+                    <Link
+                      href="/register"
+                      style={{
+                        padding: "16px 44px",
+                        borderRadius: 16,
+                        background: "linear-gradient(135deg,#C9A84C,#8B6914)",
+                        boxShadow: "0 6px 24px rgba(201,168,76,0.45)",
+                        color: "#1A1208",
+                        fontFamily: "Cairo,sans-serif",
+                        fontWeight: 700,
+                        fontSize: 17,
+                        textDecoration: "none",
+                        display: "inline-block",
+                      }}
+                    >
+                      سجّل الآن مجاناً ✨
+                    </Link>
+                  </motion.div>
+                  <motion.div whileHover={{ y: -6, scale: 1.05 }} whileTap={{ scale: 0.95 }} transition={{ type: "spring", stiffness: 400, damping: 15 }}>
+                    <Link
+                      href="/login"
+                      style={{
+                        padding: "16px 36px",
+                        borderRadius: 16,
+                        border: "1.5px solid rgba(201,168,76,0.4)",
+                        background: "rgba(201,168,76,0.08)",
+                        color: "#E8C97A",
+                        fontFamily: "Cairo,sans-serif",
+                        fontWeight: 600,
+                        fontSize: 17,
+                        textDecoration: "none",
+                        display: "inline-block",
+                      }}
+                    >
+                      لديّ حساب
+                    </Link>
+                  </motion.div>
+                </>
+              )}
             </motion.div>
 
+            {/* Trust line */}
             <motion.p
               initial={{ opacity: 0 }}
               animate={inView ? { opacity: 1 } : {}}
               transition={{ duration: 0.5, delay: 0.55 }}
               style={{
-                fontFamily: "Cairo, sans-serif",
+                fontFamily: "Cairo,sans-serif",
                 color: "rgba(250,247,240,0.35)",
                 fontSize: 12,
                 marginTop: 20,
