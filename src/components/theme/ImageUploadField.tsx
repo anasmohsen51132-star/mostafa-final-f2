@@ -104,6 +104,15 @@ export function ImageUploadField({ label, hint, fieldKey, value, onChange, aspec
           background: dragOver ? "rgba(201,168,76,0.08)" : "#FAFAF8",
           transition: "all 0.15s",
         }}
+        role="button"
+        tabIndex={0}
+        aria-label={`رفع صورة${label ? ` — ${label}` : ""}`}
+        onKeyDown={(e) => {
+          if (!uploading && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
       >
         <input
           ref={inputRef}
