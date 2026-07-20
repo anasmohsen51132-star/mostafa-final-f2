@@ -26,6 +26,9 @@ export function ToastContainer() {
     <div
       className="fixed bottom-6 left-6 z-[9999] flex flex-col gap-2 pointer-events-none"
       style={{ fontFamily: "Cairo, sans-serif" }}
+      role="status"
+      aria-live="polite"
+      aria-atomic="false"
     >
       <AnimatePresence>
         {toasts.map((toast) => (
