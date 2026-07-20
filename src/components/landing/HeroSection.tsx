@@ -35,6 +35,12 @@ export function HeroSection({ settings }: Props) {
     statsBar = STATS_DEFAULT;
   }
 
+  // CUSTOM-001 (scoped): the owner's brand button colors, if set, now drive
+  // the two primary "register" CTAs on this page. Falls back to the exact
+  // hardcoded gold gradient that was always here when unset, so today's
+  // render (no custom colors saved yet) is unchanged.
+  const btnGradient = `linear-gradient(135deg,${settings?.buttonColor || "#C9A84C"},${settings?.hoverColor || "#8B6914"})`;
+
   return (
     <section
       className="relative min-h-screen flex items-center justify-center overflow-hidden"
@@ -143,7 +149,7 @@ export function HeroSection({ settings }: Props) {
             href="/register"
             className="px-3 sm:px-5 py-2 rounded-xl font-semibold transition-transform hover:-translate-y-0.5 whitespace-nowrap"
             style={{
-              background: "linear-gradient(135deg,#C9A84C,#8B6914)",
+              background: btnGradient,
               boxShadow: "0 4px 16px rgba(201,168,76,0.35)",
               color: "#1A1208",
               fontFamily: "Cairo,sans-serif",
@@ -252,7 +258,7 @@ export function HeroSection({ settings }: Props) {
               style={{
                 padding: "14px 32px",
                 borderRadius: 16,
-                background: "linear-gradient(135deg,#C9A84C,#8B6914)",
+                background: btnGradient,
                 boxShadow: "0 6px 24px rgba(201,168,76,0.4)",
                 color: "#1A1208",
                 fontFamily: "Cairo,sans-serif",
