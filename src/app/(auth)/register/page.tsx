@@ -1,18 +1,23 @@
 "use client";
 // src/app/(auth)/register/page.tsx
-// PERF-008 FIX: see the matching note in login/page.tsx — same fix applied
-// here (no infinite animations, no backdrop-filter), for the same reason.
+
 import { m as motion } from "framer-motion";
 import Link from "next/link";
 import { RegisterForm } from "@/components/auth/RegisterForm";
 
 export default function RegisterPage() {
   return (
-    <div
-      className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden"
-      style={{ background: "linear-gradient(135deg,#0D3D27 0%,#1A6B47 60%,#0D3D27 100%)" }}
+    <main
+      className="min-h-screen relative flex justify-center overflow-x-hidden"
+      style={{
+        minHeight: "100dvh",
+        alignItems: "center",
+        background:
+          "linear-gradient(135deg,#0D3D27 0%,#1A6B47 60%,#0D3D27 100%)",
+        padding: "clamp(16px, 4vw, 32px)",
+      }}
     >
-      {/* Background pattern — static */}
+      {/* Background pattern */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -20,74 +25,184 @@ export default function RegisterPage() {
         }}
       />
 
-      {/* Static glow blobs */}
+      {/* Static glows */}
       <div
-        className="absolute top-16 left-16 w-52 h-52 rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle,rgba(201,168,76,0.12),transparent 70%)" }}
-      />
-      <div
-        className="absolute bottom-16 right-16 w-44 h-44 rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle,rgba(45,158,107,0.09),transparent 70%)" }}
+        className="absolute top-0 left-0 w-40 h-40 sm:w-52 sm:h-52 rounded-full pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(circle,rgba(201,168,76,0.12),transparent 70%)",
+        }}
       />
 
-      {/* Card — one-time entrance only, no backdrop-filter */}
+      <div
+        className="absolute bottom-0 right-0 w-32 h-32 sm:w-44 sm:h-44 rounded-full pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(circle,rgba(45,158,107,0.12),transparent 70%)",
+        }}
+      />
+
+      {/* Register card */}
       <motion.div
         initial={{ opacity: 0, y: 24, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
-        className="relative z-10 w-full max-w-md"
+        className="relative z-10 w-full"
         style={{
-          background: "linear-gradient(160deg, rgba(16,68,44,0.96), rgba(10,45,29,0.97))",
+          maxWidth: 500,
+          margin: "auto",
+          background:
+            "linear-gradient(160deg,rgba(16,68,44,0.97),rgba(10,45,29,0.98))",
           border: "1px solid rgba(201,168,76,0.25)",
-          borderRadius: 28,
-          padding: 40,
+          borderRadius: "clamp(20px, 5vw, 28px)",
+          padding: "clamp(22px, 6vw, 40px)",
           boxShadow: "0 20px 50px rgba(0,0,0,0.35)",
         }}
       >
-        {/* Top accent bar */}
+        {/* Top accent */}
         <div
           className="absolute top-0 left-8 right-8 h-0.5 rounded-full"
-          style={{ background: "linear-gradient(90deg,transparent,rgba(201,168,76,0.6),transparent)" }}
+          style={{
+            background:
+              "linear-gradient(90deg,transparent,rgba(201,168,76,0.7),transparent)",
+          }}
         />
 
         {/* Brand header */}
-        <div className="text-center mb-8" style={{ direction: "rtl" }}>
-          {/* BUGFIX: see login/page.tsx for the full explanation of why ﷽
-              needs this overflow-guarded treatment instead of a plain fixed
-              font-size — this instance had no protection at all. */}
-          <div style={{ width: "100%", overflow: "hidden", display: "flex", justifyContent: "center", marginBottom: 6 }}>
-            <span style={{ fontFamily: "Amiri,serif", color: "rgba(201,168,76,0.7)", fontSize: "clamp(18px,6vw,30px)", lineHeight: 1 }}>
-              ﷽
-            </span>
+        <div
+          className="text-center"
+          dir="rtl"
+          style={{ marginBottom: "clamp(20px, 5vw, 28px)" }}
+        >
+          {/* Basmala */}
+          <div
+            className="flex items-center justify-center gap-2 sm:gap-3"
+            style={{ marginBottom: 14 }}
+          >
+            <div
+              style={{
+                width: "clamp(18px,6vw,44px)",
+                height: 1,
+                background:
+                  "linear-gradient(to left,transparent,rgba(201,168,76,0.7))",
+              }}
+            />
+
+            <div
+              style={{
+                position: "relative",
+                padding: "7px clamp(8px,2vw,14px)",
+                borderTop: "1px solid rgba(201,168,76,0.25)",
+                borderBottom: "1px solid rgba(201,168,76,0.25)",
+                background:
+                  "linear-gradient(90deg,transparent,rgba(201,168,76,0.07),transparent)",
+              }}
+            >
+              <span
+                style={{
+                  display: "block",
+                  fontFamily: "Amiri, serif",
+                  color: "#E8C97A",
+                  fontSize: "clamp(13px,4.1vw,27px)",
+                  fontWeight: 700,
+                  lineHeight: 1.25,
+                  whiteSpace: "nowrap",
+                  textShadow: "0 2px 12px rgba(201,168,76,0.35)",
+                }}
+              >
+                بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+              </span>
+
+              <span
+                style={{
+                  position: "absolute",
+                  top: -12,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  color: "#C9A84C",
+                  fontSize: 16,
+                  lineHeight: 1,
+                }}
+              >
+                ✦
+              </span>
+            </div>
+
+            <div
+              style={{
+                width: "clamp(18px,6vw,44px)",
+                height: 1,
+                background:
+                  "linear-gradient(to right,transparent,rgba(201,168,76,0.7))",
+              }}
+            />
           </div>
-          <h1 style={{ fontFamily: "Amiri,serif", color: "#E8C97A", fontSize: 26, fontWeight: 700, marginBottom: 4 }}>
+
+          <h1
+            style={{
+              fontFamily: "Amiri, serif",
+              color: "#E8C97A",
+              fontSize: "clamp(23px,5.5vw,30px)",
+              fontWeight: 700,
+              lineHeight: 1.3,
+              marginBottom: 5,
+            }}
+          >
             انضم إلى الأكاديمية
           </h1>
-          <p style={{ fontFamily: "Cairo,sans-serif", color: "rgba(250,247,240,0.5)", fontSize: 13 }}>
+
+          <p
+            style={{
+              fontFamily: "Cairo, sans-serif",
+              color: "rgba(250,247,240,0.55)",
+              fontSize: "clamp(12px,3.5vw,13px)",
+              margin: 0,
+            }}
+          >
             أنشئ حسابك وابدأ رحلة التعلم
           </p>
         </div>
 
-        {/* Divider — static */}
-        <div className="flex items-center gap-3 mb-8">
-          <div style={{ flex: 1, height: 1, background: "rgba(201,168,76,0.2)" }} />
-          <span style={{ color: "rgba(201,168,76,0.5)", fontSize: 14 }}>✦</span>
-          <div style={{ flex: 1, height: 1, background: "rgba(201,168,76,0.2)" }} />
+        {/* Divider */}
+        <div
+          className="flex items-center gap-3"
+          style={{ marginBottom: "clamp(20px, 5vw, 28px)" }}
+        >
+          <div
+            style={{
+              flex: 1,
+              height: 1,
+              background: "rgba(201,168,76,0.2)",
+            }}
+          />
+          <span style={{ color: "rgba(201,168,76,0.6)", fontSize: 14 }}>
+            ✦
+          </span>
+          <div
+            style={{
+              flex: 1,
+              height: 1,
+              background: "rgba(201,168,76,0.2)",
+            }}
+          />
         </div>
 
-        {/* The form */}
         <RegisterForm />
 
-        {/* Back to home */}
-        <div className="text-center mt-6">
+        <div className="text-center" style={{ marginTop: 20 }}>
           <Link
             href="/"
-            style={{ fontFamily: "Cairo,sans-serif", color: "rgba(250,247,240,0.3)", fontSize: 12, textDecoration: "none" }}
+            style={{
+              fontFamily: "Cairo, sans-serif",
+              color: "rgba(250,247,240,0.4)",
+              fontSize: "clamp(11px,3vw,12px)",
+              textDecoration: "none",
+            }}
           >
             ← العودة للصفحة الرئيسية
           </Link>
         </div>
       </motion.div>
-    </div>
+    </main>
   );
 }
