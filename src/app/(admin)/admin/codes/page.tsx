@@ -13,9 +13,12 @@ import type { AccessCode, Course } from "@/types";
 // copies can never visually drift apart from each other.
 function renderCodeCard(c: AccessCode) {
   return (
-    <div key={c.id} className="rounded-xl p-4 text-center code-card-print"
-      style={{ background: "#fff", border: "2px solid rgba(201,168,76,0.3)",
-        boxShadow: "0 2px 8px rgba(26,18,8,0.06)" }}>
+    <article key={c.id} className="rounded-xl p-4 text-center code-card-print"
+      style={{ background: "linear-gradient(145deg, #fffdf7 0%, #f7efd7 100%)",
+        border: "2px solid #C9A84C", boxShadow: "0 3px 10px rgba(26,18,8,0.10)",
+        breakInside: "avoid", position: "relative", overflow: "hidden" }}>
+      <div style={{ position: "absolute", top: 0, right: 0, left: 0, height: 5,
+        background: "linear-gradient(90deg, #0D3D27, #C9A84C, #0D3D27)" }} />
       <div style={{ fontFamily: "Amiri,serif", color: "#C9A84C", fontSize: 10, marginBottom: 5, fontWeight: 700 }}>
         اكاديمية مستر مصطفى
       </div>
@@ -36,9 +39,39 @@ function renderCodeCard(c: AccessCode) {
       <p style={{ fontFamily: "Cairo,sans-serif", fontSize: 7, color: "#7A6E5A", marginTop: 4, lineHeight: 1.4 }}>
         يُستخدم مرة واحدة فقط
       </p>
-    </div>
+    </article>
   );
 }
+
+const printStyles = `
+  @page { size: A4 portrait; margin: 10mm; }
+
+  @media print {
+    html, body { background: #fff !important; }
+    body > * { display: none !important; }
+    #codes-print-grid {
+      display: grid !important;
+      grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+      gap: 7mm !important;
+      direction: rtl !important;
+      width: 100% !important;
+      visibility: visible !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    #codes-print-grid .code-card-print {
+      display: block !important;
+      min-height: 52mm !important;
+      padding: 5mm 4mm 4mm !important;
+      border-radius: 4mm !important;
+      overflow: hidden !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+  }
+`;
 
 export default function AdminCodesPage() {
   const toast    = useToast();
@@ -231,9 +264,12 @@ export default function AdminCodesPage() {
                 stylesheet's `#codes-print-grid { display:grid !important }`
                 rule, exactly as originally intended. */}
             {mounted && newCodes.length > 0 && createPortal(
-              <div id="codes-print-grid" className="hidden">
-                {newCodes.map((c) => renderCodeCard(c))}
-              </div>,
+              <>
+                <style>{printStyles}</style>
+                <div id="codes-print-grid" className="hidden">
+                  {newCodes.map((c) => renderCodeCard(c))}
+                </div>
+              </>,
               document.body
             )}
           </motion.div>
