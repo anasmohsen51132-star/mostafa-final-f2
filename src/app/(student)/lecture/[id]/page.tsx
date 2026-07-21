@@ -591,7 +591,7 @@ function QuizPlayer({
               >
                 <img
                   src={q.imageUrl}
-                  alt="سؤال"
+                  alt={`صورة توضيحية للسؤال ${qi + 1}`}
                   className="rounded-xl w-full max-h-[420px] object-contain"
                   style={{ background: "rgba(250,247,240,0.5)", border: "1px solid rgba(201,168,76,0.15)" }}
                   draggable={false}
