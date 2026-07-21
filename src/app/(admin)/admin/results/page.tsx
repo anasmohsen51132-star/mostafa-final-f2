@@ -30,15 +30,24 @@ export default function ResultsPage() {
   const [activeTab,   setActiveTab]   = useState<"quiz" | "homework">("quiz");
   const [searchName,  setSearchName]  = useState("");
   const [filterPass,  setFilterPass]  = useState<"all" | "passed" | "failed">("all");
+  const [page, setPage] = useState(1);
+  const RESULTS_PAGE_SIZE = 50;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["admin-results"],
-    queryFn:  () => fetchWithAuth("/api/results"),
+    queryKey: ["admin-results", page],
+    queryFn:  () => fetchWithAuth(`/api/results?page=${page}&limit=${RESULTS_PAGE_SIZE}`),
     refetchInterval: 60_000,
   });
 
   const quizRows:  QuizRow[] = data?.data?.quizResults     ?? [];
   const hwRows:    HwRow[]   = data?.data?.homeworkResults ?? [];
+  // The API applies one shared page/limit to both lists (see pagination
+  // object below), but each list has its own total — so page count differs
+  // per tab even though the current page number is shared between them.
+  const quizTotal: number = data?.data?.pagination?.quizTotal ?? quizRows.length;
+  const hwTotal:   number = data?.data?.pagination?.hwTotal   ?? hwRows.length;
+  const activeTotal = activeTab === "quiz" ? quizTotal : hwTotal;
+  const totalPages = Math.max(1, Math.ceil(activeTotal / RESULTS_PAGE_SIZE));
 
   const rows: ResultRow[] = activeTab === "quiz" ? quizRows : hwRows;
 
@@ -62,7 +71,7 @@ export default function ResultsPage() {
 
   const tabBtn = (id: "quiz" | "homework", label: string, count: number) => (
     <button
-      onClick={() => setActiveTab(id)}
+      onClick={() => { setActiveTab(id); setPage(1); }}
       style={{
         padding: "9px 20px", borderRadius: 12, border: "1.5px solid",
         borderColor: activeTab === id ? "#C9A84C" : "rgba(201,168,76,0.25)",
@@ -139,7 +148,7 @@ export default function ResultsPage() {
           {/* Search */}
           <div style={{ position: "relative" }}>
             <input
-              value={searchName} onChange={(e) => setSearchName(e.target.value)}
+              value={searchName} onChange={(e) => { setSearchName(e.target.value); setPage(1); }}
               placeholder="بحث باسم الطالب أو الهاتف"
               style={{
                 padding: "8px 36px 8px 12px", borderRadius: 10,
@@ -157,7 +166,7 @@ export default function ResultsPage() {
           {/* Pass filter — applies to both quiz and homework now */}
           <select
             value={filterPass}
-            onChange={(e) => setFilterPass(e.target.value as typeof filterPass)}
+            onChange={(e) => { setFilterPass(e.target.value as typeof filterPass); setPage(1); }}
             style={{
               padding: "8px 12px", borderRadius: 10,
               border: "1.5px solid rgba(201,168,76,0.25)", background: "#fff",
@@ -274,8 +283,65 @@ export default function ResultsPage() {
       {/* Row count */}
       {filtered.length > 0 && (
         <p className="mt-3" style={{ fontFamily: "Cairo,sans-serif", color: "#7A6E5A", fontSize: 12 }}>
-          إجمالي النتائج المعروضة: {filtered.length}
+          إجمالي النتائج المعروضة: {filtered.length} (من أصل {activeTotal})
         </p>
+      )}
+
+      {/* Pagination — hidden while actively searching/filtering, since
+          those only scope the currently-loaded page rather than all
+          results server-side */}
+      {!isLoading && searchName === "" && filterPass === "all" && totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-5 flex-wrap" style={{ direction: "ltr" }}>
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            style={{
+              padding: "6px 14px", borderRadius: 8, border: "1px solid rgba(201,168,76,0.3)",
+              background: "transparent", color: page === 1 ? "rgba(122,110,90,0.4)" : "#7A6E5A",
+              fontFamily: "Cairo,sans-serif", fontSize: 13, cursor: page === 1 ? "default" : "pointer",
+            }}
+          >
+            ‹ السابق
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+            .reduce<(number | "…")[]>((acc, p, i, arr) => {
+              if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push("…");
+              acc.push(p);
+              return acc;
+            }, [])
+            .map((p, i) =>
+              p === "…" ? (
+                <span key={`e${i}`} style={{ color: "#7A6E5A", fontFamily: "Cairo,sans-serif", fontSize: 13, padding: "0 4px" }}>…</span>
+              ) : (
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
+                  style={{
+                    minWidth: 34, padding: "6px 8px", borderRadius: 8,
+                    border: p === page ? "none" : "1px solid rgba(201,168,76,0.3)",
+                    background: p === page ? "linear-gradient(135deg,#C9A84C,#8B6914)" : "transparent",
+                    color: p === page ? "#1A1208" : "#7A6E5A",
+                    fontFamily: "Cairo,sans-serif", fontSize: 13, fontWeight: p === page ? 700 : 400,
+                    cursor: "pointer",
+                  }}
+                >
+                  {p}
+                </button>
+              )
+            )}
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            style={{
+              padding: "6px 14px", borderRadius: 8, border: "1px solid rgba(201,168,76,0.3)",
+              background: "transparent", color: page === totalPages ? "rgba(122,110,90,0.4)" : "#7A6E5A",
+              fontFamily: "Cairo,sans-serif", fontSize: 13, cursor: page === totalPages ? "default" : "pointer",
+            }}
+          >
+            التالي ›
+          </button>
+        </div>
       )}
     </div>
   );
