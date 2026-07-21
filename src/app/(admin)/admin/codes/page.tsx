@@ -1,7 +1,6 @@
 "use client";
 // src/app/(admin)/admin/codes/page.tsx
-import { useState, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
+import { useState, useRef } from "react";
 import { m as motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchWithAuth } from "@/hooks/useAuth";
@@ -9,79 +8,10 @@ import { useToast } from "@/store/uiStore";
 import { formatDate } from "@/lib/utils";
 import type { AccessCode, Course } from "@/types";
 
-// Shared by the on-screen grid and the print portal below, so the two
-// copies can never visually drift apart from each other.
-function renderCodeCard(c: AccessCode) {
-  return (
-    <article key={c.id} className="rounded-xl p-4 text-center code-card-print"
-      style={{ background: "linear-gradient(145deg, #fffdf7 0%, #f7efd7 100%)",
-        border: "2px solid #C9A84C", boxShadow: "0 3px 10px rgba(26,18,8,0.10)",
-        breakInside: "avoid", position: "relative", overflow: "hidden" }}>
-      <div style={{ position: "absolute", top: 0, right: 0, left: 0, height: 5,
-        background: "linear-gradient(90deg, #0D3D27, #C9A84C, #0D3D27)" }} />
-      <div style={{ fontFamily: "Amiri,serif", color: "#C9A84C", fontSize: 10, marginBottom: 5, fontWeight: 700 }}>
-        اكاديمية مستر مصطفى
-      </div>
-      <div style={{ height: 1, background: "rgba(201,168,76,0.25)", marginBottom: 6 }} />
-      <div style={{ fontFamily: "Cairo,sans-serif", color: "#4A3F2A", fontSize: 9, marginBottom: 6, lineHeight: 1.4 }}>
-        {c.courses?.map((cc) => cc.course.title).join("، ")}
-      </div>
-      <div style={{ background: "linear-gradient(135deg,#0D3D27,#1A6B47)", borderRadius: 6, padding: "6px 4px", marginBottom: 6 }}>
-        <p style={{ fontFamily: "monospace", fontSize: 14, fontWeight: 700, color: "#E8C97A", letterSpacing: "0.1em" }}>
-          {c.code}
-        </p>
-      </div>
-      {c.expiresAt && (
-        <p style={{ fontFamily: "Cairo,sans-serif", fontSize: 8, color: "#DC2626", marginTop: 4 }}>
-          ينتهي: {new Date(c.expiresAt).toLocaleDateString("ar-EG")}
-        </p>
-      )}
-      <p style={{ fontFamily: "Cairo,sans-serif", fontSize: 7, color: "#7A6E5A", marginTop: 4, lineHeight: 1.4 }}>
-        يُستخدم مرة واحدة فقط
-      </p>
-    </article>
-  );
-}
-
-const printStyles = `
-  @page { size: A4 portrait; margin: 10mm; }
-
-  @media print {
-    html, body { background: #fff !important; }
-    body > * { display: none !important; }
-    #codes-print-grid {
-      display: grid !important;
-      grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-      gap: 7mm !important;
-      direction: rtl !important;
-      width: 100% !important;
-      visibility: visible !important;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
-    #codes-print-grid .code-card-print {
-      display: block !important;
-      min-height: 52mm !important;
-      padding: 5mm 4mm 4mm !important;
-      border-radius: 4mm !important;
-      overflow: hidden !important;
-      break-inside: avoid !important;
-      page-break-inside: avoid !important;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
-  }
-`;
-
 export default function AdminCodesPage() {
   const toast    = useToast();
   const qc       = useQueryClient();
   const printRef = useRef<HTMLDivElement>(null);
-
-  // Portals need a real `document`, which doesn't exist during server
-  // rendering — this just delays the portal render until after mount.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
 
   const [showGenerator,    setShowGenerator]    = useState(false);
   const [selectedCourses,  setSelectedCourses]  = useState<string[]>([]);
@@ -91,10 +21,12 @@ export default function AdminCodesPage() {
   const [newCodes,         setNewCodes]         = useState<AccessCode[]>([]);
   const [showPrint,        setShowPrint]        = useState(false);
   const [isExporting,      setIsExporting]      = useState(false);
+  const [page, setPage] = useState(1);
+  const CODES_PAGE_SIZE = 50;
 
   const { data: codesRes, isLoading } = useQuery({
-    queryKey: ["admin-codes"],
-    queryFn:  () => fetchWithAuth("/api/codes?limit=200"),
+    queryKey: ["admin-codes", page],
+    queryFn:  () => fetchWithAuth(`/api/codes?page=${page}&limit=${CODES_PAGE_SIZE}`),
   });
   const { data: coursesRes } = useQuery({
     queryKey: ["all-courses"],
@@ -102,6 +34,8 @@ export default function AdminCodesPage() {
   });
 
   const codes:   AccessCode[] = codesRes?.data?.codes   ?? [];
+  const totalCodes: number = codesRes?.data?.total ?? codes.length;
+  const totalPages = Math.max(1, Math.ceil(totalCodes / CODES_PAGE_SIZE));
   const courses: Course[]     = coursesRes?.data         ?? [];
 
   const generateMutation = useMutation({
@@ -120,6 +54,7 @@ export default function AdminCodesPage() {
         setNewCodes(res.data.codes);
         setShowPrint(true);
         setShowGenerator(false);
+        setPage(1);
         qc.invalidateQueries({ queryKey: ["admin-codes"] });
         qc.invalidateQueries({ queryKey: ["admin-stats"] });
       } else {
@@ -175,7 +110,7 @@ export default function AdminCodesPage() {
             كودات الوصول
           </h1>
           <p style={{ fontFamily: "Cairo,sans-serif", color: "#7A6E5A", fontSize: 14 }}>
-            {codes.length} كود إجمالاً &nbsp;·&nbsp;
+            {totalCodes} كود إجمالاً &nbsp;·&nbsp;
             <span style={{ color: "#2D9E6B" }}>{availCount} متاح</span> &nbsp;·&nbsp;
             <span style={{ color: "#DC2626" }}>{usedCount} مستخدم</span>
           </p>
@@ -184,7 +119,7 @@ export default function AdminCodesPage() {
           {/* Excel export */}
           <button
             onClick={handleExcelExport}
-            disabled={isExporting || codes.length === 0}
+            disabled={isExporting || totalCodes === 0}
             style={{
               padding: "10px 20px", borderRadius: 12,
               border: "1.5px solid rgba(45,158,107,0.35)",
@@ -238,40 +173,37 @@ export default function AdminCodesPage() {
                 </button>
               </div>
             </div>
-            {/* On-screen grid — what the admin actually sees/interacts with.
-                No print id needed here anymore (see the portal below for
-                why keeping print output on this element doesn't work). */}
+            {/* Print grid */}
             <div ref={printRef}
-              className="grid gap-3"
+              className="grid gap-3 no-print"
               style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
-              {newCodes.map((c) => renderCodeCard(c))}
-            </div>
-
-            {/* BUGFIX (round 2): giving this same on-screen grid the id
-                #codes-print-grid was NOT enough to make it print. The print
-                stylesheet works as an allowlist: it hides *every* direct
-                child of <body> (`body > * { display:none }`) and re-shows
-                only elements matching specific ids — but this grid sits many
-                layout levels deep (body → Providers → AdminLayout → ... →
-                this grid), not as a direct child of body. display:none on
-                an ancestor removes its entire subtree from rendering; no
-                display:grid !important on a *descendant* can undo that.
-                The fix: a React portal renders a second, print-only copy of
-                the same cards directly onto <body> itself, genuinely
-                satisfying `body > *` — bypassing all the nested layout
-                wrappers entirely. It's invisible in normal browsing
-                (`className="hidden"`) and only appears via the print
-                stylesheet's `#codes-print-grid { display:grid !important }`
-                rule, exactly as originally intended. */}
-            {mounted && newCodes.length > 0 && createPortal(
-              <>
-                <style>{printStyles}</style>
-                <div id="codes-print-grid" className="hidden">
-                  {newCodes.map((c) => renderCodeCard(c))}
+              {newCodes.map((c) => (
+                <div key={c.id} className="rounded-xl p-4 text-center code-card-print"
+                  style={{ background: "#fff", border: "2px solid rgba(201,168,76,0.3)",
+                    boxShadow: "0 2px 8px rgba(26,18,8,0.06)" }}>
+                  <div style={{ fontFamily: "Amiri,serif", color: "#C9A84C", fontSize: 10, marginBottom: 5, fontWeight: 700 }}>
+                    اكاديمية مستر مصطفى
+                  </div>
+                  <div style={{ height: 1, background: "rgba(201,168,76,0.25)", marginBottom: 6 }} />
+                  <div style={{ fontFamily: "Cairo,sans-serif", color: "#4A3F2A", fontSize: 9, marginBottom: 6, lineHeight: 1.4 }}>
+                    {c.courses?.map((cc) => cc.course.title).join("، ")}
+                  </div>
+                  <div style={{ background: "linear-gradient(135deg,#0D3D27,#1A6B47)", borderRadius: 6, padding: "6px 4px", marginBottom: 6 }}>
+                    <p style={{ fontFamily: "monospace", fontSize: 14, fontWeight: 700, color: "#E8C97A", letterSpacing: "0.1em" }}>
+                      {c.code}
+                    </p>
+                  </div>
+                  {c.expiresAt && (
+                    <p style={{ fontFamily: "Cairo,sans-serif", fontSize: 8, color: "#DC2626", marginTop: 4 }}>
+                      ينتهي: {new Date(c.expiresAt).toLocaleDateString("ar-EG")}
+                    </p>
+                  )}
+                  <p style={{ fontFamily: "Cairo,sans-serif", fontSize: 7, color: "#7A6E5A", marginTop: 4, lineHeight: 1.4 }}>
+                    يُستخدم مرة واحدة فقط
+                  </p>
                 </div>
-              </>,
-              document.body
-            )}
+              ))}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -346,7 +278,60 @@ export default function AdminCodesPage() {
         </div>
       )}
 
-      {/* Generator modal */}
+      {/* Pagination */}
+      {!isLoading && totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-5 flex-wrap" style={{ direction: "ltr" }}>
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            style={{
+              padding: "6px 14px", borderRadius: 8, border: "1px solid rgba(201,168,76,0.3)",
+              background: "transparent", color: page === 1 ? "rgba(122,110,90,0.4)" : "#7A6E5A",
+              fontFamily: "Cairo,sans-serif", fontSize: 13, cursor: page === 1 ? "default" : "pointer",
+            }}
+          >
+            ‹ السابق
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+            .reduce<(number | "…")[]>((acc, p, i, arr) => {
+              if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push("…");
+              acc.push(p);
+              return acc;
+            }, [])
+            .map((p, i) =>
+              p === "…" ? (
+                <span key={`e${i}`} style={{ color: "#7A6E5A", fontFamily: "Cairo,sans-serif", fontSize: 13, padding: "0 4px" }}>…</span>
+              ) : (
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
+                  style={{
+                    minWidth: 34, padding: "6px 8px", borderRadius: 8,
+                    border: p === page ? "none" : "1px solid rgba(201,168,76,0.3)",
+                    background: p === page ? "linear-gradient(135deg,#C9A84C,#8B6914)" : "transparent",
+                    color: p === page ? "#1A1208" : "#7A6E5A",
+                    fontFamily: "Cairo,sans-serif", fontSize: 13, fontWeight: p === page ? 700 : 400,
+                    cursor: "pointer",
+                  }}
+                >
+                  {p}
+                </button>
+              )
+            )}
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            style={{
+              padding: "6px 14px", borderRadius: 8, border: "1px solid rgba(201,168,76,0.3)",
+              background: "transparent", color: page === totalPages ? "rgba(122,110,90,0.4)" : "#7A6E5A",
+              fontFamily: "Cairo,sans-serif", fontSize: 13, cursor: page === totalPages ? "default" : "pointer",
+            }}
+          >
+            التالي ›
+          </button>
+        </div>
+      )}
       <AnimatePresence>
         {showGenerator && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
