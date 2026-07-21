@@ -1,7 +1,7 @@
 "use client";
 // src/components/video/VideoControls.tsx
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m as motion, AnimatePresence } from "framer-motion";
 import type { YouTubePlayerState } from "@/hooks/useYouTubePlayer";
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
