@@ -99,10 +99,12 @@ function ImagePreview({
   url,
   onRemove,
   maxH = "max-h-40",
+  alt = "معاينة صورة",
 }: {
   url: string;
   onRemove: () => void;
   maxH?: string;
+  alt?: string;
 }) {
   const [broken, setBroken] = useState(false);
   if (!url || broken) return null;
@@ -110,7 +112,7 @@ function ImagePreview({
     <div className="relative inline-block mt-2">
       <img
         src={url}
-        alt="معاينة"
+        alt={alt}
         className={`rounded-xl object-contain border ${maxH}`}
         style={{ borderColor: "rgba(201,168,76,0.2)", maxWidth: "100%" }}
         onError={() => setBroken(true)}
@@ -277,6 +279,7 @@ const QuestionBlock = memo(function QuestionBlock({
         <ImagePreview
           url={q.imageUrl ?? ""}
           onRemove={() => onUpdateQ(qi, "imageUrl", "")}
+          alt={`معاينة صورة السؤال ${qi + 1}`}
         />
       </div>
 
@@ -347,6 +350,7 @@ const QuestionBlock = memo(function QuestionBlock({
                       url={c.imageUrl ?? ""}
                       onRemove={() => onUpdateC(qi, ci, "imageUrl", "")}
                       maxH="max-h-20"
+                      alt={`معاينة صورة الاختيار ${ci + 1} — السؤال ${qi + 1}`}
                     />
                   </div>
 
