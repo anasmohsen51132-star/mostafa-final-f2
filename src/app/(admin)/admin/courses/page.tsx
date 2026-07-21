@@ -214,7 +214,7 @@ export default function AdminCoursesPage() {
                 تأكيد الحذف
               </h3>
               <p style={{ fontFamily: "Cairo,sans-serif", color: "#7A6E5A", fontSize: 14, marginBottom: 24 }}>
-                سيتم حذف الكورس وجميع محاضراته. هذا الإجراء لا يمكن التراجع عنه.
+                سيتم حذف الكورس وفك ارتباطه بجميع محاضراته (المحاضرات نفسها لا تُحذف). هذا الإجراء لا يمكن التراجع عنه.
               </p>
               <div className="flex gap-3 justify-center">
                 <button
