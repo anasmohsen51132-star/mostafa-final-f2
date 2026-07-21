@@ -25,7 +25,7 @@
 //     videos (it silently reverts to auto). The UI below is wired to the
 //     real API and works for accounts/videos where it's still honored.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m as motion, AnimatePresence } from "framer-motion";
 import { useYouTubePlayer } from "@/hooks/useYouTubePlayer";
 import { VideoControls } from "./VideoControls";
 import { VideoWatermark } from "./VideoWatermark";
