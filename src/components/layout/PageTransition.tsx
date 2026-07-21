@@ -4,45 +4,6 @@ import { m as motion } from "framer-motion";
 
 const springBouncy = { type: "spring", stiffness: 260, damping: 18 } as const;
 
-const variants = {
-  hidden: { opacity: 0, y: 28 },
-  enter:  { opacity: 1, y: 0 },
-  exit:   { opacity: 0, y: -20 },
-};
-
-export function PageTransition({ children }: { children: React.ReactNode }) {
-  return (
-    <motion.div
-      variants={variants}
-      initial="hidden"
-      animate="enter"
-      exit="exit"
-      transition={springBouncy}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-// Dashboard content reveal animation
-export function DashReveal({
-  children,
-  delay = 0,
-}: {
-  children: React.ReactNode;
-  delay?: number;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 36 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ ...springBouncy, delay }}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
 // Stagger container — longer per-child delay so the sequence actually
 // reads as a sequence instead of everything arriving almost at once.
 export function StaggerContainer({
