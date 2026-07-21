@@ -23,13 +23,21 @@ export default function AdminLecturesPage() {
   const qc             = useQueryClient();
   const [search,       setSearch]       = useState("");
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const LECTURES_PAGE_SIZE = 50;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["admin-lectures"],
-    queryFn:  () => fetchWithAuth("/api/lectures?limit=100"),
+    queryKey: ["admin-lectures", page],
+    queryFn:  () => fetchWithAuth(`/api/lectures?page=${page}&limit=${LECTURES_PAGE_SIZE}`),
   });
 
   const lectures: LectureRow[] = data?.data?.lectures ?? [];
+  const totalLectures: number = data?.data?.total ?? lectures.length;
+  const totalPages = Math.max(1, Math.ceil(totalLectures / LECTURES_PAGE_SIZE));
+  // Search only filters the currently-loaded page (server-side search
+  // across all pages would need a separate API change) — resetting to
+  // page 1 on every keystroke at least keeps results from looking empty
+  // just because the admin happened to be on page 3.
   const filtered = lectures.filter(
     (l) => search === "" || l.title.includes(search)
   );
@@ -75,7 +83,7 @@ export default function AdminLecturesPage() {
         <div>
           <h1 style={{ fontFamily: "Amiri,serif", color: "#1A1208", fontSize: 32, marginBottom: 4 }}>المحاضرات</h1>
           <p style={{ fontFamily: "Cairo,sans-serif", color: "#7A6E5A", fontSize: 14 }}>
-            {lectures.length} محاضرة — يمكن ربط كل محاضرة بأكثر من كورس
+            {totalLectures} محاضرة — يمكن ربط كل محاضرة بأكثر من كورس
           </p>
         </div>
         <Link
@@ -102,7 +110,7 @@ export default function AdminLecturesPage() {
         <div style={{ position: "relative", maxWidth: 400 }}>
           <input
             type="text" value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             placeholder="ابحث عن محاضرة..."
             style={{
               width: "100%", padding: "11px 44px 11px 14px",
@@ -132,75 +140,66 @@ export default function AdminLecturesPage() {
           {filtered.map((lec) => (
             <StaggerItem key={lec.id}>
               <div
-                className="rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4"
+                className="rounded-2xl p-5 flex items-start gap-4"
                 style={{ background: "#fff", border: "1px solid rgba(201,168,76,0.15)", boxShadow: "0 2px 8px rgba(26,18,8,0.04)" }}
               >
-                {/* Icon + title row — together on mobile so the icon doesn't
-                    eat into the title's already-tight width on its own line */}
-                <div className="flex items-start gap-3 sm:contents">
-                  <div
-                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
-                    style={{ background: "rgba(201,168,76,0.12)" }}
-                  >
-                    🎬
+                {/* Order / icon */}
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                  style={{ background: "rgba(201,168,76,0.12)" }}
+                >
+                  🎬
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 style={{ fontFamily: "Cairo,sans-serif", color: "#1A1208", fontSize: 15, fontWeight: 700 }}>
+                      {lec.title}
+                    </h3>
+                    {!lec.isPublished && (
+                      <span style={{
+                        padding: "1px 8px", borderRadius: 6, fontSize: 10.5, fontWeight: 700,
+                        background: "rgba(120,113,108,0.12)", color: "#78716C",
+                        border: "1px solid rgba(120,113,108,0.25)", fontFamily: "Cairo,sans-serif",
+                      }}>
+                        مسودة 📦
+                      </span>
+                    )}
+                  </div>
+                  {lec.description && (
+                    <p className="line-clamp-1" style={{ fontFamily: "Cairo,sans-serif", color: "#7A6E5A", fontSize: 13, marginBottom: 6 }}>
+                      {lec.description}
+                    </p>
+                  )}
+
+                  {/* Content counts */}
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {lec._count.videos > 0   && <Chip icon="🎥" label={`${lec._count.videos} فيديو`} />}
+                    {lec._count.pdfs > 0     && <Chip icon="📄" label={`${lec._count.pdfs} ملف`} />}
+                    {lec._count.quizzes > 0  && <Chip icon="📝" label={`${lec._count.quizzes} اختبار`} />}
+                    {lec._count.homework > 0 && <Chip icon="📋" label={`${lec._count.homework} واجب`} />}
                   </div>
 
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center flex-wrap gap-2 mb-1">
-                      <h3 style={{ fontFamily: "Cairo,sans-serif", color: "#1A1208", fontSize: 15, fontWeight: 700 }}>
-                        {lec.title}
-                      </h3>
-                      {!lec.isPublished && (
-                        <span style={{
-                          padding: "1px 8px", borderRadius: 6, fontSize: 10.5, fontWeight: 700,
-                          background: "rgba(120,113,108,0.12)", color: "#78716C",
-                          border: "1px solid rgba(120,113,108,0.25)", fontFamily: "Cairo,sans-serif",
-                        }}>
-                          مسودة 📦
-                        </span>
-                      )}
-                    </div>
-                    {lec.description && (
-                      <p className="line-clamp-1" style={{ fontFamily: "Cairo,sans-serif", color: "#7A6E5A", fontSize: 13, marginBottom: 6 }}>
-                        {lec.description}
-                      </p>
-                    )}
-
-                    {/* Content counts */}
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {lec._count.videos > 0   && <Chip icon="🎥" label={`${lec._count.videos} فيديو`} />}
-                      {lec._count.pdfs > 0     && <Chip icon="📄" label={`${lec._count.pdfs} ملف`} />}
-                      {lec._count.quizzes > 0  && <Chip icon="📝" label={`${lec._count.quizzes} اختبار`} />}
-                      {lec._count.homework > 0 && <Chip icon="📋" label={`${lec._count.homework} واجب`} />}
-                    </div>
-
-                    {/* Linked courses */}
-                    <div className="flex flex-wrap gap-1">
-                      {lec.courses.map(({ course }) => (
-                        <span
-                          key={course.id}
-                          style={{
-                            padding: "2px 8px", borderRadius: 6, fontSize: 11,
-                            background: "rgba(26,107,71,0.08)", color: "#1A6B47",
-                            border: "1px solid rgba(26,107,71,0.18)", fontFamily: "Cairo,sans-serif",
-                          }}
-                        >
-                          {course.icon} {course.title}
-                        </span>
-                      ))}
-                    </div>
+                  {/* Linked courses */}
+                  <div className="flex flex-wrap gap-1">
+                    {lec.courses.map(({ course }) => (
+                      <span
+                        key={course.id}
+                        style={{
+                          padding: "2px 8px", borderRadius: 6, fontSize: 11,
+                          background: "rgba(26,107,71,0.08)", color: "#1A6B47",
+                          border: "1px solid rgba(26,107,71,0.18)", fontFamily: "Cairo,sans-serif",
+                        }}
+                      >
+                        {course.icon} {course.title}
+                      </span>
+                    ))}
                   </div>
                 </div>
 
-                {/* Actions — BUGFIX: this used to be flex-shrink-0 with no
-                    wrap allowed, forcing itself to keep its full desktop
-                    width no matter how little room was left, which is what
-                    squeezed the title column down to nothing. On mobile
-                    it's now a full-width row that wraps normally; from the
-                    sm breakpoint up it goes back to the original
-                    fixed-width, non-wrapping side column. */}
-                <div className="flex items-center flex-wrap gap-2 w-full sm:w-auto sm:flex-shrink-0">
+                {/* Actions */}
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <button
                     onClick={() => togglePublish.mutate({ id: lec.id, isPublished: !lec.isPublished })}
                     disabled={togglePublish.isPending}
@@ -210,7 +209,6 @@ export default function AdminLecturesPage() {
                       color: lec.isPublished ? "#78716C" : "#1A6B47",
                       fontFamily: "Cairo,sans-serif",
                       fontSize: 12, fontWeight: 600, background: "none", cursor: "pointer",
-                      whiteSpace: "nowrap",
                     }}
                   >
                     {lec.isPublished ? "📦 تحويل لمسودة" : "🚀 نشر"}
@@ -222,7 +220,6 @@ export default function AdminLecturesPage() {
                       border: "1px solid rgba(201,168,76,0.3)",
                       color: "#8B6914", fontFamily: "Cairo,sans-serif",
                       fontSize: 12, fontWeight: 600, textDecoration: "none",
-                      whiteSpace: "nowrap",
                     }}
                   >
                     تعديل
@@ -234,7 +231,6 @@ export default function AdminLecturesPage() {
                       border: "1px solid rgba(239,68,68,0.25)",
                       color: "#DC2626", fontFamily: "Cairo,sans-serif",
                       fontSize: 12, fontWeight: 600, background: "none", cursor: "pointer",
-                      whiteSpace: "nowrap",
                     }}
                   >
                     حذف
@@ -258,6 +254,62 @@ export default function AdminLecturesPage() {
               ＋ أضف أول محاضرة
             </Link>
           )}
+        </div>
+      )}
+
+      {/* Pagination — hidden while searching, since search only scopes the
+          currently-loaded page rather than all lectures server-side */}
+      {!isLoading && !search && totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-5 flex-wrap" style={{ direction: "ltr" }}>
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            style={{
+              padding: "6px 14px", borderRadius: 8, border: "1px solid rgba(201,168,76,0.3)",
+              background: "transparent", color: page === 1 ? "rgba(122,110,90,0.4)" : "#7A6E5A",
+              fontFamily: "Cairo,sans-serif", fontSize: 13, cursor: page === 1 ? "default" : "pointer",
+            }}
+          >
+            ‹ السابق
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+            .reduce<(number | "…")[]>((acc, p, i, arr) => {
+              if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push("…");
+              acc.push(p);
+              return acc;
+            }, [])
+            .map((p, i) =>
+              p === "…" ? (
+                <span key={`e${i}`} style={{ color: "#7A6E5A", fontFamily: "Cairo,sans-serif", fontSize: 13, padding: "0 4px" }}>…</span>
+              ) : (
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
+                  style={{
+                    minWidth: 34, padding: "6px 8px", borderRadius: 8,
+                    border: p === page ? "none" : "1px solid rgba(201,168,76,0.3)",
+                    background: p === page ? "linear-gradient(135deg,#C9A84C,#8B6914)" : "transparent",
+                    color: p === page ? "#1A1208" : "#7A6E5A",
+                    fontFamily: "Cairo,sans-serif", fontSize: 13, fontWeight: p === page ? 700 : 400,
+                    cursor: "pointer",
+                  }}
+                >
+                  {p}
+                </button>
+              )
+            )}
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            style={{
+              padding: "6px 14px", borderRadius: 8, border: "1px solid rgba(201,168,76,0.3)",
+              background: "transparent", color: page === totalPages ? "rgba(122,110,90,0.4)" : "#7A6E5A",
+              fontFamily: "Cairo,sans-serif", fontSize: 13, cursor: page === totalPages ? "default" : "pointer",
+            }}
+          >
+            التالي ›
+          </button>
         </div>
       )}
 
