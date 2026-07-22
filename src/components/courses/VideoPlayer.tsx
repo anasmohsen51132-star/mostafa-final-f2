@@ -553,15 +553,6 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId, initialResum
 
             {user && <VideoWatermark name={user.name} phone={user.phone} />}
 
-            <div
-              className="absolute left-3 top-3 z-25 rounded-lg px-2 py-1"
-              style={{ background: "rgba(13,61,39,0.82)", border: "1px solid rgba(201,168,76,0.25)", pointerEvents: "none" }}
-            >
-              <span style={{ fontFamily: "Cairo,sans-serif", color: "rgba(201,168,76,0.8)", fontSize: 10, fontWeight: 700 }}>
-                🔒 أكاديمية مستر مصطفى
-              </span>
-            </div>
-
             <VideoControls
               visible={showControls}
               state={state}
