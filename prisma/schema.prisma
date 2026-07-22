@@ -299,6 +299,13 @@ model Progress {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
+  // FEATURE-001 (continue watching): the actual last-known playback
+  // position, in seconds. Previously this only ever lived in the
+  // student's browser localStorage (per-device, never synced) — this is
+  // what makes "continue where I left off" work across devices, and what
+  // powers the dashboard's continue-watching card.
+  positionSeconds Int?
+
   user    User    @relation(fields: [userId],    references: [id], onDelete: Cascade)
   lecture Lecture @relation(fields: [lectureId], references: [id], onDelete: Cascade)
   video   Video?  @relation(fields: [videoId],   references: [id], onDelete: SetNull)
