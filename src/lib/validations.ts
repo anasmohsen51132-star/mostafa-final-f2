@@ -285,6 +285,11 @@ export const progressSchema = z
     lectureId: z.string().min(1),
     videoId: z.string().min(1).optional(),
     completed: z.boolean().optional(),
+    // FEATURE-001: real playback position, in seconds — must be accepted
+    // here or every heartbeat tick from VideoPlayer.tsx carrying it is
+    // rejected outright by .strict() below. Capped generously (24h) just to
+    // guard against a corrupted/garbage value getting written.
+    positionSeconds: z.number().int().min(0).max(86_400).optional(),
     // Matches the documented contract in src/app/api/progress/route.ts
     // ("event?: play | pause | ended | seek | completed"). Not persisted —
     // the route only acts on `completed` — but it must be accepted here or
