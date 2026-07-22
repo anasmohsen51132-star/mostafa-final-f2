@@ -158,8 +158,10 @@ export async function middleware(req: NextRequest) {
   }
 
   // Role-based protection
+  // DEVELOPER is the highest permission level and can access everything
+  // OWNER/ADMIN can (see /developer block below for its own exclusive area).
   if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
-    if (payload.role !== "ADMIN" && payload.role !== "OWNER") {
+    if (payload.role !== "ADMIN" && payload.role !== "OWNER" && payload.role !== "DEVELOPER") {
       if (pathname.startsWith("/api/")) {
         return withCsp(Response.json({ success: false, error: "ليس لديك صلاحية" }, { status: 403 }), false);
       }
@@ -168,7 +170,19 @@ export async function middleware(req: NextRequest) {
   }
 
   if (pathname.startsWith("/owner") || pathname.startsWith("/api/owner")) {
-    if (payload.role !== "OWNER") {
+    if (payload.role !== "OWNER" && payload.role !== "DEVELOPER") {
+      if (pathname.startsWith("/api/")) {
+        return withCsp(Response.json({ success: false, error: "ليس لديك صلاحية" }, { status: 403 }), false);
+      }
+      return withCsp(redirectNoStore(new URL("/dashboard", req.url)), false);
+    }
+  }
+
+  // NEW: Developer Dashboard — exclusive to DEVELOPER. Unlike /owner and
+  // /admin above, OWNER does NOT get automatic access here: this area is
+  // reserved only for the platform developer.
+  if (pathname.startsWith("/developer") || pathname.startsWith("/api/developer")) {
+    if (payload.role !== "DEVELOPER") {
       if (pathname.startsWith("/api/")) {
         return withCsp(Response.json({ success: false, error: "ليس لديك صلاحية" }, { status: 403 }), false);
       }
