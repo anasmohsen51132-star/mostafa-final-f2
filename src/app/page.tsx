@@ -86,11 +86,12 @@ export default async function LandingPage() {
 
   const settings = await getSettings();
 
-  // SEO: JSON-LD structured data for the homepage. Rendered as plain JSON
-  // text inside a <script> tag — standard Next.js pattern, no
-  // dangerouslySetInnerHTML needed since JSON.stringify output is safe to
-  // render as a text child. This is invisible, non-visual metadata only;
-  // it does not change anything a visitor sees or any existing behavior.
+  // SEO: JSON-LD structured data for the homepage, rendered inside a
+  // <script type="application/ld+json"> tag. JSON.stringify() does not
+  // escape "<", so a raw `</script>` inside any string value could break
+  // out of the tag — escaping it here keeps this safe even if a future
+  // change feeds owner/DB-controlled text (e.g. platformName, teacherBio)
+  // into one of the builders below, not just today's hardcoded constants.
   const jsonLd = [
     organizationJsonLd(),
     educationalOrganizationJsonLd(),
@@ -105,7 +106,7 @@ export default async function LandingPage() {
           key={i}
           type="application/ld+json"
           // eslint-disable-next-line react/no-danger
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(data).replace(/</g, "\\u003c") }}
         />
       ))}
       <main style={{ direction: "rtl" }}>
