@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     // surface as an unhandled Prisma error. Now validated up front.
     const parsed = progressSchema.safeParse(body);
     if (!parsed.success) return error(parsed.error.errors[0]?.message || "بيانات غير صحيحة");
-    const { lectureId, videoId, completed } = parsed.data;
+    const { lectureId, videoId, completed, positionSeconds } = parsed.data;
 
     const owns = await userOwnsLecture(payload.sub, payload.role, lectureId);
     if (!owns) return forbidden("لا تملك صلاحية الوصول إلى هذه المحاضرة");
@@ -80,9 +80,11 @@ export async function POST(req: NextRequest) {
           videoId,
           completed: completed ?? false,
           watchedAt: new Date(),
+          positionSeconds,
         },
         update: {
           ...(completed !== undefined && { completed }),
+          ...(positionSeconds !== undefined && { positionSeconds }),
           watchedAt: new Date(),
         },
       });
@@ -108,6 +110,7 @@ export async function POST(req: NextRequest) {
                   where: { id: existing.id },
                   data: {
                     ...(completed !== undefined && { completed }),
+                    ...(positionSeconds !== undefined && { positionSeconds }),
                     watchedAt: new Date(),
                   },
                 })
@@ -118,6 +121,7 @@ export async function POST(req: NextRequest) {
                     videoId: null,
                     completed: completed ?? false,
                     watchedAt: new Date(),
+                    positionSeconds,
                   },
                 });
           },
