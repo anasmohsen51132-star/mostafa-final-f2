@@ -1,7 +1,7 @@
 "use client";
 // src/app/(student)/lecture/[id]/page.tsx
 import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { m as motion, AnimatePresence } from "framer-motion";
 import { fetchWithAuth } from "@/hooks/useAuth";
@@ -13,6 +13,12 @@ type Tab = "videos" | "pdfs" | "quiz" | "homework";
 
 export default function LecturePage() {
   const { id }   = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  // FEATURE-001: "continue watching" link from the dashboard arrives as
+  // /lecture/[id]?v=<videoId>&t=<seconds> — only the matching video (by id)
+  // gets the resume position; every other video on the page starts fresh.
+  const resumeVideoId = searchParams.get("v");
+  const resumeSeconds = Number(searchParams.get("t") ?? "");
   const toast    = useToast();
   const qc       = useQueryClient();
   const [activeTab,      setActiveTab]      = useState<Tab>("videos");
@@ -221,7 +227,17 @@ export default function LecturePage() {
                         padded column at md+ where there's already plenty of
                         room next to the sidebar. */}
                     <div className="-mx-3 sm:-mx-4 md:mx-0">
-                      <VideoPlayer youtubeId={video.youtubeId} title={video.title} lectureId={id as string} videoId={video.id} />
+                      <VideoPlayer
+                        youtubeId={video.youtubeId}
+                        title={video.title}
+                        lectureId={id as string}
+                        videoId={video.id}
+                        initialResumeSeconds={
+                          resumeVideoId === video.id && Number.isFinite(resumeSeconds) && resumeSeconds > 0
+                            ? resumeSeconds
+                            : undefined
+                        }
+                      />
                     </div>
                   </div>
                 ))
@@ -262,15 +278,7 @@ export default function LecturePage() {
                       <motion.div key={quiz.id} whileHover={{ x:-4 }}
                         className="p-5 rounded-2xl cursor-pointer"
                         style={{ background:"#fff", border:"1px solid rgba(201,168,76,0.2)", boxShadow:"0 2px 8px rgba(26,18,8,0.04)" }}
-                        onClick={() => { setSelectedQuizId(quiz.id); setQuizAnswers({}); setQuizResult(null); }}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            setSelectedQuizId(quiz.id); setQuizAnswers({}); setQuizResult(null);
-                          }
-                        }}>
+                        onClick={() => { setSelectedQuizId(quiz.id); setQuizAnswers({}); setQuizResult(null); }}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl" style={{ background:"rgba(201,168,76,0.12)" }}>📝</div>
@@ -332,15 +340,7 @@ export default function LecturePage() {
                       <motion.div key={hw.id} whileHover={{ x:-4 }}
                         className="p-5 rounded-2xl cursor-pointer"
                         style={{ background:"#fff", border:"1px solid rgba(201,168,76,0.2)", boxShadow:"0 2px 8px rgba(26,18,8,0.04)" }}
-                        onClick={() => { setSelectedHomeworkId(hw.id); setHwAnswers({}); setHwResult(null); }}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            setSelectedHomeworkId(hw.id); setHwAnswers({}); setHwResult(null);
-                          }
-                        }}>
+                        onClick={() => { setSelectedHomeworkId(hw.id); setHwAnswers({}); setHwResult(null); }}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl" style={{ background:"rgba(201,168,76,0.12)" }}>📋</div>
@@ -591,7 +591,7 @@ function QuizPlayer({
               >
                 <img
                   src={q.imageUrl}
-                  alt={`صورة توضيحية للسؤال ${qi + 1}`}
+                  alt="سؤال"
                   className="rounded-xl w-full max-h-[420px] object-contain"
                   style={{ background: "rgba(250,247,240,0.5)", border: "1px solid rgba(201,168,76,0.15)" }}
                   draggable={false}
