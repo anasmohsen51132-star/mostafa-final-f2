@@ -10,6 +10,16 @@ import { WelcomeAnimation } from "@/components/dashboard/WelcomeAnimation";
 import { StaggerContainer, StaggerItem } from "@/components/layout/PageTransition";
 import type { Course } from "@/types";
 
+// FEATURE-001: small mm:ss (or h:mm:ss) formatter for the continue-watching card.
+function formatResumeTime(totalSeconds: number): string {
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = Math.floor(totalSeconds % 60);
+  const mm = h > 0 ? String(m).padStart(2, "0") : String(m);
+  const ss = String(s).padStart(2, "0");
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
 function useFirstVisit() {
   const [isFirst, setIsFirst] = useState(false);
   useEffect(() => {
@@ -36,6 +46,20 @@ export default function StudentDashboard() {
     queryFn: () => fetchWithAuth("/api/courses"),
     enabled: !!user,
   });
+
+  // FEATURE-001: "continue watching" — see /api/progress/continue.
+  const { data: continueRes } = useQuery({
+    queryKey: ["continue-watching"],
+    queryFn: () => fetchWithAuth("/api/progress/continue"),
+    enabled: !!user,
+    staleTime: 30_000,
+  });
+  const continueWatching = continueRes?.data as {
+    positionSeconds: number;
+    lecture: { id: string; title: string };
+    video: { id: string; title: string };
+    course: { id: string; title: string; icon: string; color: string } | null;
+  } | null | undefined;
 
   const { data: settingsRes } = useQuery({
     queryKey: ["site-settings"],
@@ -119,6 +143,55 @@ export default function StudentDashboard() {
             </div>
           </div>
         </motion.div>
+
+        {/* ── Continue Watching (FEATURE-001) ── */}
+        {continueWatching && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="mb-8"
+          >
+            <Link
+              href={`/lecture/${continueWatching.lecture.id}?v=${continueWatching.video.id}&t=${continueWatching.positionSeconds}`}
+              className="flex items-center gap-4 rounded-2xl p-5 no-underline transition-transform hover:-translate-y-0.5"
+              style={{
+                background: "#fff",
+                border: "1.5px solid rgba(201,168,76,0.3)",
+                boxShadow: "0 4px 20px rgba(201,168,76,0.12)",
+              }}
+            >
+              <div
+                className="flex-shrink-0 flex items-center justify-center rounded-xl"
+                style={{
+                  width: 56, height: 56,
+                  background: `linear-gradient(135deg,#C9A84C,#8B6914)`,
+                  fontSize: 24,
+                }}
+              >
+                ▶️
+              </div>
+              <div className="flex-1 min-w-0">
+                <p style={{ fontFamily: "Cairo,sans-serif", color: "#8B6914", fontSize: 12, fontWeight: 700, marginBottom: 2 }}>
+                  أكمل من حيث توقفت
+                </p>
+                <h3 className="line-clamp-1" style={{ fontFamily: "Cairo,sans-serif", color: "#1A1208", fontSize: 15, fontWeight: 700, marginBottom: 2 }}>
+                  {continueWatching.video.title}
+                </h3>
+                <p className="line-clamp-1" style={{ fontFamily: "Cairo,sans-serif", color: "#7A6E5A", fontSize: 12.5 }}>
+                  {continueWatching.course && <>{continueWatching.course.icon} {continueWatching.course.title} · </>}
+                  {continueWatching.lecture.title} · عند {formatResumeTime(continueWatching.positionSeconds)}
+                </p>
+              </div>
+              <div
+                className="flex-shrink-0 flex items-center justify-center rounded-full"
+                style={{ width: 36, height: 36, background: "rgba(201,168,76,0.12)", fontSize: 14, color: "#8B6914" }}
+              >
+                ←
+              </div>
+            </Link>
+          </motion.div>
+        )}
 
         {/* ── Quick stats ── */}
         <StaggerContainer className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
