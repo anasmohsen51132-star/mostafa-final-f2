@@ -17,6 +17,15 @@ enum Role {
   OWNER
   ADMIN
   STUDENT
+  // DEVELOPER: added as the foundation for the new internal Developer
+  // Dashboard (/developer). Highest permission level — has access to
+  // everything OWNER has, plus future developer-only tooling (AI
+  // monitoring, security, diagnostics, deployments). Existing OWNER/
+  // ADMIN/STUDENT roles and behavior are completely unaffected by this
+  // addition. No user is assigned this role automatically; it must be
+  // granted manually (e.g. via Prisma Studio or a direct DB update) since
+  // this task intentionally does not add any UI for assigning it.
+  DEVELOPER
 }
 
 enum AcademicLevel {
@@ -299,6 +308,13 @@ model Progress {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
+  // FEATURE-001 (continue watching): the actual last-known playback
+  // position, in seconds. Previously this only ever lived in the
+  // student's browser localStorage (per-device, never synced) — this is
+  // what makes "continue where I left off" work across devices, and what
+  // powers the dashboard's continue-watching card.
+  positionSeconds Int?
+
   user    User    @relation(fields: [userId],    references: [id], onDelete: Cascade)
   lecture Lecture @relation(fields: [lectureId], references: [id], onDelete: Cascade)
   video   Video?  @relation(fields: [videoId],   references: [id], onDelete: SetNull)
@@ -425,7 +441,7 @@ model SiteSettings {
 
   // ── CTA BUTTONS (CUSTOM-003): ordered + toggleable, same JSON-array
   // convention already used above for teacherStats/features/statsBar. ──
-  ctaButtons       Json     @default("[{\"id\":\"primary\",\"label\":\"ابدأ الآن\",\"href\":\"/register\",\"visible\":true,\"order\":0},{\"id\":\"secondary\",\"label\":\"تعرف أكثر\",\"href\":\"/#about\",\"visible\":true,\"order\":1}]")
+  ctaButtons       Json     @default("[{\"id\":\"primary\",\"label\":\"ابدأ الآن\",\"href\":\"/register\",\"visible\":true,\"order\":0},{\"id\":\"secondary\",\"label\":\"تعرف أكثر\",\"href\":\"#about\",\"visible\":true,\"order\":1}]")
 
   // ── SEO (CUSTOM-004) ──
   metaTitle        String?
