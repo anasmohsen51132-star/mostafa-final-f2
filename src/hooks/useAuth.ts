@@ -63,7 +63,8 @@ export function useAuth() {
         setAuth(res.data.user);
         toast.success(`🎉 أهلاً بك، ${res.data.user.name.split(" ")[0]}!`);
         const role = res.data.user.role;
-        if (role === "OWNER") router.push("/owner");
+        if (role === "DEVELOPER") router.push("/developer");
+        else if (role === "OWNER") router.push("/owner");
         else if (role === "ADMIN") router.push("/admin");
         else router.push("/dashboard");
       } else {
@@ -105,9 +106,12 @@ export function useAuth() {
     isHydrated,
     isSessionVerified,
     isAuthenticated: !!user,
-    isOwner: user?.role === "OWNER",
-    isAdmin: user?.role === "ADMIN" || user?.role === "OWNER",
+    // DEVELOPER has the highest permission level and can access everything
+    // OWNER/ADMIN can — see middleware.ts for the matching route-level rules.
+    isOwner: user?.role === "OWNER" || user?.role === "DEVELOPER",
+    isAdmin: user?.role === "ADMIN" || user?.role === "OWNER" || user?.role === "DEVELOPER",
     isStudent: user?.role === "STUDENT",
+    isDeveloper: user?.role === "DEVELOPER",
     login: loginMutation.mutate,
     register: registerMutation.mutate,
     isLoginLoading: loginMutation.isPending,
