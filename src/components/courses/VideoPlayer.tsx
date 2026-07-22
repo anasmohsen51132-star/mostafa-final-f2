@@ -25,7 +25,7 @@
 //     videos (it silently reverts to auto). The UI below is wired to the
 //     real API and works for accounts/videos where it's still honored.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { m as motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useYouTubePlayer } from "@/hooks/useYouTubePlayer";
 import { VideoControls } from "./VideoControls";
 import { VideoWatermark } from "./VideoWatermark";
@@ -36,13 +36,18 @@ interface Props {
   title: string;
   lectureId?: string;
   videoId?: string; // DB video record id, used for progress + resume
+  // FEATURE-001: server-provided resume position (from the dashboard's
+  // "continue watching" card, via the lecture page). When present, this
+  // is authoritative over localStorage — it reflects the position saved
+  // from *any* device, not just this one.
+  initialResumeSeconds?: number;
 }
 
 const AUTO_HIDE_MS = 2000;
 const SEEK_STEP = 10;
 const VIDEO_ASPECT = 16 / 9;
 
-export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
+export function VideoPlayer({ youtubeId, title, lectureId, videoId, initialResumeSeconds }: Props) {
   const { user } = useAuth();
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -94,7 +99,7 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
         }, 5000);
         fetchWithAuth("/api/progress", {
           method: "POST",
-          body: JSON.stringify({ lectureId, videoId, event: "heartbeat" }),
+          body: JSON.stringify({ lectureId, videoId, event: "heartbeat", positionSeconds: Math.floor(currentTime) }),
         }).catch(() => {});
       }
       if (duration > 0 && duration - currentTime < 0.75 && !trackedCompleteRef.current) {
@@ -122,20 +127,32 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
   });
 
   // ── Resume watching: seek once, right after the player is cued ──
+  // FEATURE-001: prefer the server-provided position (initialResumeSeconds,
+  // synced across devices via the Progress table) over localStorage, which
+  // only ever reflected *this* device/browser. Falls back to localStorage
+  // when no server value was passed in, so existing per-device resume still
+  // works for videos opened without going through the "continue watching"
+  // card (e.g. picking a video directly from the lecture page).
   useEffect(() => {
     if (!videoId || resumeAppliedRef.current) return;
     if (state.status !== "cued" && state.status !== "paused") return;
     if (state.duration <= 0) return;
     resumeAppliedRef.current = true;
-    try {
-      const saved = Number(localStorage.getItem(`resume:${videoId}`));
-      if (saved > 5 && saved < state.duration - 15) {
-        controls.seekTo(saved);
+
+    const fromServer = typeof initialResumeSeconds === "number" ? initialResumeSeconds : null;
+    let saved = fromServer;
+    if (saved === null) {
+      try {
+        saved = Number(localStorage.getItem(`resume:${videoId}`));
+      } catch {
+        saved = null;
       }
-    } catch {
-      /* ignore */
     }
-  }, [state.status, state.duration, videoId, controls]);
+
+    if (saved && saved > 5 && saved < state.duration - 15) {
+      controls.seekTo(saved);
+    }
+  }, [state.status, state.duration, videoId, initialResumeSeconds, controls]);
 
   // ── Block right-click / drag / select at the container level ──
   useEffect(() => {
@@ -221,26 +238,6 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
     height: `${(100 / VIDEO_ASPECT) * COVER_OVERSCAN}vw`, // 100vw * 9/16, scaled up
     minWidth: `${100 * VIDEO_ASPECT * COVER_OVERSCAN}dvh`, // 100dvh * 16/9, scaled up
     minHeight: `${100 * COVER_OVERSCAN}dvh`,
-    transform: "translate(-50%, -50%)",
-  };
-
-  // Same crop trick as coverStyle above, but for the normal (non-fullscreen)
-  // player box. That box is already pinned to aspect-ratio: 16/9 via CSS
-  // (unlike fullscreen, which is a raw 100vw x 100dvh viewport rectangle),
-  // so a flat percentage overscan in both dimensions is enough — no
-  // viewport units needed. This is what actually stops YouTube's own
-  // pillarboxing (see comment above coverStyle: source videos that aren't
-  // exactly 16:9 get letterboxed by YouTube *inside* our box) from showing
-  // as visible side bars in the normal, inline player — previously this
-  // crop was only applied in fullscreen, so non-fullscreen viewing (i.e.
-  // every device screenshot so far) still showed bars whenever a lecture's
-  // source video wasn't exactly 16:9.
-  const normalCoverStyle: React.CSSProperties = {
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    width: `${100 * COVER_OVERSCAN}%`,
-    height: `${100 * COVER_OVERSCAN}%`,
     transform: "translate(-50%, -50%)",
   };
 
@@ -397,15 +394,6 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
             style={{ aspectRatio: "16/9", background: "#0a1f14" }}
             onClick={() => setStarted(true)}
             onContextMenu={(e) => e.preventDefault()}
-            role="button"
-            tabIndex={0}
-            aria-label="تشغيل الفيديو"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                setStarted(true);
-              }
-            }}
           >
             <img
               src={`https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`}
@@ -516,7 +504,7 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
             <div
               ref={mountRef}
               className="absolute"
-              style={isFullscreen ? coverStyle : normalCoverStyle}
+              style={isFullscreen ? coverStyle : { inset: 0, width: "100%", height: "100%" }}
             />
 
             {/* Gesture / interaction capture layer — sits ABOVE the iframe so
@@ -564,6 +552,15 @@ export function VideoPlayer({ youtubeId, title, lectureId, videoId }: Props) {
             </AnimatePresence>
 
             {user && <VideoWatermark name={user.name} phone={user.phone} />}
+
+            <div
+              className="absolute left-3 top-3 z-25 rounded-lg px-2 py-1"
+              style={{ background: "rgba(13,61,39,0.82)", border: "1px solid rgba(201,168,76,0.25)", pointerEvents: "none" }}
+            >
+              <span style={{ fontFamily: "Cairo,sans-serif", color: "rgba(201,168,76,0.8)", fontSize: 10, fontWeight: 700 }}>
+                🔒 أكاديمية مستر مصطفى
+              </span>
+            </div>
 
             <VideoControls
               visible={showControls}
