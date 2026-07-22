@@ -2,7 +2,7 @@
 // MUSTAFA ACADEMY — Global TypeScript Types v3
 // ============================================================
 
-export type Role = "OWNER" | "ADMIN" | "STUDENT";
+export type Role = "OWNER" | "ADMIN" | "STUDENT" | "DEVELOPER";
 
 export type AcademicLevel =
   | "FIRST_SECONDARY"
