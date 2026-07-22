@@ -281,12 +281,13 @@ export const progressSchema = z
     lectureId: z.string().min(1),
     videoId: z.string().min(1).optional(),
     completed: z.boolean().optional(),
-    // Matches the documented contract in src/app/api/progress/route.ts
-    // ("event?: play | pause | ended | seek | completed"). Not persisted —
-    // the route only acts on `completed` — but it must be accepted here or
-    // every play/pause/completed ping from VideoPlayer.tsx is rejected
-    // outright by .strict() below, including the "completed" ping that
-    // carries a valid `completed: true`.
+    // FEATURE-001: real playback position, in seconds. Capped generously —
+    // no legitimate video is 24 hours long, this just guards against a
+    // corrupted/garbage value getting written.
+    positionSeconds: z.number().int().min(0).max(86_400).optional(),
+    // Informational only (not currently branched on server-side) — VideoPlayer
+    // already sends this on every heartbeat tick; accepting-and-ignoring it
+    // here is simpler and safer than stripping it client-side.
     event: z.string().max(20).optional(),
   })
   .strict();
