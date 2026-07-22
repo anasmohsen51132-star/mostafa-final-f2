@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { put } from "@vercel/blob";
 import { extractToken, verifyToken } from "@/lib/auth";
 import { success, error, unauthorized, forbidden } from "@/lib/utils";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 const MAX_IMAGE_SIZE = 5  * 1024 * 1024; // 5 MB
 const MAX_PDF_SIZE   = 20 * 1024 * 1024; // 20 MB
@@ -36,6 +37,13 @@ export async function POST(req: NextRequest) {
   const payload = token ? await verifyToken(token) : null;
   if (!payload) return unauthorized();
   if (payload.role !== "ADMIN" && payload.role !== "OWNER") return forbidden();
+
+  // SEC: this endpoint writes to paid Vercel Blob storage and previously had
+  // no throttle at all, unlike every other mutating route in this app.
+  const limited = await rateLimit(`upload:${payload.sub}`, 20, 10 * 60 * 1000);
+  if (!limited.allowed) {
+    return rateLimitResponse("محاولات رفع كثيرة جداً، حاول مرة أخرى بعد قليل", limited.retryAfterMs);
+  }
 
   // INFRA-006 FIX: surface a clear, actionable error instead of an opaque 500
   // if the Vercel Blob token was never configured on this deployment.
