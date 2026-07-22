@@ -110,9 +110,10 @@ export function normalizePhone(phone: string): string {
 // ---- Role display ----
 export function roleLabel(role: string): string {
   const map: Record<string, string> = {
-    OWNER:   "👑 مالك",
-    ADMIN:   "🔵 مدير",
-    STUDENT: "🟢 طالب",
+    OWNER:     "👑 مالك",
+    ADMIN:     "🔵 مدير",
+    STUDENT:   "🟢 طالب",
+    DEVELOPER: "🛠️ مطور",
   };
   return map[role] || role;
 }
