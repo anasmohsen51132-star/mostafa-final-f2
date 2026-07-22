@@ -36,7 +36,7 @@ export function CtaButtonsEditor({ buttons, onChange }: Props) {
 
   const addButton = () => {
     const nextOrder = buttons.length ? Math.max(...buttons.map((b) => b.order)) + 1 : 0;
-    onChange([...buttons, { id: `btn-${Date.now()}`, label: "زرار جديد", href: "#", visible: true, order: nextOrder }]);
+    onChange([...buttons, { id: `btn-${Date.now()}`, label: "زرار جديد", href: "/", visible: true, order: nextOrder }]);
   };
 
   return (
