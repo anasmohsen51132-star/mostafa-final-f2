@@ -60,14 +60,6 @@ model User {
   joinedAt       DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
-  // AUTH-002: single-device login enforcement. Every successful login
-  // generates a fresh random id here AND embeds it in the issued JWT's
-  // `sid` claim. Since this column only ever holds the *latest* session's
-  // id, any older token (from a different device/browser) still verifies
-  // cryptographically fine but carries a now-stale `sid` — /api/auth/me
-  // checks this on every session-verification call and rejects the
-  // mismatch, effectively logging the older device out. Nullable because
-  // existing users have no session yet until their next login.
   currentSessionId String?
 
   redeemedCodes      AccessCode[]       @relation("CodeRedeemer")
@@ -119,12 +111,7 @@ model Lecture {
   title            String
   description      String?
   order            Int             @default(0)
-  // API-004 FIX: there was no way to keep a lecture in draft while building
-  // it — every lecture was visible to any student who owned its course the
-  // moment it was created. Defaults to true so existing lectures keep their
-  // current (visible) behavior; new lectures can be created as drafts.
   isPublished      Boolean         @default(true)
-  // Quiz gate: how strictly is the quiz enforced?
   quizRequirement  QuizRequirement @default(NONE)
   quizPassScore    Int             @default(60) // % needed to pass when MUST_PASS
   createdAt        DateTime        @default(now())
@@ -308,11 +295,6 @@ model Progress {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  // FEATURE-001 (continue watching): the actual last-known playback
-  // position, in seconds. Previously this only ever lived in the
-  // student's browser localStorage (per-device, never synced) — this is
-  // what makes "continue where I left off" work across devices, and what
-  // powers the dashboard's continue-watching card.
   positionSeconds Int?
 
   user    User    @relation(fields: [userId],    references: [id], onDelete: Cascade)
@@ -326,7 +308,6 @@ model Progress {
 }
 
 // ── QUIZ SUBMISSIONS (multi-attempt) ───────────────────────
-// Removed @@unique so multiple attempts are allowed (max 3 enforced in API)
 
 model QuizSubmission {
   id           String   @id @default(cuid())
@@ -337,33 +318,18 @@ model QuizSubmission {
   total        Int
   percentage   Float
   passed       Boolean
-  answers      Json     // student-selected choice IDs per question
-  // DB-001: Prisma's Json type has no DB-level size ceiling — only the
-  // 50KB app-layer cap in quizAnswersSchema (src/lib/validations.ts)
-  // actually enforces a limit, which a direct DB write (e.g. psql, a
-  // future internal script) would bypass entirely. A real CHECK constraint
-  // can't be expressed in schema.prisma (Prisma has no CHECK-constraint
-  // support compatible with `prisma db push`), so one is provided as an
-  // optional manual script instead: see prisma/optional-db-constraints.sql.
+  answers      Json
   submittedAt  DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
 
-  // INFRA-002: the unique constraint below already provides a composite
-  // btree index with userId as its leading column, so WHERE userId=? AND
-  // quizId=? (the attempt-count lookup in the submit transaction) already
-  // uses an index scan — no separate @@index([userId, quizId]) needed.
   @@unique([userId, quizId, attemptNumber])
   @@index([userId])
   @@index([quizId])
 }
 
 // ── HOMEWORK SUBMISSIONS (multi-attempt) ───────────────────
-// Mirrors QuizSubmission exactly — homework is now auto-graded the same way
-// quizzes are (same scoring logic, same 3-attempt limit). The manual
-// grade/feedback/gradedAt fields that used to live here are gone; there's
-// nothing left for an admin to manually grade.
 
 model HomeworkSubmission {
   id            String   @id @default(cuid())
@@ -374,16 +340,12 @@ model HomeworkSubmission {
   total         Int
   percentage    Float
   passed        Boolean
-  answers       Json     // student-selected choice IDs per question
-  // DB-001: same DB-level size-cap gap as QuizSubmission.answers above — see
-  // prisma/optional-db-constraints.sql for the optional enforcement script.
+  answers       Json
   submittedAt   DateTime @default(now())
 
   user     User     @relation(fields: [userId],     references: [id], onDelete: Cascade)
   homework Homework @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
 
-  // INFRA-002: same as QuizSubmission — the unique constraint's leading
-  // (userId, homeworkId) prefix already serves this lookup pattern.
   @@unique([userId, homeworkId, attemptNumber])
   @@index([userId])
   @@index([homeworkId])
@@ -405,10 +367,6 @@ model SiteSettings {
   platformName     String   @default("اكاديمية مستر مصطفى")
   platformTagline  String   @default("لتدريس اللغة العربية")
 
-  // ── COLORS (CUSTOM-001): full palette, was just primary+accent ──
-  // Defaults below match the colors already hardcoded across the app today,
-  // so turning this feature on doesn't visually change anything until the
-  // OWNER actually edits a value.
   primaryColor     String   @default("#C9A84C")
   secondaryColor   String   @default("#1A6B47")
   accentColor      String   @default("#1A6B47")
@@ -422,10 +380,6 @@ model SiteSettings {
   errorColor       String   @default("#DC2626")
   loginBgGradient  String   @default("135deg, #0D3D27 0%, #1A6B47 100%")
 
-  // ── IMAGES (CUSTOM-002): all optional — null = fall back to the
-  // current static/default asset, so nothing breaks for existing sites
-  // until the OWNER uploads something. URLs are Vercel Blob URLs, same
-  // storage already used by /api/upload for everything else. ──
   heroBackgroundImage    String?
   heroIllustration       String?
   heroBanner             String?
@@ -439,20 +393,13 @@ model SiteSettings {
   dashboardWelcome String   @default("أهلاً وسهلاً بك في منصتك التعليمية")
   footerText       String   @default("© ٢٠٢٤ اكاديمية مستر مصطفى — جميع الحقوق محفوظة")
 
-  // ── CTA BUTTONS (CUSTOM-003): ordered + toggleable, same JSON-array
-  // convention already used above for teacherStats/features/statsBar. ──
-  ctaButtons       Json     @default("[{\"id\":\"primary\",\"label\":\"ابدأ الآن\",\"href\":\"/register\",\"visible\":true,\"order\":0},{\"id\":\"secondary\",\"label\":\"تعرف أكثر\",\"href\":\"#about\",\"visible\":true,\"order\":1}]")
+  ctaButtons       Json     @default("[{\"id\":\"primary\",\"label\":\"ابدأ الآن\",\"href\":\"/register\",\"visible\":true,\"order\":0},{\"id\":\"secondary\",\"label\":\"تعرف أكثر\",\"href\":\"/#about\",\"visible\":true,\"order\":1}]")
 
-  // ── SEO (CUSTOM-004) ──
   metaTitle        String?
   metaDescription  String?
   metaKeywords     String?
   ogImage          String?
 
-  // ── ANNOUNCEMENT BAR (CUSTOM-010): site-wide dismissible banner,
-  // editable by ADMIN or OWNER (unlike the rest of this model, which is
-  // OWNER-only — see /api/admin/announcement for the separate, more
-  // permissive RBAC this specific feature needs). ──
   announcementEnabled     Boolean @default(false)
   announcementTitle       String?
   announcementText        String?
@@ -463,12 +410,7 @@ model SiteSettings {
 }
 
 // ── DISTRIBUTED RATE LIMITING (ARCH-003) ───────────────────
-// Backs src/lib/rate-limit.ts. Replaces the old in-memory Map (which reset
-// on every cold start and wasn't shared across Vercel's concurrent lambda
-// instances — meaning limits were trivially bypassable by an attacker whose
-// requests happened to land on different warm instances). Every rate-limit
-// check now reads/writes a row here instead, so the limit is enforced
-// consistently regardless of which serverless instance handles the request.
+
 model RateLimitBucket {
   key     String   @id
   count   Int      @default(1)
@@ -478,14 +420,7 @@ model RateLimitBucket {
 }
 
 // ── OWNERSHIP CHECK CACHE (ARCH-002) ────────────────────────
-// Backs src/lib/access.ts. userOwnsLecture() used to run a multi-table join
-// (AccessCode → CourseOnCode → CourseLecture) on every single student
-// request that touches lecture-scoped content — including high-frequency
-// ones like video-progress pings every few seconds. Caching the boolean
-// result here for a short TTL means most requests hit one indexed row
-// lookup instead of that join, while still re-verifying periodically (so a
-// revoked/expired access code is reflected within the TTL window, not
-// permanently stale).
+
 model AccessCheckCache {
   key       String   @id // `${userId}:${lectureId}`
   owns      Boolean
