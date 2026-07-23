@@ -228,7 +228,11 @@ export default function LectureEditPage() {
                     type="file"
                     accept="application/pdf"
                     style={{ display: "none" }}
-                    onChange={(e) => handlePdfFileSelect(e.target.files?.[0])}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      handlePdfFileSelect(file);
+                    }}
                   />
                   <button
                     type="button"
