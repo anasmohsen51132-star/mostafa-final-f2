@@ -5,9 +5,19 @@ import { verifyPassword, DUMMY_HASH } from "@/lib/bcrypt";
 import { signToken, setAuthCookie, generateSessionId } from "@/lib/auth";
 import { normalizePhone, success, error } from "@/lib/utils";
 import { rateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { logInfo, logWarning, logCritical } from "@/lib/logger";
 import prisma from "@/lib/prisma";
 
+// Task 2 (Developer Dashboard monitoring): login is the single clearest,
+// highest-value choke point for "Authentication events"/"Authentication
+// failures"/"Security events" — every log call below is purely additive
+// (awaited so it's durable before the serverless function returns, but
+// logger.ts guarantees it can never throw) and does not change any
+// existing status code, response shape, or control flow.
+const ROUTE = "/api/auth/login";
+
 export async function POST(req: NextRequest) {
+  const userAgent = req.headers.get("user-agent");
   try {
     const ip = getClientIp(req);
     // BUGFIX: 10 attempts/5min was too tight for a shared IP — many
@@ -31,6 +41,9 @@ export async function POST(req: NextRequest) {
     if (ip !== "unknown") {
       const limited = await rateLimit(`login:${ip}`, 40, 5 * 60 * 1000);
       if (!limited.allowed) {
+        await logWarning("SECURITY", "تجاوز الحد المسموح لمحاولات تسجيل الدخول من هذا الـ IP", {
+          route: ROUTE, method: "POST", ip, userAgent,
+        });
         return rateLimitResponse("محاولات كثيرة جداً، حاول مرة أخرى بعد قليل", limited.retryAfterMs);
       }
     }
@@ -47,6 +60,9 @@ export async function POST(req: NextRequest) {
     // Per-account limit too, to blunt distributed credential stuffing across many IPs
     const accountLimited = await rateLimit(`login-account:${phone}`, 10, 5 * 60 * 1000);
     if (!accountLimited.allowed) {
+      await logWarning("SECURITY", "تجاوز الحد المسموح لمحاولات تسجيل الدخول على حساب واحد", {
+        route: ROUTE, method: "POST", ip, userAgent, metadata: { phone },
+      });
       return rateLimitResponse("محاولات كثيرة جداً على هذا الحساب، حاول مرة أخرى بعد قليل", accountLimited.retryAfterMs);
     }
 
@@ -66,8 +82,18 @@ export async function POST(req: NextRequest) {
     // cost if no user exists) before returning the identical rejection.
     const valid = await verifyPassword(password, user?.passwordHash ?? DUMMY_HASH);
 
-    if (!user || !valid) return error("رقم الهاتف أو كلمة المرور غير صحيحة", 401);
-    if (!user.isActive) return error("حسابك موقوف، تواصل مع الإدارة", 403);
+    if (!user || !valid) {
+      await logWarning("SECURITY", "محاولة تسجيل دخول فاشلة: بيانات غير صحيحة", {
+        route: ROUTE, method: "POST", ip, userAgent, metadata: { phone },
+      });
+      return error("رقم الهاتف أو كلمة المرور غير صحيحة", 401);
+    }
+    if (!user.isActive) {
+      await logWarning("AUTH", "محاولة تسجيل دخول لحساب موقوف", {
+        route: ROUTE, method: "POST", ip, userAgent, userId: user.id, role: user.role,
+      });
+      return error("حسابك موقوف، تواصل مع الإدارة", 403);
+    }
 
     // AUTH-002: a fresh session id here, saved as the *only* valid one for
     // this account, is what makes login on this device immediately log out
@@ -81,9 +107,18 @@ export async function POST(req: NextRequest) {
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { passwordHash: _, ...safeUser } = user;
+
+    await logInfo("AUTH", "تسجيل دخول ناجح", {
+      route: ROUTE, method: "POST", ip, userAgent, userId: user.id, role: user.role,
+    });
+
     return success({ user: safeUser });
   } catch (e) {
     console.error("[login]", e);
+    await logCritical("EXCEPTION", e instanceof Error ? e.message : "خطأ غير متوقع في تسجيل الدخول", {
+      route: ROUTE, method: "POST", userAgent,
+      stack: e instanceof Error ? e.stack : null,
+    });
     return error("حدث خطأ في الخادم", 500);
   }
 }
