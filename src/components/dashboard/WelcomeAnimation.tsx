@@ -12,11 +12,11 @@ export function WelcomeAnimation({ name, onDone }: Props) {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    const t = setTimeout(() => {
+    let timerId = setTimeout(() => {
       setVisible(false);
-      setTimeout(() => onDone?.(), 600);
+      timerId = setTimeout(() => onDone?.(), 600);
     }, 2800);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timerId);
   }, [onDone]);
 
   return (
