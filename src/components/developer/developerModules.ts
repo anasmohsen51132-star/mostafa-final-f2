@@ -27,17 +27,17 @@ export const DEVELOPER_MODULES: DeveloperModule[] = [
   },
   {
     id: "monitoring",
-    label: "المراقبة الحية",
+    label: "أحداث النظام",
     icon: "📡",
     href: "/developer/monitoring",
-    description: "متابعة حالة الخوادم والطلبات في الوقت الفعلي.",
+    description: "سجل زمني لأحداث المنصة: تسجيل دخول، أحداث أمان، وأحداث النظام.",
   },
   {
     id: "errors",
     label: "مركز الأخطاء",
     icon: "🐞",
     href: "/developer/errors",
-    description: "تجميع وتتبع الأخطاء البرمجية عبر المنصة.",
+    description: "بحث وفلترة وتتبع الأخطاء المسجلة عبر المنصة.",
   },
   {
     id: "performance",
