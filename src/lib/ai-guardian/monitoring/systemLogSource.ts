@@ -4,6 +4,7 @@
 // today, reading Task 2's SystemLog table (src/lib/logger.ts / Error
 // Center). Nothing here touches or assumes anything about Task 3.
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import type {
   ErrorSummary, AuthSummary, SecuritySummary, SystemEventSummary,
   ErrorMetricsSource, AuthMetricsSource, SecurityMetricsSource, SystemEventsSource,
@@ -16,9 +17,9 @@ function windowStart(hours: number): Date {
 export const systemLogSource: ErrorMetricsSource & AuthMetricsSource & SecurityMetricsSource & SystemEventsSource = {
   async getErrorSummary(windowHours) {
     const since = windowStart(windowHours);
-    const where = {
+    const where: Prisma.SystemLogWhereInput = {
       createdAt: { gte: since },
-      severity: { in: ["ERROR", "CRITICAL", "WARNING"] as const },
+      severity: { in: ["ERROR", "CRITICAL", "WARNING"] },
     };
 
     const [totalErrors, totalCritical, totalWarnings, unresolvedCount, grouped] = await Promise.all([
@@ -59,7 +60,7 @@ export const systemLogSource: ErrorMetricsSource & AuthMetricsSource & SecurityM
 
   async getAuthSummary(windowHours) {
     const since = windowStart(windowHours);
-    const base = { createdAt: { gte: since }, route: "/api/auth/login" as const };
+    const base: Prisma.SystemLogWhereInput = { createdAt: { gte: since }, route: "/api/auth/login" };
 
     const [successfulLogins, failedLogins, blockedAccountAttempts, rateLimitHits] = await Promise.all([
       prisma.systemLog.count({ where: { ...base, category: "AUTH", severity: "INFO" } }),
@@ -73,7 +74,7 @@ export const systemLogSource: ErrorMetricsSource & AuthMetricsSource & SecurityM
 
   async getSecuritySummary(windowHours) {
     const since = windowStart(windowHours);
-    const where = { createdAt: { gte: since }, category: "SECURITY" as const };
+    const where: Prisma.SystemLogWhereInput = { createdAt: { gte: since }, category: "SECURITY" };
 
     const [securityEventCount, grouped] = await Promise.all([
       prisma.systemLog.count({ where }),
