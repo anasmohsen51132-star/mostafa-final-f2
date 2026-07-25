@@ -30,8 +30,14 @@ export const systemLogSource: ErrorMetricsSource & AuthMetricsSource & SecurityM
       prisma.systemLog.groupBy({
         by: ["message", "category"],
         where,
-        _count: { _all: true },
-        orderBy: { _count: { _all: "desc" } },
+        // NOTE: Prisma's groupBy `orderBy` can only reference an actual
+        // aggregated field — `_count: { _all: ... }` is valid when reading
+        // the *result* (e.g. g._count._all below) but NOT valid inside
+        // `orderBy`. `message` is one of the grouped `by` fields and is
+        // never null, so counting it is equivalent to counting the whole
+        // group and is a name Prisma actually allows to sort by.
+        _count: { _all: true, message: true },
+        orderBy: { _count: { message: "desc" } },
         take: 8,
       }),
     ]);
@@ -81,8 +87,10 @@ export const systemLogSource: ErrorMetricsSource & AuthMetricsSource & SecurityM
       prisma.systemLog.groupBy({
         by: ["message"],
         where,
-        _count: { _all: true },
-        orderBy: { _count: { _all: "desc" } },
+        // Same fix as getErrorSummary above — order by the grouped field's
+        // count (`message`), not the invalid `_all` key.
+        _count: { _all: true, message: true },
+        orderBy: { _count: { message: "desc" } },
         take: 5,
       }),
     ]);
