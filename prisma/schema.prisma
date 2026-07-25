@@ -70,6 +70,13 @@ model User {
   // existing users have no session yet until their next login.
   currentSessionId String?
 
+  // Task 3 (Platform Metrics — "active users"/"online admins"/"online
+  // owners"): updated by /api/auth/me's success path, at most once every 5
+  // minutes per user (see that route for the exact throttle), never on
+  // every request — this is a coarse "seen in roughly the last few
+  // minutes" signal, not a precise online/offline flag.
+  lastSeenAt DateTime?
+
   redeemedCodes      AccessCode[]       @relation("CodeRedeemer")
   createdCodes       AccessCode[]       @relation("CodeCreator")
   progress           Progress[]
@@ -82,6 +89,7 @@ model User {
 
   @@index([phone])
   @@index([role])
+  @@index([lastSeenAt])
   @@index([academicLevel])
 }
 
@@ -571,4 +579,33 @@ model SystemLog {
   @@index([resolved])
   @@index([createdAt])
   @@index([userId])
+}
+
+// ── REQUEST METRICS (Task 3 — Live Monitoring) ─────────────
+//
+// Deliberately a separate, lightweight table from SystemLog above, not a
+// new SystemLog category: this row gets written on every request handled
+// by an instrumented route (see src/lib/monitoring/recordMetric.ts),
+// including ordinary successful ones — mixing that routine, high-volume
+// traffic data into SystemLog (an error/audit log meant to stay small and
+// fast to query) would bloat it and slow down error-center queries over
+// time. This table is expected to grow quickly and is meant to be
+// periodically pruned (see the note in src/lib/monitoring/recordMetric.ts).
+//
+// Populated ONLY by routes that opt into withApiMonitoring() — per Task 3's
+// "do not modify existing LMS functionality" constraint, no existing route
+// has been changed to write here; today that's the new /api/developer/
+// monitoring endpoint itself. Existing routes can adopt it later exactly
+// the same way withApiLogging (Task 2) is opt-in.
+model RequestMetric {
+  id         String   @id @default(cuid())
+  route      String
+  method     String
+  statusCode Int
+  durationMs Int
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([route])
+  @@index([statusCode])
 }
