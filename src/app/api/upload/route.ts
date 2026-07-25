@@ -4,6 +4,7 @@ import { put } from "@vercel/blob";
 import { extractToken, verifyToken } from "@/lib/auth";
 import { success, error, unauthorized, forbidden } from "@/lib/utils";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { logError } from "@/lib/logger";
 
 const MAX_IMAGE_SIZE = 5  * 1024 * 1024; // 5 MB
 const MAX_PDF_SIZE   = 20 * 1024 * 1024; // 20 MB
@@ -94,6 +95,12 @@ export async function POST(req: NextRequest) {
 
   } catch (e) {
     console.error("[upload POST]", e);
+    // Task 3 (Storage Monitor): only touches observability, not behavior —
+    // same response/status as before. See getStorageMetrics() for how this
+    // is read back.
+    await logError("UPLOAD", "فشل رفع ملف إلى التخزين", {
+      stack: e instanceof Error ? e.stack : null,
+    });
     return error("حدث خطأ أثناء رفع الملف", 500);
   }
 }
