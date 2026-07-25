@@ -15,6 +15,13 @@ export interface DeveloperModule {
   icon: string;
   href: string;
   description: string;
+  // Task 3: true once a module has a real page behind it (monitoring/
+  // errors from Task 2; performance/database/security from Task 3).
+  // The sidebar in (developer)/layout.tsx still lists every module
+  // regardless of this flag — a developer can navigate to any of them —
+  // this only controls whether the dashboard home's "قريباً" grid still
+  // shows a "coming soon" card for it.
+  isLive?: boolean;
 }
 
 export const DEVELOPER_MODULES: DeveloperModule[] = [
@@ -23,7 +30,8 @@ export const DEVELOPER_MODULES: DeveloperModule[] = [
     label: "الحارس الذكي (AI Guardian)",
     icon: "🛡️",
     href: "/developer/ai-guardian",
-    description: "مراقبة ذكية تلقائية لصحة المنصة والتنبيه المبكر عن أي مشاكل.",
+    description: "تحليل ذكي (بموافقة بشرية صريحة) لصحة المنصة: رؤى، تنبؤات، وتحليل جذري للحوادث.",
+    isLive: true,
   },
   {
     id: "monitoring",
@@ -31,6 +39,7 @@ export const DEVELOPER_MODULES: DeveloperModule[] = [
     icon: "📡",
     href: "/developer/monitoring",
     description: "سجل زمني لأحداث المنصة: تسجيل دخول، أحداث أمان، وأحداث النظام.",
+    isLive: true,
   },
   {
     id: "errors",
@@ -38,6 +47,7 @@ export const DEVELOPER_MODULES: DeveloperModule[] = [
     icon: "🐞",
     href: "/developer/errors",
     description: "بحث وفلترة وتتبع الأخطاء المسجلة عبر المنصة.",
+    isLive: true,
   },
   {
     id: "performance",
@@ -45,6 +55,7 @@ export const DEVELOPER_MODULES: DeveloperModule[] = [
     icon: "⚡",
     href: "/developer/performance",
     description: "قياس سرعة الاستجابة ومؤشرات الأداء العامة.",
+    isLive: true,
   },
   {
     id: "security",
@@ -52,6 +63,7 @@ export const DEVELOPER_MODULES: DeveloperModule[] = [
     icon: "🔒",
     href: "/developer/security",
     description: "فحوصات أمنية ومراجعة محاولات الوصول غير المصرح بها.",
+    isLive: true,
   },
   {
     id: "database",
@@ -59,6 +71,7 @@ export const DEVELOPER_MODULES: DeveloperModule[] = [
     icon: "🗄️",
     href: "/developer/database",
     description: "نظرة عامة على صحة واستخدام قاعدة البيانات.",
+    isLive: true,
   },
   {
     id: "deployments",
