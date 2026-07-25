@@ -609,3 +609,31 @@ model RequestMetric {
   @@index([route])
   @@index([statusCode])
 }
+
+// ── AI GUARDIAN (Developer Dashboard — Task 4) ─────────────────
+//
+// One row per generated report. Generation is ALWAYS human-triggered (a
+// developer clicking "Generate Report" — see
+// POST /api/developer/ai-guardian/reports) — there is no cron job or
+// automatic schedule producing these, both to respect the "no automatic
+// actions" rule and to keep AI provider spend under explicit human
+// control. `inputSnapshot` stores the exact sanitized data that was sent
+// to the provider, for audit/debugging — never raw DB rows.
+model AiGuardianReport {
+  id            String   @id @default(cuid())
+  provider      String   // "claude" | "openai" | "gemini"
+  model         String
+  windowHours   Int
+  platformScore Int
+  status        String   // "HEALTHY" | "WARNING" | "CRITICAL"
+  summary       String   @db.Text
+  reportJson    Json     // full GuardianReport (see reportSchema.ts)
+  inputSnapshot Json     // the sanitized PlatformSnapshot sent to the provider
+  tokensUsed    Int?
+  generatedBy   String?  // developer User.id who triggered generation
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([status])
+}
