@@ -26,7 +26,11 @@ function extractJson(text: string): unknown {
 export async function generateGuardianReport(opts: { windowHours?: number; generatedBy?: string | null }) {
   const windowHours = opts.windowHours ?? 24;
 
-  const provider = getActiveProvider();
+  const preferredProviderId = opts.generatedBy
+    ? (await prisma.developerSettings.findUnique({ where: { userId: opts.generatedBy }, select: { aiProvider: true } }))?.aiProvider
+    : null;
+
+  const provider = getActiveProvider(preferredProviderId);
   if (!provider) {
     throw new GuardianGenerationError(
       "لا يوجد مزود ذكاء اصطناعي مُفعَّل حاليًا. اضبط AI_GUARDIAN_PROVIDER ومفتاح الـ API المطابق (ANTHROPIC_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY) في متغيرات البيئة."

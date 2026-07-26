@@ -22,7 +22,7 @@ const REDACTIONS: { pattern: RegExp; replacement: string }[] = [
   { pattern: /\b[A-Za-z0-9_-]{32,}\b/g, replacement: "[قيمة سرية مُخفاة]" },
 ];
 
-function redact(text: string): string {
+export function redactText(text: string): string {
   let out = text;
   for (const { pattern, replacement } of REDACTIONS) out = out.replace(pattern, replacement);
   return out;
@@ -33,15 +33,15 @@ export function sanitizeSnapshot(snapshot: PlatformSnapshot): PlatformSnapshot {
     ...snapshot,
     errors: {
       ...snapshot.errors,
-      topRecurring: snapshot.errors.topRecurring.map((r) => ({ ...r, message: redact(r.message) })),
+      topRecurring: snapshot.errors.topRecurring.map((r) => ({ ...r, message: redactText(r.message) })),
     },
     security: {
       ...snapshot.security,
-      topEvents: snapshot.security.topEvents.map((e) => ({ ...e, message: redact(e.message) })),
+      topEvents: snapshot.security.topEvents.map((e) => ({ ...e, message: redactText(e.message) })),
     },
     systemEvents: {
       ...snapshot.systemEvents,
-      recentEvents: snapshot.systemEvents.recentEvents.map((e) => ({ ...e, message: redact(e.message) })),
+      recentEvents: snapshot.systemEvents.recentEvents.map((e) => ({ ...e, message: redactText(e.message) })),
     },
   };
 }

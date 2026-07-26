@@ -65,7 +65,14 @@ export function buildUserPrompt(snapshot: PlatformSnapshot): string {
           { title: "string", description: "string", risk: "DATABASE_SATURATION | STORAGE_EXHAUSTION | API_INSTABILITY | AUTH_DEGRADATION | MEMORY_PRESSURE | TRAFFIC_SPIKE | OTHER", confidence: "number 0-100" },
         ],
         recommendations: [
-          { title: "string", description: "string", priority: "LOW | MEDIUM | HIGH | URGENT" },
+          {
+            title: "string", description: "string", priority: "LOW | MEDIUM | HIGH | URGENT",
+            difficulty: "EASY | MODERATE | HARD — تقدير صعوبة التنفيذ",
+            estimatedImpact: "LOW | MEDIUM | HIGH — الأثر المتوقع لو اتنفذت",
+            reason: "string — ليه التوصية دي مهمة بناءً على البيانات المُعطاة",
+            relatedComponent: "string — مثال: قاعدة البيانات، رفع الملفات، المصادقة",
+            suggestedInvestigation: "string — خطوة عملية أولى للتحقق قبل التنفيذ",
+          },
         ],
         technicalNotes: "string — ملاحظات تقنية إضافية، أو حدود التحليل بسبب نقص بيانات",
       },

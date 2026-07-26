@@ -30,14 +30,8 @@ export const systemLogSource: ErrorMetricsSource & AuthMetricsSource & SecurityM
       prisma.systemLog.groupBy({
         by: ["message", "category"],
         where,
-        // NOTE: Prisma's groupBy `orderBy` can only reference an actual
-        // aggregated field — `_count: { _all: ... }` is valid when reading
-        // the *result* (e.g. g._count._all below) but NOT valid inside
-        // `orderBy`. `message` is one of the grouped `by` fields and is
-        // never null, so counting it is equivalent to counting the whole
-        // group and is a name Prisma actually allows to sort by.
-        _count: { _all: true, message: true },
-        orderBy: { _count: { message: "desc" } },
+        _count: { _all: true },
+        orderBy: { _count: { _all: "desc" } },
         take: 8,
       }),
     ]);
@@ -66,7 +60,7 @@ export const systemLogSource: ErrorMetricsSource & AuthMetricsSource & SecurityM
 
   async getAuthSummary(windowHours) {
     const since = windowStart(windowHours);
-    const base: Prisma.SystemLogWhereInput = { createdAt: { gte: since }, route: "/api/auth/login" };
+    const base = { createdAt: { gte: since }, route: "/api/auth/login" as const };
 
     const [successfulLogins, failedLogins, blockedAccountAttempts, rateLimitHits] = await Promise.all([
       prisma.systemLog.count({ where: { ...base, category: "AUTH", severity: "INFO" } }),
@@ -80,17 +74,15 @@ export const systemLogSource: ErrorMetricsSource & AuthMetricsSource & SecurityM
 
   async getSecuritySummary(windowHours) {
     const since = windowStart(windowHours);
-    const where: Prisma.SystemLogWhereInput = { createdAt: { gte: since }, category: "SECURITY" };
+    const where = { createdAt: { gte: since }, category: "SECURITY" as const };
 
     const [securityEventCount, grouped] = await Promise.all([
       prisma.systemLog.count({ where }),
       prisma.systemLog.groupBy({
         by: ["message"],
         where,
-        // Same fix as getErrorSummary above — order by the grouped field's
-        // count (`message`), not the invalid `_all` key.
-        _count: { _all: true, message: true },
-        orderBy: { _count: { message: "desc" } },
+        _count: { _all: true },
+        orderBy: { _count: { _all: "desc" } },
         take: 5,
       }),
     ]);
