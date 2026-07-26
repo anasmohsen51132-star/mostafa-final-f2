@@ -52,19 +52,21 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen" style={{ background: "#F5F1E8", direction: "rtl" }}>
       <ToastContainer />
-      <Sidebar
-        items={DEVELOPER_NAV}
-        brandSub="🛠️ لوحة المطور"
-        onLogout={logout}
-        userName={user.name}
-        userAvatar={user.avatar ?? user.name.charAt(0)}
-        isOpen={sidebarOpen}
-        onClose={handleClose}
-      />
+      <div className="print:hidden">
+        <Sidebar
+          items={DEVELOPER_NAV}
+          brandSub="🛠️ لوحة المطور"
+          onLogout={logout}
+          userName={user.name}
+          userAvatar={user.avatar ?? user.name.charAt(0)}
+          isOpen={sidebarOpen}
+          onClose={handleClose}
+        />
+      </div>
       <main className="min-h-screen">
-        <div className="lg:mr-64 px-3 sm:px-4 md:px-5 py-4 sm:py-5 md:py-6">
+        <div className="lg:mr-64 print:mr-0 px-3 sm:px-4 md:px-5 py-4 sm:py-5 md:py-6">
           {/* Mobile top bar */}
-          <div className="flex lg:hidden items-center justify-between mb-5">
+          <div className="flex lg:hidden print:hidden items-center justify-between mb-5">
             <button onClick={() => setSidebarOpen(true)}
               className="flex items-center justify-center w-10 h-10 rounded-xl"
               style={{ background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.25)", cursor: "pointer" }}

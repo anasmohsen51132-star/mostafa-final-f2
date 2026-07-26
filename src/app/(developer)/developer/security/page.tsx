@@ -1,15 +1,17 @@
 "use client";
 // src/app/(developer)/developer/security/page.tsx
 //
-// Task 3, Section 5 (Authentication Monitor). Every number here maps to a
-// specific, structured SystemLog signal — see
-// src/lib/monitoring/authMetrics.ts's doc comment for exactly which route/
-// category/severity/metadata combination each one is.
+// Task 3, Section 5 (Authentication Monitor) content below is UNCHANGED.
+// Task 5, Section 4 (Security Center) extends this same page additively
+// with rate-limit events, suspicious-IP patterns, security incidents, and
+// rule-based recommendations — see SecurityExtras component and
+// GET /api/developer/security.
 import { m as motion } from "framer-motion";
 import Link from "next/link";
 import { useMonitoring } from "@/hooks/useMonitoring";
 import { StatTile } from "@/components/developer/monitoring/StatTile";
 import { SkeletonGrid } from "@/components/developer/monitoring/SkeletonGrid";
+import { SecurityExtras } from "@/components/developer/security/SecurityExtras";
 
 export default function SecurityPage() {
   const { snapshot, isLoading } = useMonitoring();
@@ -19,10 +21,10 @@ export default function SecurityPage() {
     <div style={{ direction: "rtl" }}>
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
         <h1 style={{ fontFamily: "Amiri,serif", color: "#1A1208", fontSize: 32, marginBottom: 4 }}>
-          🔐 مراقبة المصادقة
+          🔒 مركز الأمان
         </h1>
         <p style={{ fontFamily: "Cairo,sans-serif", color: "#7A6E5A", fontSize: 14 }}>
-          نشاط تسجيل الدخول والجلسات اليوم
+          نشاط المصادقة والجلسات، وأحداث الأمان الأوسع، خلال آخر 24 ساعة
         </p>
       </motion.div>
 
@@ -65,6 +67,10 @@ export default function SecurityPage() {
           تعذّر تحميل بيانات المصادقة الآن.
         </p>
       )}
+
+      <div className="mt-8">
+        <SecurityExtras />
+      </div>
     </div>
   );
 }

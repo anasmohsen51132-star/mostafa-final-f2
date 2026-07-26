@@ -36,7 +36,18 @@ export default function HistoryPage() {
           <h1 style={{ fontFamily: "Amiri,serif", color: "#1A1208", fontSize: 32, marginBottom: 4 }}>🕓 السجل التاريخي</h1>
           <p style={{ fontFamily: "Cairo,sans-serif", color: "#7A6E5A", fontSize: 14 }}>{total} تقرير تم توليده</p>
         </div>
-        <GenerateReportButton compact />
+        <div className="flex items-center gap-2">
+          <a
+            href="/api/developer/ai-guardian/reports/export"
+            style={{
+              background: "#fff", color: "#1A6B47", border: "1.5px solid #1A6B47", borderRadius: 10,
+              padding: "9px 16px", fontWeight: 700, fontFamily: "Cairo,sans-serif", fontSize: 13, textDecoration: "none",
+            }}
+          >
+            ⬇️ تصدير CSV
+          </a>
+          <GenerateReportButton compact />
+        </div>
       </motion.div>
 
       {isLoading && <div className="space-y-2">{[...Array(6)].map((_, i) => <div key={i} className="skeleton rounded-xl h-20" />)}</div>}

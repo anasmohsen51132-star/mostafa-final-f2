@@ -14,10 +14,11 @@ interface ReportRow {
 }
 
 const NAV_CARDS = [
-  { href: "/developer/ai-guardian/insights",    icon: "💡", label: "الرؤى (Insights)" },
-  { href: "/developer/ai-guardian/predictions", icon: "🔮", label: "التنبؤات" },
-  { href: "/developer/ai-guardian/incidents",   icon: "🧩", label: "تحليل الحوادث" },
-  { href: "/developer/ai-guardian/history",     icon: "🕓", label: "السجل التاريخي" },
+  { href: "/developer/ai-guardian/insights",        icon: "💡", label: "الرؤى (Insights)" },
+  { href: "/developer/ai-guardian/predictions",      icon: "🔮", label: "التنبؤات" },
+  { href: "/developer/ai-guardian/recommendations",  icon: "📋", label: "التوصيات" },
+  { href: "/developer/ai-guardian/incidents",        icon: "🧩", label: "تحليل الحوادث" },
+  { href: "/developer/ai-guardian/history",          icon: "🕓", label: "السجل التاريخي" },
 ];
 
 export default function AiGuardianHub() {

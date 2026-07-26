@@ -33,12 +33,20 @@ export default function ReportDetailPage() {
 
   return (
     <div style={{ direction: "rtl" }}>
-      <button
-        onClick={() => router.back()}
-        style={{ background: "none", border: "none", color: "#1A6B47", fontFamily: "Cairo,sans-serif", fontSize: 13, cursor: "pointer", marginBottom: 16, padding: 0 }}
-      >
-        → رجوع
-      </button>
+      <div className="flex items-center justify-between mb-4 print:hidden">
+        <button
+          onClick={() => router.back()}
+          style={{ background: "none", border: "none", color: "#1A6B47", fontFamily: "Cairo,sans-serif", fontSize: 13, cursor: "pointer", padding: 0 }}
+        >
+          → رجوع
+        </button>
+        <button
+          onClick={() => window.print()}
+          style={{ background: "#1A6B47", color: "#fff", border: "none", borderRadius: 10, padding: "8px 18px", fontWeight: 700, fontFamily: "Cairo,sans-serif", fontSize: 12.5, cursor: "pointer" }}
+        >
+          🖨️ تصدير PDF (طباعة)
+        </button>
+      </div>
 
       {isLoading && <div className="skeleton rounded-3xl h-64" />}
       {notFound && (
