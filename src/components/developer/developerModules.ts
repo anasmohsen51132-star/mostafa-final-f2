@@ -74,11 +74,28 @@ export const DEVELOPER_MODULES: DeveloperModule[] = [
     isLive: true,
   },
   {
+    id: "incidents",
+    label: "مركز الحوادث",
+    icon: "🧩",
+    href: "/developer/incidents",
+    description: "تتبع الحوادث المتكررة، تحليل السبب الجذري بالذكاء الاصطناعي، وسير عمل الحل.",
+    isLive: true,
+  },
+  {
     id: "deployments",
     label: "عمليات النشر",
     icon: "🚀",
     href: "/developer/deployments",
     description: "متابعة تاريخ عمليات النشر وحالتها.",
+    isLive: true,
+  },
+  {
+    id: "backup",
+    label: "النسخ الاحتياطي",
+    icon: "💾",
+    href: "/developer/backup",
+    description: "حالة قاعدة البيانات وجاهزية الاستعادة.",
+    isLive: true,
   },
   {
     id: "notifications",
@@ -99,6 +116,7 @@ export const DEVELOPER_MODULES: DeveloperModule[] = [
     label: "الإعدادات",
     icon: "⚙️",
     href: "/developer/settings",
-    description: "إعدادات لوحة المطور المتقدمة.",
+    description: "فحص إعدادات المنصة، وتفضيلات لوحة المطور.",
+    isLive: true,
   },
 ];
