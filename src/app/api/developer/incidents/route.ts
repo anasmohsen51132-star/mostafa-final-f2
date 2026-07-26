@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { extractToken, verifyToken } from "@/lib/auth";
 import { success, error, unauthorized, forbidden } from "@/lib/utils";
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { syncIncidentsFromLogs } from "@/lib/incidents/syncIncidents";
 import { buildFingerprint } from "@/lib/incidents/fingerprint";
@@ -35,9 +36,9 @@ export async function GET(req: NextRequest) {
     const page  = Math.max(parseInt(url.searchParams.get("page") || "1"), 1);
     const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "20"), 1), 100);
 
-    const where: Record<string, unknown> = {};
-    if (status && (VALID_STATUS as readonly string[]).includes(status)) where.status = status;
-    if (severity && (VALID_SEVERITY as readonly string[]).includes(severity)) where.severity = severity;
+    const where: Prisma.IncidentWhereInput = {};
+    if (status && (VALID_STATUS as readonly string[]).includes(status)) where.status = status as Prisma.IncidentWhereInput["status"];
+    if (severity && (VALID_SEVERITY as readonly string[]).includes(severity)) where.severity = severity as Prisma.IncidentWhereInput["severity"];
     if (search) where.title = { contains: search, mode: "insensitive" };
 
     const [incidents, total] = await Promise.all([
