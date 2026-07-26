@@ -637,3 +637,145 @@ model AiGuardianReport {
   @@index([createdAt])
   @@index([status])
 }
+
+// ── DEVELOPER OPERATIONS SUITE (Task 5) ──────────────────────
+//
+// Incident: a deduplicated, trackable problem — distinct from SystemLog
+// (one row per raw event) and AiGuardianReport (one row per platform-wide
+// analysis snapshot). Many SystemLog rows with the same `fingerprint` map
+// to ONE Incident, whose firstDetectedAt/lastDetectedAt/occurrenceCount
+// track its whole lifetime. Incidents are kept in sync from SystemLog
+// opportunistically — every time GET /api/developer/incidents is called
+// (see src/lib/incidents/syncIncidents.ts) — not via a cron job: this is
+// the same "sync on read" pattern already used elsewhere in this project
+// (e.g. RateLimitBucket's opportunistic cleanup in src/lib/rate-limit.ts).
+// Developers can also open an incident manually.
+//
+// No relation to User for assignedTo/createdBy (deliberately plain
+// string ids) — this keeps the model self-contained and avoids adding
+// more back-relation fields to the User model than necessary; the few
+// DEVELOPER accounts this ever needs to reference are looked up
+// separately when rendering.
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IncidentStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+  CLOSED
+}
+
+model Incident {
+  id       String @id @default(cuid())
+  title    String
+  severity IncidentSeverity
+  status   IncidentStatus   @default(OPEN)
+  category String // mirrors LogCategory values where the incident originated from a log
+
+  // Dedup key (category + normalized title) — see fingerprint.ts. Unique so
+  // syncIncidents.ts can upsert instead of creating duplicates for the same
+  // recurring problem.
+  fingerprint String @unique
+
+  firstDetectedAt DateTime @default(now())
+  lastDetectedAt  DateTime @default(now())
+  occurrenceCount Int      @default(1)
+
+  // Populated by POST /api/developer/incidents/[id]/analyze — always
+  // human-triggered, never automatic. `aiAnalysis` stores the full
+  // structured result; rootCause/suggestedFix are denormalized copies of
+  // two of its fields purely so list views and exports don't need to
+  // unpack JSON.
+  rootCause    String? @db.Text
+  suggestedFix String? @db.Text
+  aiAnalysis   Json?
+
+  assignedTo      String? // User.id of a DEVELOPER, looked up separately
+  resolutionNotes String? @db.Text
+  createdBy       String? // User.id if opened manually, null if auto-detected
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([severity])
+  @@index([lastDetectedAt])
+  @@index([category])
+}
+
+// PatchPreview: Section 3. AI-generated suggestion, TEXT ONLY — never
+// written to disk, never committed, never deployed. `approvalStatus` is
+// purely a workflow label a developer sets manually; setting it to
+// APPROVED does not trigger any file write, commit, or deployment
+// anywhere in this codebase. Optionally linked to an Incident.
+model PatchPreview {
+  id         String  @id @default(cuid())
+  incidentId String?
+
+  problemSummary   String   @db.Text
+  likelyFiles      String[]
+  suggestedChanges Json // array of { file, description, codeSnippet } — illustrative text only
+  expectedBenefits String[]
+  possibleRisks    String[]
+
+  approvalStatus String    @default("PENDING") // PENDING | APPROVED | REJECTED — a label only
+  approvedBy     String?
+  approvedAt     DateTime?
+
+  provider  String
+  model     String
+  createdBy String?
+  createdAt DateTime @default(now())
+
+  @@index([incidentId])
+  @@index([approvalStatus])
+}
+
+// DeveloperSettings: one row per DEVELOPER user (Section 10). Every field
+// here is a *preference the UI reads*, not something that reaches into
+// and reconfigures another module's code — e.g. `aiProvider` overrides the
+// AI_GUARDIAN_PROVIDER env default (see providers/registry.ts), and
+// `monitoringIntervalSec` is read by useMonitoring()/polling hooks as the
+// interval to request, rather than any file being rewritten.
+model DeveloperSettings {
+  userId String @id // one row per developer, User.id as the key
+
+  theme                 String  @default("system") // "light" | "dark" | "system"
+  monitoringIntervalSec Int     @default(15)
+  aiProvider            String? // null = fall back to AI_GUARDIAN_PROVIDER env var
+  incidentRetentionDays Int     @default(90)
+  dashboardDensity      String  @default("comfortable") // "comfortable" | "compact"
+
+  updatedAt DateTime @updatedAt
+}
+
+// NotificationChannel: Section 8 — architecture + settings UI only, per
+// the task's explicit "do not send notifications yet" instruction. Rows
+// are stored and can be enabled/disabled, but nothing in this codebase
+// reads `config` to actually dispatch anything.
+enum NotificationChannelType {
+  EMAIL
+  TELEGRAM
+  DISCORD
+  SLACK
+  WEBHOOK
+}
+
+model NotificationChannel {
+  id        String                  @id @default(cuid())
+  type      NotificationChannelType
+  label     String
+  enabled   Boolean                 @default(false)
+  config    Json // shape depends on `type` — e.g. { webhookUrl } for WEBHOOK; never sent anywhere yet
+  createdBy String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+}
