@@ -7,6 +7,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { extractToken, verifyToken } from "@/lib/auth";
 import { success, error, unauthorized, forbidden } from "@/lib/utils";
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 
 const CHANNEL_TYPES = ["EMAIL", "TELEGRAM", "DISCORD", "SLACK", "WEBHOOK"] as const;
@@ -44,7 +45,11 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return error(parsed.error.errors[0]?.message || "بيانات غير صحيحة");
 
     const channel = await prisma.notificationChannel.create({
-      data: { ...parsed.data, createdBy: payload.sub },
+      data: {
+        ...parsed.data,
+        config: parsed.data.config as unknown as Prisma.InputJsonValue,
+        createdBy: payload.sub,
+      },
     });
     return success(channel);
   } catch (e) {
