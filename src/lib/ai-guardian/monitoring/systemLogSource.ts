@@ -31,7 +31,7 @@ export const systemLogSource: ErrorMetricsSource & AuthMetricsSource & SecurityM
         by: ["message", "category"],
         where,
         _count: { _all: true },
-        orderBy: { _count: { _all: "desc" } },
+        orderBy: { _count: { message: "desc" } },
         take: 8,
       }),
     ]);
@@ -82,7 +82,7 @@ export const systemLogSource: ErrorMetricsSource & AuthMetricsSource & SecurityM
         by: ["message"],
         where,
         _count: { _all: true },
-        orderBy: { _count: { _all: "desc" } },
+        orderBy: { _count: { message: "desc" } },
         take: 5,
       }),
     ]);
