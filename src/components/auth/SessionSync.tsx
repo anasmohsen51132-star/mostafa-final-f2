@@ -55,19 +55,58 @@ export function SessionSync() {
 
     inFlight.current = true;
     fetch("/api/auth/me", { credentials: "same-origin" })
-      .then((res) => res.json())
-      .then((res) => {
+      .then(async (res) => {
         const { setUser, clearAuth, setSessionVerified, toast } = liveRef.current;
-        if (res.success) {
-          notifiedThisLogout.current = false;
-          setUser(res.data.user);
-        } else {
+
+        // AUTH-006 FIX: this used to trust the response body's `success`
+        // flag alone. ANY non-2xx — a transient 500 from a cold/exhausted
+        // Prisma connection (this app's DB pool has hit limits before, see
+        // prisma.ts), a momentary blip, a flaky mobile connection that
+        // still returned *something* — looked identical to a genuine "you
+        // are logged out" signal and wiped a perfectly valid session. That
+        // silently produced exactly the "login works, then next time I'm
+        // stuck on /login and nothing gets me back in" report: one
+        // transient failure cleared the client's user, and since
+        // background rechecks are (correctly) skipped once `user` is
+        // null, the app never retried — the tab stayed "logged out"
+        // forever even though the httpOnly cookie was never touched and
+        // the account's session was never actually invalidated.
+        //
+        // /api/auth/me only ever returns 401 for a genuine invalid/
+        // expired/replaced-by-another-device session (see route.ts) — that
+        // is the ONLY status that should clear local auth state. This is
+        // also exactly what preserves single-device enforcement: a real
+        // "logged in elsewhere" kick-out still comes back as 401 and still
+        // logs this device out immediately, same as before. Anything else
+        // (500, network hiccups, unexpected bodies) is now treated as
+        // "try again shortly", leaving the current session untouched.
+        let body: { success?: boolean; data?: { user: unknown }; error?: string } | null = null;
+        try {
+          body = await res.json();
+        } catch {
+          body = null;
+        }
+
+        if (res.status === 401) {
           if (isBackgroundRecheck && !notifiedThisLogout.current) {
             notifiedThisLogout.current = true;
-            toast.info(res.error || "انتهت الجلسة");
+            toast.info(body?.error || "انتهت الجلسة");
           }
           clearAuth();
+          return;
         }
+
+        if (body?.success && body.data) {
+          notifiedThisLogout.current = false;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          setUser(body.data.user as any);
+          return;
+        }
+
+        // Transient failure (5xx, malformed body, offline blip that still
+        // resolved, etc.) — leave auth state exactly as it was. The next
+        // 15s interval / focus event will simply try again.
+        if (!isBackgroundRecheck) setSessionVerified();
       })
       .catch(() => {
         if (!isBackgroundRecheck) liveRef.current.setSessionVerified();
