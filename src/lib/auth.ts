@@ -3,7 +3,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 import type { User } from "@/types";
-import { AUTH_COOKIE_NAME } from "@/lib/cookie-name";
+import { AUTH_COOKIE_NAME, authCookieOptions } from "@/lib/cookie-name";
 import prisma from "@/lib/prisma";
 
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
@@ -80,13 +80,12 @@ export async function getCurrentUser(): Promise<JWTPayload | null> {
 // ---- Set auth cookie ----
 export async function setAuthCookie(token: string) {
   const cookieStore = await cookies();
-  cookieStore.set(AUTH_COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 60, // AUTH-003: 60 days, matches JWT expiry above
-    path: "/",
-  });
+  cookieStore.set(
+    AUTH_COOKIE_NAME,
+    token,
+    // AUTH-003: 60 days, matches JWT expiry above
+    authCookieOptions({ maxAge: 60 * 60 * 24 * 60 })
+  );
 }
 
 // ---- Clear auth cookie ----
@@ -95,25 +94,14 @@ export async function setAuthCookie(token: string) {
 // directory (e.g. "/api/auth"), NOT the "/" the cookie was set with in
 // setAuthCookie() above. A Set-Cookie with a different Path is a *different*
 // cookie as far as the browser is concerned, so the real, still-valid
-// "/"-scoped cookie was left completely untouched by "logout".
-// Worse: in production AUTH_COOKIE_NAME carries the `__Host-` prefix (see
-// cookie-name.ts), and browsers reject any __Host- Set-Cookie outright
-// unless it explicitly has Path=/ — so in production this delete call did
-// nothing at all. Symptom: right after "logging out", visiting a public
-// page and navigating to "/" would silently redirect back into the old
-// dashboard instead of showing the homepage, because getVerifiedUser()
-// still saw a valid session. We now expire the cookie with the exact same
-// attributes it was set with so the browser recognizes it as the same
-// cookie and actually clears it.
+// "/"-scoped cookie was left completely untouched by "logout". We now expire
+// the cookie with the exact same attributes it was set with (via the shared
+// authCookieOptions() in cookie-name.ts — see that file for why this is now
+// centralized instead of a second hand-written copy of the same attributes)
+// so the browser recognizes it as the same cookie and actually clears it.
 export async function clearAuthCookie() {
   const cookieStore = await cookies();
-  cookieStore.set(AUTH_COOKIE_NAME, "", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 0,
-  });
+  cookieStore.set(AUTH_COOKIE_NAME, "", authCookieOptions({ maxAge: 0 }));
 }
 
 // ---- AUTH-002: generate a fresh single-device session id ----
