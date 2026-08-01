@@ -2,7 +2,7 @@
 // Runs in Edge Runtime — only import edge-safe modules
 import { NextRequest, NextResponse } from "next/server";
 import { verifyTokenEdge, extractTokenEdge } from "@/lib/auth-edge";
-import { AUTH_COOKIE_NAME } from "@/lib/cookie-name";
+import { AUTH_COOKIE_NAME, authCookieOptions } from "@/lib/cookie-name";
 
 const PUBLIC_PATHS = [
   "/",
@@ -153,20 +153,14 @@ export async function middleware(req: NextRequest) {
       return withCsp(Response.json({ success: false, error: "انتهت الجلسة" }, { status: 401 }), false);
     }
     const res = redirectNoStore(new URL("/login", req.url));
-    // BUGFIX (same root cause as clearAuthCookie in src/lib/auth.ts):
-    // res.cookies.delete() emits a Set-Cookie with no Secure/Path attributes.
-    // AUTH_COOKIE_NAME carries the __Host- prefix in production, and browsers
-    // silently reject any __Host- Set-Cookie that isn't Secure + Path=/ — so
-    // this delete call did nothing in production, leaving the invalid/stale
-    // cookie in place. Mirror setAuthCookie()'s exact attributes instead so
-    // the browser recognizes it as the same cookie and actually expires it.
-    res.cookies.set(AUTH_COOKIE_NAME, "", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      expires: new Date(0),
-      path: "/",
-    });
+    // BUGFIX (same root cause as clearAuthCookie in src/lib/auth.ts): this used
+    // to hand-write these attributes a third time here, separately from
+    // setAuthCookie/clearAuthCookie in auth.ts — any drift between the two
+    // copies (e.g. a missing Path=/) makes the browser silently reject this
+    // Set-Cookie, leaving the invalid/stale cookie in place. Now sourced from
+    // the one shared authCookieOptions() (see cookie-name.ts) so all three
+    // call sites are always byte-for-byte identical.
+    res.cookies.set(AUTH_COOKIE_NAME, "", authCookieOptions({ expires: new Date(0) }));
     return withCsp(res, false);
   }
 
