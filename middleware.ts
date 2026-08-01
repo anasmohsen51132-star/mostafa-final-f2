@@ -153,7 +153,20 @@ export async function middleware(req: NextRequest) {
       return withCsp(Response.json({ success: false, error: "انتهت الجلسة" }, { status: 401 }), false);
     }
     const res = redirectNoStore(new URL("/login", req.url));
-    res.cookies.delete(AUTH_COOKIE_NAME);
+    // BUGFIX (same root cause as clearAuthCookie in src/lib/auth.ts):
+    // res.cookies.delete() emits a Set-Cookie with no Secure/Path attributes.
+    // AUTH_COOKIE_NAME carries the __Host- prefix in production, and browsers
+    // silently reject any __Host- Set-Cookie that isn't Secure + Path=/ — so
+    // this delete call did nothing in production, leaving the invalid/stale
+    // cookie in place. Mirror setAuthCookie()'s exact attributes instead so
+    // the browser recognizes it as the same cookie and actually expires it.
+    res.cookies.set(AUTH_COOKIE_NAME, "", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      expires: new Date(0),
+      path: "/",
+    });
     return withCsp(res, false);
   }
 
