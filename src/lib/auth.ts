@@ -90,9 +90,30 @@ export async function setAuthCookie(token: string) {
 }
 
 // ---- Clear auth cookie ----
+// BUGFIX (logout didn't actually clear the session): cookieStore.delete(name)
+// with no options emits a Set-Cookie whose Path defaults to this route's own
+// directory (e.g. "/api/auth"), NOT the "/" the cookie was set with in
+// setAuthCookie() above. A Set-Cookie with a different Path is a *different*
+// cookie as far as the browser is concerned, so the real, still-valid
+// "/"-scoped cookie was left completely untouched by "logout".
+// Worse: in production AUTH_COOKIE_NAME carries the `__Host-` prefix (see
+// cookie-name.ts), and browsers reject any __Host- Set-Cookie outright
+// unless it explicitly has Path=/ — so in production this delete call did
+// nothing at all. Symptom: right after "logging out", visiting a public
+// page and navigating to "/" would silently redirect back into the old
+// dashboard instead of showing the homepage, because getVerifiedUser()
+// still saw a valid session. We now expire the cookie with the exact same
+// attributes it was set with so the browser recognizes it as the same
+// cookie and actually clears it.
 export async function clearAuthCookie() {
   const cookieStore = await cookies();
-  cookieStore.delete(AUTH_COOKIE_NAME);
+  cookieStore.set(AUTH_COOKIE_NAME, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
 }
 
 // ---- AUTH-002: generate a fresh single-device session id ----
