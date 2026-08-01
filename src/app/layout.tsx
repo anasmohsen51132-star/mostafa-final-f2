@@ -9,12 +9,12 @@ import { getSiteSettings } from "@/lib/site-settings";
 import { SITE_URL, SITE_NAME, SITE_NAME_SHORT, SITE_DESCRIPTION, SITE_KEYWORDS, DEFAULT_LOCALE } from "@/lib/seo";
 
 // SEO NOTE: `icons` and `manifest` are intentionally NOT set on this
-// metadata object. Next.js's file-based conventions — src/app/icon.tsx,
-// src/app/apple-icon.tsx, and src/app/manifest.ts — already generate and
-// auto-link the correct <link> tags for all of these. Explicitly setting
-// `metadata.icons` here would override and disable the file-based icons
-// entirely (this is documented Next.js behavior), so the two approaches
-// must not be mixed.
+// metadata object. Next.js's file-based conventions — src/app/icon.png,
+// src/app/apple-icon.png, src/app/favicon.ico, and src/app/manifest.ts —
+// already generate and auto-link the correct <link> tags for all of these.
+// Explicitly setting `metadata.icons` here would override and disable the
+// file-based icons entirely (this is documented Next.js behavior), so the
+// two approaches must not be mixed.
 //
 // CUSTOM-004 (Platform Settings / SEO): this used to be a static `export
 // const metadata`. It's now generateMetadata() so the OWNER's saved
