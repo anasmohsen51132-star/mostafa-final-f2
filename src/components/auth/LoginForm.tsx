@@ -41,7 +41,14 @@ export function LoginForm() {
     background: "rgba(250,247,240,0.06)",
     color: "#FAF7F0",
     fontFamily: "Cairo, sans-serif",
-    fontSize: "clamp(14px, 3.8vw, 15px)",
+    // RESPONSIVE FIX: this used to be clamp(14px,3.8vw,15px) — always under
+    // 16px on every device. iOS Safari (phone *and* tablet in portrait)
+    // force-zooms the whole page in the instant an input under 16px gets
+    // focus, then leaves it zoomed in — the exact "this page doesn't work
+    // right on my phone" experience. 16px is the documented iOS threshold
+    // that disables that auto-zoom, so the floor is raised to it here;
+    // the field still scales up slightly on larger phones/tablets via vw.
+    fontSize: "clamp(16px, 3.8vw, 17px)",
     outline: "none",
     direction: "rtl",
     transition: "border-color 0.2s, box-shadow 0.2s",
