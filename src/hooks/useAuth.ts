@@ -93,12 +93,27 @@ export function useAuth() {
   });
 
   // ---- Logout ----
+  // BUGFIX (stuck after logout, never reaches "/"): this used to call
+  // router.push("/") — a soft, client-side navigation. Next.js App Router
+  // (v14) keeps a client-side "Router Cache" per path that is completely
+  // separate from HTTP Cache-Control headers (see the no-store fixes in
+  // middleware.ts — those only stop the *browser's* HTTP cache, not this
+  // one). If this tab had rendered "/" earlier *while still authenticated*
+  // (page.tsx redirect()s an authenticated visitor straight to their
+  // dashboard), a soft push to "/" within that cache's staleTime window can
+  // resolve against the stale, already-authenticated outcome instead of
+  // asking the server again — so the user lands back on a protected route,
+  // which then immediately bounces them to /login (since the store/cookie
+  // really are cleared by now), and "/" is never actually shown. A hard
+  // navigation bypasses the Router Cache entirely — it's a real new request,
+  // so the server always re-evaluates with the now-cleared cookie and the
+  // homepage renders correctly every time.
   const logout = async () => {
     await fetch("/api/auth/me", { method: "DELETE" }).catch(() => null);
     clearAuth();
     qc.clear();
     toast.info("👋 تم تسجيل الخروج");
-    router.push("/");
+    window.location.href = "/";
   };
 
   return {
