@@ -77,6 +77,15 @@ model User {
   // minutes" signal, not a precise online/offline flag.
   lastSeenAt DateTime?
 
+  // FEATURE: welcome tour. Defaults to `true` deliberately — a migration
+  // adding this column backfills every *existing* row with the default,
+  // so `true` ("already seen, don't show") is what every pre-existing
+  // student gets automatically. Only POST /api/auth/register overrides
+  // this to `false` at the moment a brand-new account is created, which
+  // is the only path that should ever trigger the tour. See
+  // src/components/onboarding/WelcomeTour.tsx for the client side.
+  hasSeenOnboarding Boolean @default(true)
+
   redeemedCodes      AccessCode[]       @relation("CodeRedeemer")
   createdCodes       AccessCode[]       @relation("CodeCreator")
   progress           Progress[]
