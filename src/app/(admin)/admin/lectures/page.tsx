@@ -140,19 +140,24 @@ export default function AdminLecturesPage() {
           {filtered.map((lec) => (
             <StaggerItem key={lec.id}>
               <div
-                className="rounded-2xl p-5 flex items-start gap-4"
+                className="rounded-2xl p-5 flex flex-col sm:flex-row sm:items-start gap-4"
                 style={{ background: "#fff", border: "1px solid rgba(201,168,76,0.15)", boxShadow: "0 2px 8px rgba(26,18,8,0.04)" }}
               >
-                {/* Order / icon */}
-                <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
-                  style={{ background: "rgba(201,168,76,0.12)" }}
-                >
-                  🎬
-                </div>
+                {/* RESPONSIVE FIX: icon+info grouped in their own row so the
+                    actions row (edit/delete buttons) can drop to its own
+                    full-width, wrapping line on mobile instead of forcing
+                    the whole card to overflow sideways. */}
+                <div className="flex items-start gap-4 flex-1 min-w-0">
+                  {/* Order / icon */}
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                    style={{ background: "rgba(201,168,76,0.12)" }}
+                  >
+                    🎬
+                  </div>
 
-                {/* Info */}
-                <div className="flex-1 min-w-0">
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <h3 style={{ fontFamily: "Cairo,sans-serif", color: "#1A1208", fontSize: 15, fontWeight: 700 }}>
                       {lec.title}
@@ -196,10 +201,12 @@ export default function AdminLecturesPage() {
                       </span>
                     ))}
                   </div>
+                  </div>
                 </div>
 
-                {/* Actions */}
-                <div className="flex items-center gap-2 flex-shrink-0">
+                {/* Actions — full-width wrapping row under the content on
+                    mobile, shrink-to-fit at the end of the row from sm+ */}
+                <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto sm:flex-shrink-0">
                   <button
                     onClick={() => togglePublish.mutate({ id: lec.id, isPublished: !lec.isPublished })}
                     disabled={togglePublish.isPending}
