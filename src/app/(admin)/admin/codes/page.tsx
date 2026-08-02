@@ -377,8 +377,8 @@ export default function AdminCodesPage() {
               </div>
 
               {/* Count + Expiry */}
-              <div className="flex gap-4 mb-4">
-                <div style={{ flex: 1 }}>
+              <div className="flex gap-4 mb-4 flex-wrap">
+                <div style={{ flex: 1, minWidth: 140 }}>
                   <label style={{ fontFamily: "Cairo,sans-serif", color: "#4A3F2A", fontSize: 12, fontWeight: 600, marginBottom: 5, display: "block" }}>
                     عدد الكودات (1–500)
                   </label>
@@ -389,7 +389,7 @@ export default function AdminCodesPage() {
                       color: "#1A1208", fontFamily: "Cairo,sans-serif", fontSize: 14,
                       outline: "none", direction: "ltr" }} />
                 </div>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 140 }}>
                   <label style={{ fontFamily: "Cairo,sans-serif", color: "#4A3F2A", fontSize: 12, fontWeight: 600, marginBottom: 5, display: "block" }}>
                     تاريخ الانتهاء (اختياري)
                   </label>
