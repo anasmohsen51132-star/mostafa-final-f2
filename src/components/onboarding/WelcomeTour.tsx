@@ -2,31 +2,43 @@
 // src/components/onboarding/WelcomeTour.tsx
 // First-run guided tour for students — Academy edition (gold/emerald identity).
 //
-// Shows once per student (flag kept in localStorage, keyed by user id) the
-// first time they land inside the student area. Walks them through every
-// student page — لوحة التحكم، الكورسات، كود الاشتراك، كورساتي، الملف الشخصي —
-// driven entirely by the "التالي" button: each step spotlights the matching
-// sidebar item and navigates the real app to that page in the background,
-// so what the student sees behind the tour card is the actual page being
-// described.
+// WHO SEES IT / HOW MANY TIMES: driven entirely by the student's own
+// `hasSeenOnboarding` flag on the User row (see prisma/schema.prisma). That
+// column defaults to `true` for everyone, and is only ever created as
+// `false` by POST /api/auth/register at the moment a brand-new account is
+// made (see that route). That means:
+//   - an already-registered student (or anyone who existed before this
+//     feature shipped) is `true` from day one and never sees this, on any
+//     device or browser — the check isn't "has this browser seen it"
+//     (localStorage), it's "is this account brand new".
+//   - a freshly-registered student is `false` exactly once. The moment
+//     they finish or skip the tour, WelcomeTour calls
+//     POST /api/auth/onboarding-seen, which flips the flag server-side —
+//     so it's gone for good, on every device, even after clearing the
+//     browser.
 //
-// SPOTLIGHT FIX: the previous version drew a single full-screen dim/blur
-// layer and placed a glowing ring "on top" of it — but the ring was purely
+// Walks the student through every page — لوحة التحكم، الكورسات، كود
+// الاشتراك، كورساتي، الملف الشخصي — driven entirely by the "التالي" button:
+// each step spotlights the matching sidebar item and navigates the real
+// app to that page in the background, so what the student sees behind the
+// tour card is the actual page being described.
+//
+// SPOTLIGHT FIX: an older version drew a single full-screen dim/blur layer
+// and placed a glowing ring "on top" of it — but the ring was purely
 // decorative, the dim layer underneath still covered the real sidebar item,
 // so the icon + page name inside the "highlighted" box were invisible. This
 // version instead builds the dim layer out of four separate panels framing
 // a hole around the target element, so that exact rectangle is left
 // completely untouched (no tint, no blur) and the real sidebar label reads
-// through it, exactly like the ring around it implies.
-//
-// Persistence is intentionally client-only (localStorage) — no schema
-// change needed. If a DB-backed "onboarding completed" flag is ever wanted
-// (e.g. to survive a cleared browser / follow the student across devices),
-// this is the single place to swap the read/write for an API call.
+// through it, exactly like the ring around it implies. The spotlight only
+// runs at desktop widths (≥1024px, matching the sidebar's own "hidden
+// lg:flex" breakpoint) — on phone/tablet the sidebar is a closed drawer,
+// so the card is simply centered on its own.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { m as motion, AnimatePresence } from "framer-motion";
 import { springBouncy } from "@/lib/motion-presets";
+import { fetchWithAuth } from "@/hooks/useAuth";
 
 // Small line-icon set in the card's own gold, used instead of platform
 // emoji — the "✨" sparkle glyph rendered as a mismatched, cartoonish
@@ -46,6 +58,36 @@ function StepIcon({ children, size = 40 }: { children: React.ReactNode; size?: n
       strokeLinejoin="round"
     >
       {children}
+    </svg>
+  );
+}
+
+// Small eight-point star (two overlapping squares — a "rub el hizb" motif),
+// scaled down and repeated in all four corners of the card as a restrained
+// manuscript-style frame instead of a single one-off accent.
+function CornerOrnament({ className }: { className: string }) {
+  return (
+    <svg
+      width="46"
+      height="46"
+      viewBox="0 0 46 46"
+      className={`absolute pointer-events-none ${className}`}
+      style={{ opacity: 0.3 }}
+    >
+      <rect x="9" y="9" width="20" height="20" stroke="#C9A84C" strokeWidth="1.2" fill="none" transform="rotate(15 19 19)" />
+      <rect x="9" y="9" width="20" height="20" stroke="#E8C97A" strokeWidth="1.2" fill="none" transform="rotate(60 19 19)" />
+    </svg>
+  );
+}
+
+// Manuscript-style divider — a thin line, a small rotated diamond, a thin
+// line — echoing the ornamental section breaks used in Arabic manuscripts.
+function OrnamentDivider() {
+  return (
+    <svg width="120" height="14" viewBox="0 0 120 14" className="mb-4" style={{ display: "block" }}>
+      <line x1="0" y1="7" x2="46" y2="7" stroke="#C9A84C" strokeOpacity="0.4" strokeWidth="1" />
+      <rect x="54" y="1" width="12" height="12" fill="none" stroke="#C9A84C" strokeWidth="1.3" transform="rotate(45 60 7)" />
+      <line x1="74" y1="7" x2="120" y2="7" stroke="#C9A84C" strokeOpacity="0.4" strokeWidth="1" />
     </svg>
   );
 }
@@ -182,8 +224,12 @@ const STEPS: TourStep[] = [
   },
 ];
 
-const STORAGE_PREFIX = "mustafa_onboarding_done_";
 const SPOTLIGHT_PADDING = 6;
+
+// Used for the ambient floating-letters animation — a handful of Arabic
+// huroof drifting upward, standing in for generic "sparkle" decoration
+// with something that actually reflects what the student is here to learn.
+const ARABIC_LETTERS = ["ا", "ب", "ت", "ث", "ج", "ح", "د", "ر", "س", "ع", "ق", "م"];
 
 interface Rect {
   top: number;
@@ -194,9 +240,12 @@ interface Rect {
 
 interface Props {
   userId: string;
+  // false only for an account created moments ago by /api/auth/register.
+  // Anything else (true, or missing/legacy data) never triggers the tour.
+  hasSeenOnboarding: boolean;
 }
 
-export function WelcomeTour({ userId }: Props) {
+export function WelcomeTour({ userId, hasSeenOnboarding }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const [active, setActive] = useState(false);
@@ -205,23 +254,17 @@ export function WelcomeTour({ userId }: Props) {
   const [viewport, setViewport] = useState({ w: 0, h: 0 });
   const checkedRef = useRef(false);
 
-  // Decide, once, whether this student needs the tour.
+  // Decide, once, whether this (brand-new) student needs the tour.
   useEffect(() => {
     if (checkedRef.current) return;
     checkedRef.current = true;
-    try {
-      const done = localStorage.getItem(STORAGE_PREFIX + userId);
-      if (!done) {
-        // Small delay so the tour doesn't collide with the name-splash
-        // welcome animation that already plays on first dashboard visit.
-        const t = setTimeout(() => setActive(true), 3200);
-        return () => clearTimeout(t);
-      }
-    } catch {
-      // localStorage unavailable (e.g. private mode edge cases) — skip tour
-      // rather than risk showing it on every single visit.
+    if (hasSeenOnboarding === false) {
+      // Small delay so the tour doesn't collide with the name-splash
+      // welcome animation that already plays on first dashboard visit.
+      const t = setTimeout(() => setActive(true), 3200);
+      return () => clearTimeout(t);
     }
-  }, [userId]);
+  }, [hasSeenOnboarding]);
 
   const step = STEPS[stepIndex];
 
@@ -258,12 +301,13 @@ export function WelcomeTour({ userId }: Props) {
 
   const finish = useCallback(() => {
     setActive(false);
-    try {
-      localStorage.setItem(STORAGE_PREFIX + userId, "1");
-    } catch {
-      /* non-fatal */
-    }
-  }, [userId]);
+    // Best-effort: flips hasSeenOnboarding server-side so the tour never
+    // shows again for this account, on any device — this is the source of
+    // truth, not a local flag. A failure here just means this one account
+    // might see the tour again on a future session; nothing else depends
+    // on it succeeding immediately.
+    fetchWithAuth("/api/auth/onboarding-seen", { method: "POST" }).catch(() => {});
+  }, []);
 
   const goNext = () => {
     if (stepIndex >= STEPS.length - 1) {
@@ -346,31 +390,39 @@ export function WelcomeTour({ userId }: Props) {
           <div className="absolute inset-0" style={dimPanelStyle} />
         )}
 
-        {/* Rising dust/sparkle particles — subtle ambience, not fixed to a
-            magic number: derives from measured viewport height. */}
+        {/* Floating Arabic letters — ambient animation themed to the
+            subject being taught (this is an Arabic-language academy), in
+            place of generic decoration. Derives from measured viewport
+            height so the drift always clears the screen on any device. */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {Array.from({ length: 10 }).map((_, i) => {
-            const left = 5 + ((i * 9.3) % 90);
-            const size = 3 + (i % 4) * 2.5;
-            const duration = 6 + (i % 5);
-            const delay = (i % 6) * 0.6;
-            const travel = (viewport.h || 800) + 40;
+          {ARABIC_LETTERS.map((letter, i) => {
+            const left = 4 + ((i * 8.1) % 92);
+            const size = 15 + (i % 4) * 6;
+            const duration = 10 + (i % 5) * 1.8;
+            const delay = (i % 7) * 1.15;
+            const travel = (viewport.h || 800) + 60;
+            const drift = (i % 2 === 0 ? 1 : -1) * (8 + (i % 3) * 6);
             return (
-              <motion.div
+              <motion.span
                 key={i}
-                className="absolute rounded-full"
+                className="absolute select-none"
                 style={{
                   left: `${left}%`,
-                  bottom: -20,
-                  width: size,
-                  height: size,
-                  background: i % 2 === 0 ? "rgba(201,168,76,0.4)" : "rgba(45,158,107,0.35)",
-                  boxShadow:
-                    i % 2 === 0 ? "0 0 8px rgba(201,168,76,0.5)" : "0 0 8px rgba(45,158,107,0.45)",
+                  bottom: -40,
+                  fontFamily: "Amiri,serif",
+                  fontSize: size,
+                  color: i % 2 === 0 ? "rgba(201,168,76,0.3)" : "rgba(45,158,107,0.26)",
                 }}
-                animate={{ y: [0, -travel], opacity: [0, 1, 1, 0] }}
+                animate={{
+                  y: [0, -travel],
+                  x: [0, drift, 0],
+                  opacity: [0, 1, 1, 0],
+                  rotate: [0, i % 2 === 0 ? 10 : -10, 0],
+                }}
                 transition={{ duration, delay, repeat: Infinity, ease: "linear" }}
-              />
+              >
+                {letter}
+              </motion.span>
             );
           })}
         </div>
@@ -383,11 +435,7 @@ export function WelcomeTour({ userId }: Props) {
             <motion.div
               key="spotlight"
               className="absolute rounded-2xl pointer-events-none"
-              style={{
-                border: "2px solid #C9A84C",
-                boxShadow:
-                  "0 0 0 4px rgba(201,168,76,0.18), 0 0 26px rgba(201,168,76,0.55)",
-              }}
+              style={{ border: "2px solid #C9A84C" }}
               initial={false}
               animate={{
                 top: hole.top,
@@ -395,18 +443,28 @@ export function WelcomeTour({ userId }: Props) {
                 width: hole.width,
                 height: hole.height,
                 opacity: 1,
+                boxShadow: [
+                  "0 0 0 4px rgba(201,168,76,0.18), 0 0 22px rgba(201,168,76,0.5)",
+                  "0 0 0 6px rgba(201,168,76,0.24), 0 0 32px rgba(201,168,76,0.65)",
+                  "0 0 0 4px rgba(201,168,76,0.18), 0 0 22px rgba(201,168,76,0.5)",
+                ],
               }}
               exit={{ opacity: 0 }}
-              transition={springBouncy}
+              transition={{
+                top: springBouncy, left: springBouncy, width: springBouncy, height: springBouncy,
+                boxShadow: { duration: 2.2, repeat: Infinity, ease: "easeInOut" },
+              }}
             />
           )}
         </AnimatePresence>
 
-        {/* Card container */}
-        <div
-          className="absolute inset-0 flex items-center justify-center px-4"
-          style={{ paddingInlineEnd: "clamp(16px, 4vw, 300px)" }}
-        >
+        {/* Card container — centered on phone/tablet; on desktop (≥1024px,
+            the exact breakpoint the sidebar itself switches on at) an extra
+            right-side gap keeps the card clear of the fixed 256px sidebar.
+            RESPONSIVE FIX: this used to be a single inline clamp(4vw) that
+            also applied on tablet, where there's no sidebar to avoid,
+            silently skewing the card off-center for no reason. */}
+        <div className="absolute inset-0 flex items-center justify-center px-4 sm:px-6 lg:pr-[300px] lg:pl-6">
           <AnimatePresence mode="wait">
             <motion.div
               key={step.id}
@@ -414,32 +472,28 @@ export function WelcomeTour({ userId }: Props) {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -16, scale: 0.96 }}
               transition={springBouncy}
-              className="relative w-full max-w-md rounded-3xl overflow-hidden pattern-overlay"
+              className="relative w-full max-w-[440px] sm:max-w-[460px] rounded-3xl overflow-hidden pattern-overlay"
               style={{
                 background: "linear-gradient(160deg,#0D3D27 0%,#0A2A1B 100%)",
                 border: "1px solid rgba(201,168,76,0.28)",
                 boxShadow: "0 24px 60px rgba(0,0,0,0.5), 0 0 40px rgba(201,168,76,0.08)",
+                maxHeight: "min(88vh, 720px)",
+                overflowY: "auto",
               }}
             >
-              {/* Decorative eight-point star (rub el hizb motif) */}
-              <svg
-                width="84"
-                height="84"
-                viewBox="0 0 84 84"
-                className="absolute -top-3 -right-3 pointer-events-none"
-                style={{ opacity: 0.35 }}
-              >
-                <rect
-                  x="18" y="18" width="34" height="34"
-                  stroke="#C9A84C" strokeWidth="1.4" fill="none"
-                  transform="rotate(15 35 35)"
-                />
-                <rect
-                  x="18" y="18" width="34" height="34"
-                  stroke="#E8C97A" strokeWidth="1.4" fill="none"
-                  transform="rotate(60 35 35)"
-                />
-              </svg>
+              {/* Top accent bar */}
+              <div
+                className="absolute top-0 left-0 right-0 pointer-events-none"
+                style={{ height: 4, background: "linear-gradient(90deg,transparent,#C9A84C,#E8C97A,#C9A84C,transparent)" }}
+              />
+
+              {/* Four-corner geometric frame — a restrained echo of
+                  Islamic manuscript corner medallions, on all four
+                  corners instead of a single one-off accent. */}
+              <CornerOrnament className="-top-2 -right-2" />
+              <CornerOrnament className="-top-2 -left-2" />
+              <CornerOrnament className="-bottom-2 -right-2" />
+              <CornerOrnament className="-bottom-2 -left-2" />
 
               {/* Skip */}
               <button
@@ -456,7 +510,7 @@ export function WelcomeTour({ userId }: Props) {
                 تخطي الجولة ✕
               </button>
 
-              <div className="relative px-7 pt-16 pb-7">
+              <div className="relative px-6 sm:px-7 pt-16 pb-6 sm:pb-7">
                 {/* Step counter */}
                 <div
                   className="text-[11px] font-semibold tracking-widest uppercase mb-3"
@@ -465,12 +519,21 @@ export function WelcomeTour({ userId }: Props) {
                   الخطوة {stepIndex + 1} من {STEPS.length}
                 </div>
 
-                {/* Icon */}
+                {/* Icon badge */}
                 <motion.div
                   initial={{ scale: 0.5, opacity: 0, rotate: -12 }}
                   animate={{ scale: 1, opacity: 1, rotate: 0 }}
                   transition={{ type: "spring", stiffness: 260, damping: 16, delay: 0.05 }}
-                  style={{ display: "inline-flex", marginBottom: 16, lineHeight: 1 }}
+                  className="flex items-center justify-center"
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: "50%",
+                    marginBottom: 16,
+                    background: "radial-gradient(circle at 35% 30%, rgba(201,168,76,0.28), rgba(45,158,107,0.1) 72%)",
+                    border: "1.5px solid rgba(201,168,76,0.4)",
+                    boxShadow: "0 0 24px rgba(201,168,76,0.22), inset 0 0 18px rgba(201,168,76,0.08)",
+                  }}
                 >
                   {step.icon}
                 </motion.div>
@@ -479,19 +542,21 @@ export function WelcomeTour({ userId }: Props) {
                   style={{
                     fontFamily: "Amiri,serif",
                     color: "#E8C97A",
-                    fontSize: 24,
+                    fontSize: "clamp(20px, 5vw, 25px)",
                     fontWeight: 700,
-                    marginBottom: 10,
+                    marginBottom: 12,
                   }}
                 >
                   {step.title}
                 </h2>
 
+                <OrnamentDivider />
+
                 <p
                   style={{
                     fontFamily: "Cairo,sans-serif",
                     color: "rgba(250,247,240,0.78)",
-                    fontSize: 14.5,
+                    fontSize: "clamp(13.5px, 3.6vw, 14.5px)",
                     lineHeight: 1.9,
                     marginBottom: step.bullets ? 14 : 22,
                   }}
@@ -567,7 +632,7 @@ export function WelcomeTour({ userId }: Props) {
                       cursor: "pointer",
                     }}
                   >
-                    {step.cta ?? (isLast ? "إنهاء" : "التالي")}
+                    {step.cta ?? (isLast ? "إنهاء" : "التالي")} {isLast ? "" : "←"}
                   </motion.button>
                 </div>
               </div>
