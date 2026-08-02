@@ -40,6 +40,11 @@ export interface User {
   avatar?: string | null;
   joinedAt: string;
   isActive: boolean;
+  // Optional: not every endpoint that returns a User selects this. Only
+  // /api/auth/register, /api/auth/login and /api/auth/me do — see
+  // WelcomeTour.tsx for how it's used. Missing/undefined is treated as
+  // "don't show the tour", never as "do".
+  hasSeenOnboarding?: boolean;
 }
 
 export interface AuthResponse { user: User; }
