@@ -28,11 +28,33 @@ import { useRouter, usePathname } from "next/navigation";
 import { m as motion, AnimatePresence } from "framer-motion";
 import { springBouncy } from "@/lib/motion-presets";
 
+// Small line-icon set in the card's own gold, used instead of platform
+// emoji — the "✨" sparkle glyph rendered as a mismatched, cartoonish
+// cluster next to the thin geometric star motif (that's the graphic that
+// needed replacing). These are plain stroke paths so they always render
+// identically, in the exact gold tone, on every device.
+function StepIcon({ children, size = 40 }: { children: React.ReactNode; size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#E8C97A"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {children}
+    </svg>
+  );
+}
+
 interface TourStep {
   id: string;
   route?: string;
   targetId?: string; // matches data-tour-id on the sidebar item
-  icon: string;
+  icon: React.ReactNode;
   title: string;
   description: string;
   bullets?: string[];
@@ -42,7 +64,7 @@ interface TourStep {
 const STEPS: TourStep[] = [
   {
     id: "welcome",
-    icon: "﷽",
+    icon: <span style={{ fontFamily: "Amiri,serif", fontSize: 44, color: "#E8C97A" }}>﷽</span>,
     title: "أهلاً بيك في أكاديمية مستر مصطفى",
     description:
       "هناخدك في جولة سريعة على المنصة عشان تتعرف على كل صفحة وإزاي تستخدمها كطالب. تقدر تتخطى الجولة في أي وقت.",
@@ -52,7 +74,12 @@ const STEPS: TourStep[] = [
     id: "dashboard",
     route: "/dashboard",
     targetId: "dashboard",
-    icon: "🏠",
+    icon: (
+      <StepIcon>
+        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <polyline points="9 22 9 12 15 12 15 22" />
+      </StepIcon>
+    ),
     title: "لوحة التحكم",
     description:
       "دي صفحتك الرئيسية. هتلاقي فيها نظرة عامة على تقدمك، آخر محاضرة كنت بتذاكر فيها عشان تكمل منها على طول، وإحصائيات بسيطة عن نشاطك.",
@@ -61,7 +88,12 @@ const STEPS: TourStep[] = [
     id: "courses",
     route: "/courses",
     targetId: "courses",
-    icon: "📚",
+    icon: (
+      <StepIcon>
+        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+      </StepIcon>
+    ),
     title: "الكورسات",
     description:
       "هنا بتلاقي كل الكورسات المتاحة على المنصة، تقدر تتصفحها وتشوف تفاصيلها حتى لو لسه مش مشترك فيها، عشان تعرف تختار الكورس المناسب لصفك الدراسي.",
@@ -70,7 +102,14 @@ const STEPS: TourStep[] = [
     id: "redeem",
     route: "/redeem",
     targetId: "redeem",
-    icon: "🎟️",
+    icon: (
+      <StepIcon>
+        <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
+        <path d="M13 5v2" />
+        <path d="M13 17v2" />
+        <path d="M13 11v2" />
+      </StepIcon>
+    ),
     title: "استخدام كود الاشتراك",
     description:
       "دي أهم صفحة عشان تفتح الكورسات. الكود بتاخده من المستر مباشرةً (كارت أو ورقة فيها كود)، وبتكتبه هنا لفتح الكورس المرتبط بيه.",
@@ -84,7 +123,13 @@ const STEPS: TourStep[] = [
     id: "my-courses",
     route: "/my-courses",
     targetId: "my-courses",
-    icon: "🎓",
+    icon: (
+      <StepIcon>
+        <path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" />
+        <path d="M22 10v6" />
+        <path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5" />
+      </StepIcon>
+    ),
     title: "كورساتي",
     description:
       "دي الكورسات اللي انت مشترك فيها فعليًا بعد ما فعّلت الكود. من هنا بتدخل على المحاضرات، تكمل من حيث ما وقفت، وتحل الواجبات والاختبارات.",
@@ -93,7 +138,12 @@ const STEPS: TourStep[] = [
     id: "profile",
     route: "/profile",
     targetId: "profile",
-    icon: "👤",
+    icon: (
+      <StepIcon>
+        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </StepIcon>
+    ),
     title: "الملف الشخصي",
     description:
       "هنا بياناتك الشخصية: اسمك، رقم الهاتف اللي بتسجل بيه دخولك، وصفك الدراسي. تقدر تراجعها في أي وقت.",
@@ -101,7 +151,12 @@ const STEPS: TourStep[] = [
   {
     id: "permissions",
     route: "/dashboard",
-    icon: "🔐",
+    icon: (
+      <StepIcon>
+        <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+        <path d="m9 12 2 2 4-4" />
+      </StepIcon>
+    ),
     title: "صلاحياتك كطالب",
     description: "عشان تكون الصورة واضحة، ده اللي تقدر تعمله على المنصة:",
     bullets: [
@@ -113,7 +168,13 @@ const STEPS: TourStep[] = [
   },
   {
     id: "finish",
-    icon: "✨",
+    icon: (
+      <StepIcon size={44}>
+        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9" />
+        <path d="M20 3v4" />
+        <path d="M22 5h-4" />
+      </StepIcon>
+    ),
     title: "جاهز تبدأ!",
     description:
       "كده عرفت تتحرك في المنصة براحتك. لو محتاج تراجع أي حاجة، الصفحات كلها موجودة دايمًا في القائمة الجانبية. بالتوفيق في رحلتك مع اللغة العربية!",
@@ -409,7 +470,7 @@ export function WelcomeTour({ userId }: Props) {
                   initial={{ scale: 0.5, opacity: 0, rotate: -12 }}
                   animate={{ scale: 1, opacity: 1, rotate: 0 }}
                   transition={{ type: "spring", stiffness: 260, damping: 16, delay: 0.05 }}
-                  style={{ fontSize: 42, marginBottom: 14, lineHeight: 1, color: "#E8C97A" }}
+                  style={{ display: "inline-flex", marginBottom: 16, lineHeight: 1 }}
                 >
                   {step.icon}
                 </motion.div>
