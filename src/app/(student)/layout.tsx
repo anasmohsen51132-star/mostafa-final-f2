@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { ToastContainer } from "@/components/ui/Toast";
 import { FullScreenSpinner } from "@/components/ui/FullScreenSpinner";
 import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
+import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
 import { useAuth } from "@/hooks/useAuth";
 import type { SidebarItem } from "@/components/layout/Sidebar";
 
@@ -48,6 +49,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   return (
     <div className="min-h-screen" style={{ background: "#FAF7F0", direction: "rtl" }}>
       <ToastContainer />
+      <WelcomeTour userId={user.id} />
       <Sidebar
         items={STUDENT_NAV}
         brandSub="منصة الطالب"
