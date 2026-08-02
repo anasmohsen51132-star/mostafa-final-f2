@@ -1,25 +1,29 @@
 "use client";
-// src/app/(student)/layout.tsx
+// src/app/(admin)/layout.tsx
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { ToastContainer } from "@/components/ui/Toast";
 import { FullScreenSpinner } from "@/components/ui/FullScreenSpinner";
-import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
-import { WelcomeTour } from "@/components/onboarding/WelcomeTour";
 import { useAuth } from "@/hooks/useAuth";
 import type { SidebarItem } from "@/components/layout/Sidebar";
 
-const STUDENT_NAV: SidebarItem[] = [
-  { id: "dashboard",  label: "لوحة التحكم",  icon: "🏠", href: "/dashboard"  },
-  { id: "courses",    label: "الكورسات",      icon: "📚", href: "/courses"    },
-  { id: "my-courses", label: "كورساتي",       icon: "🎓", href: "/my-courses" },
-  { id: "redeem",     label: "استخدام كود",   icon: "🎟️", href: "/redeem"     },
-  { id: "profile",    label: "الملف الشخصي",  icon: "👤", href: "/profile"    },
+// Shared by ADMIN, OWNER, and DEVELOPER — matches the /admin and /api/admin
+// role checks in middleware.ts. Owner-only extras (customize, settings,
+// admins management) live under /owner, reached from the owner's own nav.
+const ADMIN_NAV: SidebarItem[] = [
+  { id: "overview",     label: "لوحة الإدارة",  icon: "🔵", href: "/admin",              section: "الرئيسية" },
+  { id: "courses",      label: "الكورسات",      icon: "📚", href: "/admin/courses",      section: "الإدارة"  },
+  { id: "lectures",     label: "المحاضرات",     icon: "🎬", href: "/admin/lectures",     section: "الإدارة"  },
+  { id: "quiz-builder", label: "الاختبارات",    icon: "📝", href: "/admin/quiz-builder", section: "الإدارة"  },
+  { id: "codes",        label: "كودات الوصول",  icon: "🎟️", href: "/admin/codes",        section: "الإدارة"  },
+  { id: "students",     label: "الطلاب",        icon: "👥", href: "/admin/students",     section: "الإدارة"  },
+  { id: "results",      label: "النتائج",       icon: "📊", href: "/admin/results",      section: "الإدارة"  },
+  { id: "announcement", label: "الإعلان الشريطي", icon: "📢", href: "/admin/announcement", section: "الإدارة" },
 ];
 
-export default function StudentLayout({ children }: { children: React.ReactNode }) {
-  const { user, isHydrated, isSessionVerified, isAuthenticated, logout } = useAuth();
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const { user, isHydrated, isSessionVerified, isAuthenticated, isAdmin, logout } = useAuth();
   const router   = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -28,31 +32,27 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
   useEffect(() => {
-    // ARCH-003 FIX: wait for the persisted store to finish rehydrating
-    // before deciding whether to redirect — otherwise the very first render
-    // (before localStorage is read) would see user=null and redirect an
-    // already-logged-in student to /login for a frame.
-    //
-    // NEXT-001 FIX: also wait for isSessionVerified — rehydrated `user` only
-    // has {name, avatar} until /api/auth/me resolves, so any student page
-    // reading user.role (or other fields) before that would see stale/
-    // missing data for a frame.
+    // NEXT-001 FIX: wait for the persisted store to finish rehydrating AND
+    // for isSessionVerified — rehydrated `user` only has {name, avatar}
+    // until /api/auth/me resolves, so isAdmin would briefly read false for
+    // a real admin/owner/developer and redirect them away incorrectly.
+    // Same pattern as (owner)/layout.tsx and (developer)/layout.tsx.
     if (!isHydrated || !isSessionVerified) return;
-    if (!isAuthenticated) router.replace("/login");
-  }, [isHydrated, isSessionVerified, isAuthenticated, router]);
+    if (!isAuthenticated) { router.replace("/login"); return; }
+    if (!isAdmin)          { router.replace("/dashboard"); }
+  }, [isHydrated, isSessionVerified, isAuthenticated, isAdmin, router]);
 
   const handleClose = useCallback(() => setSidebarOpen(false), []);
 
   if (!isHydrated || !isSessionVerified) return <FullScreenSpinner />;
-  if (!isAuthenticated || !user) return null;
+  if (!isAuthenticated || !user || !isAdmin) return null;
 
   return (
     <div className="min-h-screen" style={{ background: "#FAF7F0", direction: "rtl" }}>
       <ToastContainer />
-      <WelcomeTour userId={user.id} hasSeenOnboarding={user.hasSeenOnboarding ?? true} />
       <Sidebar
-        items={STUDENT_NAV}
-        brandSub="منصة الطالب"
+        items={ADMIN_NAV}
+        brandSub="🔵 لوحة الإدارة"
         onLogout={logout}
         userName={user.name}
         userAvatar={user.avatar ?? user.name.charAt(0)}
@@ -60,10 +60,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         onClose={handleClose}
       />
       <main className="min-h-screen">
-        {/* lg:mr-64 provides desktop sidebar offset; mobile/tablet = full width.
-            RESPONSIVE FIX: horizontal padding used to be a fixed 20px on
-            every screen size, including mobile — where every pixel of
-            width matters most for things like the video player below. */}
+        {/* lg:mr-64 provides desktop sidebar offset; mobile/tablet = full width. */}
         <div className="lg:mr-64 px-3 sm:px-4 md:px-5 py-4 sm:py-5 md:py-6">
           {/* Mobile top bar */}
           <div className="flex lg:hidden items-center justify-between mb-5">
@@ -87,10 +84,6 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
               {user.avatar ?? user.name.charAt(0)}
             </div>
           </div>
-          {/* CUSTOM-010 v2: student-dashboard-only placement (per request) —
-              not in providers.tsx anymore, so it never shows on the landing
-              page, admin, or owner sections. */}
-          <AnnouncementBar />
           {children}
         </div>
       </main>
