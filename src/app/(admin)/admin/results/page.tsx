@@ -146,7 +146,7 @@ export default function ResultsPage() {
         </div>
         <div className="flex gap-2 flex-wrap">
           {/* Search */}
-          <div style={{ position: "relative" }}>
+          <div style={{ position: "relative", flex: "1 1 220px", minWidth: 160, maxWidth: 280 }}>
             <input
               value={searchName} onChange={(e) => { setSearchName(e.target.value); setPage(1); }}
               placeholder="بحث باسم الطالب أو الهاتف"
@@ -154,7 +154,7 @@ export default function ResultsPage() {
                 padding: "8px 36px 8px 12px", borderRadius: 10,
                 border: "1.5px solid rgba(201,168,76,0.25)", background: "#fff",
                 fontFamily: "Cairo,sans-serif", fontSize: 13, color: "#1A1208",
-                outline: "none", width: 220, direction: "rtl",
+                outline: "none", width: "100%", direction: "rtl",
               }}
               onFocus={(e) => (e.target.style.borderColor = "rgba(201,168,76,0.6)")}
               onBlur={(e) => (e.target.style.borderColor = "rgba(201,168,76,0.25)")}
