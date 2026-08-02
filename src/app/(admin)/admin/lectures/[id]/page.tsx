@@ -124,7 +124,10 @@ export default function LectureEditPage() {
   );
 
   const fieldInput: React.CSSProperties = {
-    flex: 1, padding: "10px 13px", borderRadius: 10,
+    // RESPONSIVE FIX: a bare flex:1 with no minWidth lets these inputs
+    // shrink to near-nothing side by side instead of ever wrapping —
+    // minWidth gives flex-wrap something real to trigger on for phones.
+    flex: 1, minWidth: 160, padding: "10px 13px", borderRadius: 10,
     border: "1.5px solid rgba(201,168,76,0.25)", background: "#FAFAF8",
     color: "#1A1208", fontFamily: "Cairo,sans-serif", fontSize: 13,
     outline: "none", direction: "rtl", transition: "border-color 0.2s",
@@ -253,7 +256,7 @@ export default function LectureEditPage() {
                   {lecture.pdfs?.map((p: PDF) => (
                     <div key={p.id} className="flex items-center gap-4 p-4 rounded-2xl" style={{ background:"#fff", border:"1px solid rgba(201,168,76,0.12)" }}>
                       <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style={{ background:"rgba(201,168,76,0.1)" }}>📄</div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <p style={{ fontFamily:"Cairo,sans-serif", color:"#1A1208", fontSize:14, fontWeight:600 }}>{p.title}</p>
                         <a href={p.fileUrl} target="_blank" rel="noopener noreferrer" style={{ fontFamily:"Cairo,sans-serif", color:"#C9A84C", fontSize:11, textDecoration:"none" }}>فتح الرابط ↗</a>
                       </div>
@@ -268,7 +271,7 @@ export default function LectureEditPage() {
           {/* ═══ QUIZZES ═══ */}
           {tab === "quizzes" && (
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center flex-wrap gap-3">
                 <h3 style={{ fontFamily:"Amiri,serif", color:"#1A1208", fontSize:20 }}>الاختبارات</h3>
                 <Link href={`/admin/quiz-builder?lectureId=${id}&type=quiz`}
                   style={{ padding:"9px 22px", borderRadius:12, background:"linear-gradient(135deg,#C9A84C,#8B6914)", color:"#1A1208", fontFamily:"Cairo,sans-serif", fontWeight:700, fontSize:13, textDecoration:"none" }}>
@@ -280,7 +283,7 @@ export default function LectureEditPage() {
                   {lecture.quizzes?.map((q: Quiz) => (
                     <div key={q.id} className="flex items-center gap-4 p-5 rounded-2xl" style={{ background:"#fff", border:"1px solid rgba(201,168,76,0.12)" }}>
                       <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style={{ background:"rgba(201,168,76,0.1)" }}>📝</div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <p style={{ fontFamily:"Cairo,sans-serif", color:"#1A1208", fontSize:14, fontWeight:600 }}>{q.title}</p>
                         <p style={{ fontFamily:"Cairo,sans-serif", color:"#7A6E5A", fontSize:12 }}>
                           {q.questions?.length ?? q._count?.questions ?? 0} سؤال
@@ -298,7 +301,7 @@ export default function LectureEditPage() {
           {/* ═══ HOMEWORK ═══ */}
           {tab === "homework" && (
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center flex-wrap gap-3">
                 <h3 style={{ fontFamily:"Amiri,serif", color:"#1A1208", fontSize:20 }}>الواجبات</h3>
                 <Link href={`/admin/quiz-builder?lectureId=${id}&type=homework`}
                   style={{ padding:"9px 22px", borderRadius:12, background:"linear-gradient(135deg,#C9A84C,#8B6914)", color:"#1A1208", fontFamily:"Cairo,sans-serif", fontWeight:700, fontSize:13, textDecoration:"none" }}>
@@ -310,7 +313,7 @@ export default function LectureEditPage() {
                   {lecture.homework?.map((hw: Homework) => (
                     <div key={hw.id} className="flex items-center gap-4 p-5 rounded-2xl" style={{ background:"#fff", border:"1px solid rgba(201,168,76,0.12)" }}>
                       <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style={{ background:"rgba(201,168,76,0.1)" }}>📋</div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <p style={{ fontFamily:"Cairo,sans-serif", color:"#1A1208", fontSize:14, fontWeight:600 }}>{hw.title}</p>
                         <p style={{ fontFamily:"Cairo,sans-serif", color:"#7A6E5A", fontSize:12 }}>{hw.questions?.length ?? hw._count?.questions ?? 0} سؤال</p>
                       </div>
@@ -426,7 +429,7 @@ function LectureSettings({
             <label style={{ fontFamily:"Cairo,sans-serif", color:"#4A3F2A", fontSize:13, fontWeight:600, marginBottom:5, display:"block" }}>
               درجة النجاح المطلوبة (%)
             </label>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
               <input type="number" min={1} max={100} value={passScore} onChange={(e) => setPassScore(Number(e.target.value))}
                 style={{ ...fieldInput, width:120, direction:"ltr" }}
                 onFocus={(e) => (e.target.style.borderColor="rgba(201,168,76,0.6)")}
