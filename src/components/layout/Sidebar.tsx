@@ -89,6 +89,7 @@ export function Sidebar({
               return (
                 <Link key={item.id} href={item.href}
                   onClick={onClose}
+                  data-tour-id={item.id}
                   className={cn(
                     "flex items-center gap-3 px-5 py-3 text-sm transition-all duration-200 relative group",
                     isActive ? "border-r-[3px] border-[#C9A84C]" : "hover:bg-white/5"
