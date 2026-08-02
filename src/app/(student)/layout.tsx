@@ -49,7 +49,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   return (
     <div className="min-h-screen" style={{ background: "#FAF7F0", direction: "rtl" }}>
       <ToastContainer />
-      <WelcomeTour userId={user.id} />
+      <WelcomeTour userId={user.id} hasSeenOnboarding={user.hasSeenOnboarding ?? true} />
       <Sidebar
         items={STUDENT_NAV}
         brandSub="منصة الطالب"
