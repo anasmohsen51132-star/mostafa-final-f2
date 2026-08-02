@@ -29,10 +29,17 @@ async function createUserAtomically(data: {
           role,
           academicLevel: role === "STUDENT" ? data.academicLevel : null,
           avatar: data.name.trim().charAt(0),
+          // FEATURE: welcome tour — this is the one and only place a user
+          // is ever created with hasSeenOnboarding: false. Every other
+          // path (including the column's own @default(true)) means "don't
+          // show it", so only an account made right here, right now, ever
+          // triggers WelcomeTour.
+          hasSeenOnboarding: false,
         },
         select: {
           id: true, name: true, phone: true, role: true,
           academicLevel: true, avatar: true, joinedAt: true, isActive: true,
+          hasSeenOnboarding: true,
         },
       });
     },

@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
       select: {
         id: true, name: true, phone: true, role: true,
         avatar: true, joinedAt: true, isActive: true, passwordHash: true,
+        hasSeenOnboarding: true,
       },
     });
 

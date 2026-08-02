@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
       select: {
         id: true, name: true, phone: true, role: true,
         academicLevel: true, avatar: true, joinedAt: true, isActive: true,
-        currentSessionId: true, lastSeenAt: true,
+        currentSessionId: true, lastSeenAt: true, hasSeenOnboarding: true,
       },
     });
     if (!user || !user.isActive) {
