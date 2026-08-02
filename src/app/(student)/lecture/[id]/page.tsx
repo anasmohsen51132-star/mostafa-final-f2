@@ -1,6 +1,6 @@
 "use client";
 // src/app/(student)/lecture/[id]/page.tsx
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { m as motion, AnimatePresence } from "framer-motion";
@@ -456,6 +456,42 @@ function QuizPlayer({
   const noAttemptsLeft = attemptsRemaining <= 0 && !result;
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
 
+  // ── Exam timer ────────────────────────────────────────────
+  // BUG FIX: the admin's "الوقت (دقيقة)" field on a quiz was saved and
+  // shown as a label in the quiz list ("5 أسئلة — 10 دقيقة"), but nothing
+  // ever read it once the student actually opened the exam — no countdown,
+  // no enforcement. Below: only Quiz carries timeLimit (Homework never
+  // did), a deadline is computed once when the exam is opened, a live
+  // countdown is shown, and the exam submits+grades itself automatically
+  // the moment it hits zero, using whatever answers are filled in so far
+  // (unanswered questions are simply marked wrong, same as the manual
+  // "تسليم" button already did for incomplete late attempts).
+  const timeLimitMinutes = "timeLimit" in quiz ? quiz.timeLimit : null;
+  const [deadline] = useState<number | null>(() =>
+    timeLimitMinutes ? Date.now() + timeLimitMinutes * 60_000 : null
+  );
+  const [remainingMs, setRemainingMs] = useState(() =>
+    deadline ? Math.max(0, deadline - Date.now()) : 0
+  );
+  const autoSubmittedRef = useRef(false);
+  const onSubmitRef = useRef(onSubmit);
+  onSubmitRef.current = onSubmit;
+
+  useEffect(() => {
+    if (!deadline || result) return;
+    const tick = () => {
+      const left = Math.max(0, deadline - Date.now());
+      setRemainingMs(left);
+      if (left <= 0 && !autoSubmittedRef.current) {
+        autoSubmittedRef.current = true;
+        onSubmitRef.current();
+      }
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [deadline, result]);
+
   if (result) return (
     <motion.div initial={{ opacity:0, scale:0.85 }} animate={{ opacity:1, scale:1 }}
       transition={{ type: "spring", stiffness: 220, damping: 18 }}
@@ -542,6 +578,8 @@ function QuizPlayer({
 
   return (
     <div>
+      {deadline && <ExamTimer remainingMs={remainingMs} />}
+
       {/* Attempt counter + history */}
       <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
         <button onClick={onBack} style={{ fontFamily:"Cairo,sans-serif", color:"#C9A84C", fontSize:13, background:"none", border:"none", cursor:"pointer" }}>
@@ -692,6 +730,56 @@ function QuizPlayer({
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+// ── Exam Timer badge ─────────────────────────────────────
+// Pure display component — QuizPlayer owns the actual countdown/expiry
+// logic so it stays in sync with the submit call either way (manual click
+// or auto-submit at zero).
+function ExamTimer({ remainingMs }: { remainingMs: number }) {
+  const totalSeconds = Math.ceil(remainingMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const timeUp = totalSeconds <= 0;
+  const isCritical = !timeUp && totalSeconds <= 60;
+  const isWarning  = !timeUp && !isCritical && totalSeconds <= 180;
+
+  const tone = timeUp || isCritical
+    ? { bg: "rgba(220,38,38,0.08)", border: "rgba(220,38,38,0.3)", text: "#DC2626" }
+    : isWarning
+    ? { bg: "rgba(201,168,76,0.12)", border: "rgba(201,168,76,0.4)", text: "#8B6914" }
+    : { bg: "rgba(45,158,107,0.08)", border: "rgba(45,158,107,0.25)", text: "#1A6B47" };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{
+        opacity: 1, y: 0,
+        scale: isCritical ? [1, 1.03, 1] : 1,
+      }}
+      transition={{
+        opacity: { duration: 0.25 }, y: { duration: 0.25 },
+        scale: { duration: 1, repeat: isCritical ? Infinity : 0, ease: "easeInOut" },
+      }}
+      className="flex items-center justify-center gap-2 mb-5 py-3 px-5 rounded-2xl"
+      style={{ background: tone.bg, border: `1.5px solid ${tone.border}` }}
+    >
+      <span style={{ fontSize: 18 }}>⏱️</span>
+      <span style={{ fontFamily: "Cairo,sans-serif", fontSize: 13, color: "#7A6E5A" }}>
+        {timeUp ? "انتهى وقت الامتحان — جارٍ التسليم تلقائيًا..." : "الوقت المتبقي:"}
+      </span>
+      {!timeUp && (
+        <span
+          style={{
+            fontFamily: "Cairo,sans-serif", fontSize: 22, fontWeight: 800,
+            letterSpacing: 1, color: tone.text, direction: "ltr",
+          }}
+        >
+          {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
+        </span>
+      )}
+    </motion.div>
   );
 }
 
