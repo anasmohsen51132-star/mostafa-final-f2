@@ -287,6 +287,14 @@ export default function CustomizePage() {
                     <Field label="اسم الأستاذ"     field="teacherName"  placeholder="مستر مصطفى" />
                     <Field label="لقب / تخصص"       field="teacherTitle" placeholder="خبير تدريس اللغة العربية" />
                     <Field label="نبذة عن الأستاذ"  field="teacherBio"   placeholder="معلم متميز بخبرة..." multiline />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-2">
+                      <ImageUploadField
+                        label="صورة الأستاذ" fieldKey="teacherPhoto"
+                        value={form.teacherPhoto} aspect="1/1"
+                        onChange={(url) => saveImageField("teacherPhoto", url)}
+                        hint="مربّعة، الوجه في المنتصف — بتظهر داخل الدائرة في قسم «عن الأستاذ»"
+                      />
+                    </div>
                   </div>
                 )}
 
