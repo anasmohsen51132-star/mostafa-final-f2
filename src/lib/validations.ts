@@ -221,6 +221,7 @@ export const siteSettingsSchema = z
     headerLogo:          blobImageUrl,
     loginLogo:           blobImageUrl,
     faviconImage:        blobImageUrl,
+    teacherPhoto:        blobImageUrl,
 
     dashboardWelcome: z.string().max(200).optional(),
     footerText:       z.string().max(200).optional(),
