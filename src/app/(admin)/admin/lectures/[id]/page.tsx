@@ -8,9 +8,8 @@ import Link from "next/link";
 import { fetchWithAuth } from "@/hooks/useAuth";
 import { useToast } from "@/store/uiStore";
 import { extractYouTubeId } from "@/lib/utils";
-import { uploadWithProgress } from "@/lib/upload-with-progress";
-import { toDriveDownloadUrl } from "@/lib/drive-link";
 import { QUIZ_REQUIREMENT_LABELS } from "@/types";
+import { HelpNote } from "@/components/admin/HelpNote";
 import type { Video, PDF, Quiz, Homework, Course, QuizRequirement } from "@/types";
 
 type ActiveTab = "videos" | "pdfs" | "quizzes" | "homework" | "settings";
@@ -31,27 +30,29 @@ export default function LectureEditPage() {
   const [pdfTitle,   setPdfTitle]   = useState("");
   const [pdfUrl,     setPdfUrl]     = useState("");
   const [pdfUploading, setPdfUploading] = useState(false);
-  const [pdfProgress,  setPdfProgress]  = useState(0);
   const pdfFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Same /api/upload endpoint already used for image uploads elsewhere in
-  // this app (quiz-builder, ImageUploadField), now going through the
-  // shared XHR-based uploader so a real % shows up while a large PDF is
-  // still in flight — plain fetch() has no upload-progress event at all.
+  // Same /api/upload + FormData pattern already used for image uploads
+  // elsewhere in this app (quiz-builder, ImageUploadField). Fills pdfUrl
+  // with the resulting storage URL — the only kind of URL /api/pdfs will
+  // actually accept — so admins have a real way to add a PDF, instead of
+  // needing to already have a Vercel Blob link to paste in manually.
   async function handlePdfFileSelect(file: File | undefined) {
     if (!file) return;
     setPdfUploading(true);
-    setPdfProgress(0);
     try {
-      const json = await uploadWithProgress(file, "pdf", setPdfProgress);
-      if (!json.success || !json.data) throw new Error(json.error ?? "فشل رفع الملف");
-      setPdfUrl(json.data.url);
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("type", "pdf");
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error ?? "فشل رفع الملف");
+      setPdfUrl(json.data.url as string);
       if (!pdfTitle.trim()) setPdfTitle(file.name.replace(/\.pdf$/i, ""));
     } catch (e: any) {
       toast.error(e?.message ?? "فشل رفع الملف");
     } finally {
       setPdfUploading(false);
-      setPdfProgress(0);
     }
   }
 
@@ -79,9 +80,9 @@ export default function LectureEditPage() {
   });
 
   const addPDF = useMutation({
-    mutationFn: (fileUrl: string) => fetchWithAuth("/api/pdfs", {
+    mutationFn: () => fetchWithAuth("/api/pdfs", {
       method: "POST",
-      body: JSON.stringify({ lectureId: id, title: pdfTitle, fileUrl }),
+      body: JSON.stringify({ lectureId: id, title: pdfTitle, fileUrl: pdfUrl }),
     }),
     onSuccess: (res) => {
       if (res.success) { toast.success("✅ تم إضافة الملف"); setPdfTitle(""); setPdfUrl(""); qc.invalidateQueries({ queryKey: ["admin-lecture", id] }); }
@@ -161,6 +162,8 @@ export default function LectureEditPage() {
         </div>
       </motion.div>
 
+      <HelpNote text="من هنا تضيف محتوى المحاضرة: فيديوهات، ملفات PDF، اختبارات، وواجبات — دوس على أي تبويب تحت عشان تضيف أو تشوف اللي موجود." />
+
       {/* Tabs */}
       <div className="flex gap-2 mb-6 flex-wrap">
         {TABS.map((t) => (
@@ -193,6 +196,9 @@ export default function LectureEditPage() {
                     {addVideo.isPending ? "⏳..." : "＋ إضافة"}
                   </button>
                 </div>
+                <p style={{ fontFamily:"Cairo,sans-serif", color:"#A89A7E", fontSize:12 }}>
+                  ℹ️ افتح الفيديو على يوتيوب وانسخ الرابط من شريط العنوان، أو من زرار «مشاركة»، والصقه هنا.
+                </p>
               </div>
               {(lecture.videos?.length ?? 0) === 0 ? <EmptyState icon="🎥" label="لا توجد فيديوهات بعد" /> : (
                 <div className="space-y-3">
@@ -207,7 +213,7 @@ export default function LectureEditPage() {
                         <p style={{ fontFamily:"Cairo,sans-serif", color:"#1A1208", fontSize:14, fontWeight:600, marginBottom:2 }}>{v.title}</p>
                         <p style={{ fontFamily:"Cairo,sans-serif", color:"#7A6E5A", fontSize:11 }}>🔒 الرابط محمي</p>
                       </div>
-                      <button onClick={() => deleteVideo.mutate(v.id)}
+                      <button onClick={() => { if (window.confirm("متأكد إنك عايز تحذف الفيديو ده؟")) deleteVideo.mutate(v.id); }}
                         style={{ padding:"5px 12px", borderRadius:8, border:"1px solid rgba(239,68,68,0.25)", color:"#DC2626", background:"none", fontFamily:"Cairo,sans-serif", fontSize:12, cursor:"pointer" }}>
                         حذف
                       </button>
@@ -225,7 +231,7 @@ export default function LectureEditPage() {
                 <h3 style={{ fontFamily:"Amiri,serif", color:"#1A1208", fontSize:17, marginBottom:14 }}>إضافة ملف PDF</h3>
                 <div className="flex gap-3 flex-wrap items-center">
                   <input value={pdfTitle} onChange={(e) => setPdfTitle(e.target.value)} placeholder="عنوان الملف" style={fieldInput} onFocus={(e) => (e.target.style.borderColor="rgba(201,168,76,0.6)")} onBlur={(e) => (e.target.style.borderColor="rgba(201,168,76,0.25)")} />
-                  <input value={pdfUrl} onChange={(e) => setPdfUrl(e.target.value)} placeholder="أو الصق رابط ملف (Drive وغيره)" style={{ ...fieldInput, direction:"ltr" }} onFocus={(e) => (e.target.style.borderColor="rgba(201,168,76,0.6)")} onBlur={(e) => (e.target.style.borderColor="rgba(201,168,76,0.25)")} />
+                  <input value={pdfUrl} onChange={(e) => setPdfUrl(e.target.value)} placeholder="أو الصق رابط ملف مرفوع مسبقًا" style={{ ...fieldInput, direction:"ltr" }} onFocus={(e) => (e.target.style.borderColor="rgba(201,168,76,0.6)")} onBlur={(e) => (e.target.style.borderColor="rgba(201,168,76,0.25)")} />
                   <input
                     ref={pdfFileInputRef}
                     type="file"
@@ -242,12 +248,9 @@ export default function LectureEditPage() {
                     onClick={() => pdfFileInputRef.current?.click()}
                     disabled={pdfUploading}
                     style={{ padding:"10px 18px", borderRadius:10, border:"1px solid rgba(201,168,76,0.35)", background:"transparent", color:"#7A6E5A", fontFamily:"Cairo,sans-serif", fontSize:13, cursor:"pointer", whiteSpace:"nowrap" }}>
-                    {pdfUploading ? `⏳ جارِ الرفع... ${pdfProgress}%` : "📤 رفع ملف PDF"}
+                    {pdfUploading ? "⏳ جارِ الرفع..." : "📤 رفع ملف PDF"}
                   </button>
-                  <button onClick={() => {
-                      if (!pdfTitle.trim() || !pdfUrl.trim()) { toast.error("أدخل عنوان ورابط الملف"); return; }
-                      addPDF.mutate(toDriveDownloadUrl(pdfUrl));
-                    }}
+                  <button onClick={() => { if (!pdfTitle.trim() || !pdfUrl.trim()) { toast.error("أدخل عنوان ورابط الملف"); return; } addPDF.mutate(); }}
                     disabled={addPDF.isPending}
                     style={{ padding:"10px 22px", borderRadius:10, border:"none", background:"linear-gradient(135deg,#C9A84C,#8B6914)", color:"#1A1208", fontFamily:"Cairo,sans-serif", fontWeight:700, fontSize:13, cursor:"pointer", whiteSpace:"nowrap" }}>
                     {addPDF.isPending ? "⏳..." : "＋ إضافة"}
@@ -263,7 +266,7 @@ export default function LectureEditPage() {
                         <p style={{ fontFamily:"Cairo,sans-serif", color:"#1A1208", fontSize:14, fontWeight:600 }}>{p.title}</p>
                         <a href={p.fileUrl} target="_blank" rel="noopener noreferrer" style={{ fontFamily:"Cairo,sans-serif", color:"#C9A84C", fontSize:11, textDecoration:"none" }}>فتح الرابط ↗</a>
                       </div>
-                      <button onClick={() => deletePDF.mutate(p.id)} style={{ padding:"5px 12px", borderRadius:8, border:"1px solid rgba(239,68,68,0.25)", color:"#DC2626", background:"none", fontFamily:"Cairo,sans-serif", fontSize:12, cursor:"pointer" }}>حذف</button>
+                      <button onClick={() => { if (window.confirm("متأكد إنك عايز تحذف الملف ده؟")) deletePDF.mutate(p.id); }} style={{ padding:"5px 12px", borderRadius:8, border:"1px solid rgba(239,68,68,0.25)", color:"#DC2626", background:"none", fontFamily:"Cairo,sans-serif", fontSize:12, cursor:"pointer" }}>حذف</button>
                     </div>
                   ))}
                 </div>
@@ -293,7 +296,7 @@ export default function LectureEditPage() {
                           {q.timeLimit ? ` • ${q.timeLimit} دقيقة` : ""}
                         </p>
                       </div>
-                      <button onClick={() => deleteQuiz.mutate(q.id)} style={{ padding:"5px 12px", borderRadius:8, border:"1px solid rgba(239,68,68,0.25)", color:"#DC2626", background:"none", fontFamily:"Cairo,sans-serif", fontSize:12, cursor:"pointer" }}>حذف</button>
+                      <button onClick={() => { if (window.confirm("متأكد إنك عايز تحذف الاختبار ده؟ هيتحذف معاه كل الأسئلة.")) deleteQuiz.mutate(q.id); }} style={{ padding:"5px 12px", borderRadius:8, border:"1px solid rgba(239,68,68,0.25)", color:"#DC2626", background:"none", fontFamily:"Cairo,sans-serif", fontSize:12, cursor:"pointer" }}>حذف</button>
                     </div>
                   ))}
                 </div>
@@ -320,7 +323,7 @@ export default function LectureEditPage() {
                         <p style={{ fontFamily:"Cairo,sans-serif", color:"#1A1208", fontSize:14, fontWeight:600 }}>{hw.title}</p>
                         <p style={{ fontFamily:"Cairo,sans-serif", color:"#7A6E5A", fontSize:12 }}>{hw.questions?.length ?? hw._count?.questions ?? 0} سؤال</p>
                       </div>
-                      <button onClick={() => deleteHomework.mutate(hw.id)} style={{ padding:"5px 12px", borderRadius:8, border:"1px solid rgba(239,68,68,0.25)", color:"#DC2626", background:"none", fontFamily:"Cairo,sans-serif", fontSize:12, cursor:"pointer" }}>حذف</button>
+                      <button onClick={() => { if (window.confirm("متأكد إنك عايز تحذف الواجب ده؟")) deleteHomework.mutate(hw.id); }} style={{ padding:"5px 12px", borderRadius:8, border:"1px solid rgba(239,68,68,0.25)", color:"#DC2626", background:"none", fontFamily:"Cairo,sans-serif", fontSize:12, cursor:"pointer" }}>حذف</button>
                     </div>
                   ))}
                 </div>
