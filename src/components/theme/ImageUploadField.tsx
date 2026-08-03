@@ -5,22 +5,11 @@ import { m as motion } from "framer-motion";
 import { fetchWithAuth } from "@/hooks/useAuth";
 import { useToast } from "@/store/uiStore";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { uploadWithProgress } from "@/lib/upload-with-progress";
+import { toDriveImageUrl } from "@/lib/drive-link";
 
 const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_MB = 5;
-
-// Reuses the exact same /api/upload endpoint + FormData pattern already
-// used elsewhere in this app (quiz-builder image questions) — no new
-// upload pipeline needed, just a new place for the resulting URL to go.
-async function uploadFile(file: File): Promise<string> {
-  const fd = new FormData();
-  fd.append("file", file);
-  fd.append("type", "image");
-  const res = await fetch("/api/upload", { method: "POST", body: fd });
-  const json = await res.json();
-  if (!json.success) throw new Error(json.error ?? "فشل الرفع");
-  return json.data.url as string;
-}
 
 interface Props {
   label: string;
@@ -36,7 +25,10 @@ export function ImageUploadField({ label, hint, fieldKey, value, onChange, aspec
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [linkMode, setLinkMode] = useState(false);
+  const [linkValue, setLinkValue] = useState("");
 
   const handleFile = useCallback(
     async (file: File | undefined) => {
@@ -50,17 +42,33 @@ export function ImageUploadField({ label, hint, fieldKey, value, onChange, aspec
         return;
       }
       setUploading(true);
+      setProgress(0);
       try {
-        const url = await uploadFile(file);
-        onChange(url);
+        const json = await uploadWithProgress(file, "image", setProgress);
+        if (!json.success || !json.data) throw new Error(json.error ?? "فشل الرفع");
+        onChange(json.data.url);
         toast.success("✅ تم رفع الصورة");
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "فشل رفع الصورة");
       } finally {
         setUploading(false);
+        setProgress(0);
       }
     },
     [onChange, toast]
+  );
+
+  const handleUseLink = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!linkValue.trim()) return;
+      onChange(toDriveImageUrl(linkValue));
+      setLinkValue("");
+      setLinkMode(false);
+      toast.success("✅ تم استخدام الرابط");
+    },
+    [linkValue, onChange, toast]
   );
 
   const confirmDelete = useCallback(async () => {
@@ -138,6 +146,13 @@ export function ImageUploadField({ label, hint, fieldKey, value, onChange, aspec
               </button>
               <button
                 type="button"
+                onClick={(e) => { e.stopPropagation(); setLinkMode(true); }}
+                style={{ padding: "8px 14px", borderRadius: 9, border: "none", background: "#fff", color: "#1A1208", fontFamily: "Cairo,sans-serif", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+              >
+                🔗 لينك
+              </button>
+              <button
+                type="button"
                 onClick={(e) => { e.stopPropagation(); setConfirmOpen(true); }}
                 style={{ padding: "8px 14px", borderRadius: 9, border: "none", background: "#DC2626", color: "#fff", fontFamily: "Cairo,sans-serif", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
               >
@@ -155,7 +170,15 @@ export function ImageUploadField({ label, hint, fieldKey, value, onChange, aspec
                   animate={{ rotate: 360 }}
                   transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
                 />
-                <span style={{ fontFamily: "Cairo,sans-serif", color: "#8B6914", fontSize: 12 }}>جارٍ الرفع...</span>
+                <span style={{ fontFamily: "Cairo,sans-serif", color: "#8B6914", fontSize: 12, fontWeight: 700 }}>
+                  جارٍ الرفع... {progress}%
+                </span>
+                <div className="w-2/3 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(201,168,76,0.15)" }}>
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: `${progress}%`, background: "#C9A84C", transition: "width 0.15s" }}
+                  />
+                </div>
               </>
             ) : (
               <>
@@ -166,13 +189,62 @@ export function ImageUploadField({ label, hint, fieldKey, value, onChange, aspec
                 <span style={{ fontFamily: "Cairo,sans-serif", color: "#A89A7E", fontSize: 10 }}>
                   PNG · JPG · WEBP — حتى {MAX_MB}MB
                 </span>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setLinkMode(true); }}
+                  style={{
+                    marginTop: 4, padding: "5px 12px", borderRadius: 8,
+                    border: "1px solid rgba(201,168,76,0.35)", background: "#fff",
+                    color: "#8B6914", fontFamily: "Cairo,sans-serif", fontSize: 11,
+                    fontWeight: 700, cursor: "pointer",
+                  }}
+                >
+                  🔗 أو الصق لينك (Drive وغيره)
+                </button>
               </>
             )}
           </div>
         )}
       </div>
 
-      <ConfirmDialog
+      {linkMode && (
+        <form
+          onSubmit={handleUseLink}
+          className="flex items-center gap-2 mt-2"
+        >
+          <input
+            autoFocus
+            type="text"
+            value={linkValue}
+            onChange={(e) => setLinkValue(e.target.value)}
+            placeholder="الصق لينك جوجل درايف (أو أي رابط صورة) هنا"
+            style={{
+              flex: 1, minWidth: 0, padding: "8px 12px", borderRadius: 9,
+              border: "1.5px solid rgba(201,168,76,0.3)", background: "#FAFAF8",
+              color: "#1A1208", fontFamily: "Cairo,sans-serif", fontSize: 12,
+              outline: "none", direction: "ltr",
+            }}
+          />
+          <button
+            type="submit"
+            style={{ padding: "8px 16px", borderRadius: 9, border: "none", background: "#C9A84C", color: "#1A1208", fontFamily: "Cairo,sans-serif", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
+          >
+            استخدام
+          </button>
+          <button
+            type="button"
+            onClick={() => { setLinkMode(false); setLinkValue(""); }}
+            style={{ padding: "8px 12px", borderRadius: 9, border: "1px solid rgba(201,168,76,0.25)", background: "none", color: "#7A6E5A", fontFamily: "Cairo,sans-serif", fontSize: 12, cursor: "pointer" }}
+          >
+            إلغاء
+          </button>
+        </form>
+      )}
+      {linkMode && (
+        <p style={{ fontFamily: "Cairo,sans-serif", color: "#A89A7E", fontSize: 10, marginTop: 4 }}>
+          لينك درايف لازم يكون "مشاركة عامة — أي حد معاه اللينك يقدر يشوف"، وإلا الصورة مش هتظهر.
+        </p>
+      )}
         open={confirmOpen}
         title="حذف الصورة؟"
         description="هيتم حذف الصورة نهائيًا من التخزين ومن هذا الحقل. الإجراء ده لا يمكن التراجع عنه."
