@@ -84,7 +84,7 @@ export default function EditCoursePage() {
     return (
       <div style={{ direction: "rtl" }}>
         <div className="skeleton rounded-3xl h-12 w-64 mb-6" />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           <div className="lg:col-span-2 space-y-5">
             <div className="skeleton rounded-2xl h-60" />
             <div className="skeleton rounded-2xl h-40" />
@@ -114,28 +114,28 @@ export default function EditCoursePage() {
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center gap-4 mb-8"
+        className="flex items-center gap-4 mb-8 flex-wrap"
       >
         <Link
           href="/admin/courses"
-          style={{ color: "#C9A84C", fontFamily: "Cairo,sans-serif", fontSize: 13, textDecoration: "none" }}
+          style={{ color: "#C9A84C", fontFamily: "Cairo,sans-serif", fontSize: 13, textDecoration: "none", whiteSpace: "nowrap" }}
         >
           ← الكورسات
         </Link>
-        <h1 style={{ fontFamily: "Amiri,serif", color: "#1A1208", fontSize: 30 }}>
+        <h1 style={{ fontFamily: "Amiri,serif", color: "#1A1208", fontSize: 30, minWidth: 0, wordBreak: "break-word" }}>
           تعديل: {data?.data?.title}
         </h1>
       </motion.div>
 
       <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.05 }}
             className="lg:col-span-2 space-y-5"
           >
-            <div className="rounded-2xl p-6" style={{ background: "#fff", border: "1px solid rgba(201,168,76,0.15)", boxShadow: "0 2px 12px rgba(26,18,8,0.05)" }}>
+            <div className="rounded-2xl p-4 sm:p-6" style={{ background: "#fff", border: "1px solid rgba(201,168,76,0.15)", boxShadow: "0 2px 12px rgba(26,18,8,0.05)" }}>
               <h2 style={{ fontFamily: "Amiri,serif", color: "#1A1208", fontSize: 18, marginBottom: 16 }}>المعلومات الأساسية</h2>
               <div style={{ marginBottom: 16 }}>
                 <label style={fieldLabel}>عنوان الكورس *</label>
@@ -159,7 +159,7 @@ export default function EditCoursePage() {
             </div>
 
             {/* Academic levels */}
-            <div className="rounded-2xl p-6" style={{ background: "#fff", border: "1px solid rgba(201,168,76,0.15)", boxShadow: "0 2px 12px rgba(26,18,8,0.05)" }}>
+            <div className="rounded-2xl p-4 sm:p-6" style={{ background: "#fff", border: "1px solid rgba(201,168,76,0.15)", boxShadow: "0 2px 12px rgba(26,18,8,0.05)" }}>
               <h2 style={{ fontFamily: "Amiri,serif", color: "#1A1208", fontSize: 18, marginBottom: 6 }}>المراحل الدراسية</h2>
               <p style={{ fontFamily: "Cairo,sans-serif", color: "#7A6E5A", fontSize: 13, marginBottom: 16 }}>
                 الكورسات بدون مرحلة محددة تظهر لجميع الطلاب.
@@ -198,7 +198,7 @@ export default function EditCoursePage() {
             className="space-y-5"
           >
             {/* Preview */}
-            <div className="rounded-2xl p-5" style={{ background: "#fff", border: "1px solid rgba(201,168,76,0.15)", boxShadow: "0 2px 12px rgba(26,18,8,0.05)" }}>
+            <div className="rounded-2xl p-4 sm:p-5" style={{ background: "#fff", border: "1px solid rgba(201,168,76,0.15)", boxShadow: "0 2px 12px rgba(26,18,8,0.05)" }}>
               <h3 style={{ fontFamily: "Amiri,serif", color: "#1A1208", fontSize: 16, marginBottom: 12 }}>معاينة</h3>
               <div className="rounded-2xl overflow-hidden" style={{ border: `2px solid ${color}35` }}>
                 <div className="h-20 flex items-center justify-center text-4xl" style={{ background: `${color}18` }}>{icon}</div>
@@ -211,9 +211,9 @@ export default function EditCoursePage() {
             </div>
 
             {/* Icon picker */}
-            <div className="rounded-2xl p-5" style={{ background: "#fff", border: "1px solid rgba(201,168,76,0.15)", boxShadow: "0 2px 12px rgba(26,18,8,0.05)" }}>
+            <div className="rounded-2xl p-4 sm:p-5" style={{ background: "#fff", border: "1px solid rgba(201,168,76,0.15)", boxShadow: "0 2px 12px rgba(26,18,8,0.05)" }}>
               <h3 style={{ fontFamily: "Amiri,serif", color: "#1A1208", fontSize: 16, marginBottom: 10 }}>الأيقونة</h3>
-              <div className="grid grid-cols-6 gap-2">
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                 {ICONS.map((ic) => (
                   <button key={ic} type="button" onClick={() => setIcon(ic)}
                     style={{
@@ -229,7 +229,7 @@ export default function EditCoursePage() {
             </div>
 
             {/* Color */}
-            <div className="rounded-2xl p-5" style={{ background: "#fff", border: "1px solid rgba(201,168,76,0.15)", boxShadow: "0 2px 12px rgba(26,18,8,0.05)" }}>
+            <div className="rounded-2xl p-4 sm:p-5" style={{ background: "#fff", border: "1px solid rgba(201,168,76,0.15)", boxShadow: "0 2px 12px rgba(26,18,8,0.05)" }}>
               <h3 style={{ fontFamily: "Amiri,serif", color: "#1A1208", fontSize: 16, marginBottom: 10 }}>اللون</h3>
               <div className="flex flex-wrap gap-2">
                 {COLORS.map((c) => (
@@ -247,7 +247,7 @@ export default function EditCoursePage() {
             </div>
 
             {/* Publish */}
-            <div className="rounded-2xl p-5" style={{ background: "#fff", border: "1px solid rgba(201,168,76,0.15)", boxShadow: "0 2px 12px rgba(26,18,8,0.05)" }}>
+            <div className="rounded-2xl p-4 sm:p-5" style={{ background: "#fff", border: "1px solid rgba(201,168,76,0.15)", boxShadow: "0 2px 12px rgba(26,18,8,0.05)" }}>
               <div className="flex items-center justify-between">
                 <div>
                   <p style={{ fontFamily: "Cairo,sans-serif", color: "#1A1208", fontSize: 14, fontWeight: 700 }}>نشر الكورس</p>
