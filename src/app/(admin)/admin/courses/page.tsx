@@ -144,33 +144,42 @@ export default function AdminCoursesPage() {
                     </div>
                   )}
 
-                  <div className="flex items-center gap-2 mt-3">
-                    <span style={{ fontFamily: "Cairo,sans-serif", color: "#7A6E5A", fontSize: 12, flex: 1 }}>
+                  {/* RESPONSIVE FIX: the lecture-count badge used to be a bare
+                      flex:1 span with no min-width, sharing a non-wrapping row
+                      with the two action buttons — on narrow phones it got
+                      squeezed to almost nothing and its text wrapped one
+                      character per line. Now the row itself wraps as a whole,
+                      and the badge never shrinks below its content. */}
+                  <div className="flex items-center justify-between flex-wrap gap-2 mt-3">
+                    <span style={{ fontFamily: "Cairo,sans-serif", color: "#7A6E5A", fontSize: 12, whiteSpace: "nowrap" }}>
                       📖 {course._count?.lectures ?? 0} محاضرة
                     </span>
-                    <Link
-                      href={`/admin/courses/${course.id}`}
-                      style={{
-                        padding: "5px 14px", borderRadius: 9,
-                        border: "1px solid rgba(201,168,76,0.3)",
-                        color: "#8B6914", fontFamily: "Cairo,sans-serif",
-                        fontSize: 12, fontWeight: 600, textDecoration: "none",
-                      }}
-                    >
-                      تعديل
-                    </Link>
-                    <button
-                      onClick={() => setDeleteTarget(course.id)}
-                      style={{
-                        padding: "5px 14px", borderRadius: 9,
-                        border: "1px solid rgba(239,68,68,0.25)",
-                        color: "#DC2626", fontFamily: "Cairo,sans-serif",
-                        fontSize: 12, fontWeight: 600, background: "none", cursor: "pointer",
-                        transition: "all 0.15s",
-                      }}
-                    >
-                      حذف
-                    </button>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Link
+                        href={`/admin/courses/${course.id}`}
+                        style={{
+                          padding: "5px 14px", borderRadius: 9,
+                          border: "1px solid rgba(201,168,76,0.3)",
+                          color: "#8B6914", fontFamily: "Cairo,sans-serif",
+                          fontSize: 12, fontWeight: 600, textDecoration: "none",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        تعديل
+                      </Link>
+                      <button
+                        onClick={() => setDeleteTarget(course.id)}
+                        style={{
+                          padding: "5px 14px", borderRadius: 9,
+                          border: "1px solid rgba(239,68,68,0.25)",
+                          color: "#DC2626", fontFamily: "Cairo,sans-serif",
+                          fontSize: 12, fontWeight: 600, background: "none", cursor: "pointer",
+                          transition: "all 0.15s", whiteSpace: "nowrap",
+                        }}
+                      >
+                        حذف
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
