@@ -8,6 +8,7 @@ import { fetchWithAuth } from "@/hooks/useAuth";
 import { useToast } from "@/store/uiStore";
 import { StaggerContainer, StaggerItem } from "@/components/layout/PageTransition";
 import { ACADEMIC_LEVEL_LABELS } from "@/types";
+import { HelpNote } from "@/components/admin/HelpNote";
 import type { Course } from "@/types";
 
 export default function AdminCoursesPage() {
@@ -79,6 +80,8 @@ export default function AdminCoursesPage() {
         </Link>
       </motion.div>
 
+      <HelpNote text="الكورس هو المجموعة اللي بتحتوي على المحاضرات (زي «الصف الأول الثانوي»)، والطالب بيدخل الكورس عشان يشوف محاضراته. الكورس لازم يكون «منشور ✅» عشان الطلاب يقدروا يشوفوه." />
+
       {/* Loading */}
       {isLoading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -104,6 +107,7 @@ export default function AdminCoursesPage() {
                   {/* Publish toggle */}
                   <button
                     onClick={() => togglePublish.mutate({ id: course.id, published: !course.isPublished })}
+                    title={course.isPublished ? "الطلاب شايفينه دلوقتي — دوس عشان تخفيه" : "مخفي عن الطلاب — دوس عشان يظهر"}
                     style={{
                       padding: "4px 12px", borderRadius: 20, border: "none",
                       background: course.isPublished ? "rgba(45,158,107,0.9)" : "rgba(122,110,90,0.3)",
@@ -144,42 +148,33 @@ export default function AdminCoursesPage() {
                     </div>
                   )}
 
-                  {/* RESPONSIVE FIX: the lecture-count badge used to be a bare
-                      flex:1 span with no min-width, sharing a non-wrapping row
-                      with the two action buttons — on narrow phones it got
-                      squeezed to almost nothing and its text wrapped one
-                      character per line. Now the row itself wraps as a whole,
-                      and the badge never shrinks below its content. */}
-                  <div className="flex items-center justify-between flex-wrap gap-2 mt-3">
-                    <span style={{ fontFamily: "Cairo,sans-serif", color: "#7A6E5A", fontSize: 12, whiteSpace: "nowrap" }}>
+                  <div className="flex items-center gap-2 mt-3">
+                    <span style={{ fontFamily: "Cairo,sans-serif", color: "#7A6E5A", fontSize: 12, flex: 1 }}>
                       📖 {course._count?.lectures ?? 0} محاضرة
                     </span>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Link
-                        href={`/admin/courses/${course.id}`}
-                        style={{
-                          padding: "5px 14px", borderRadius: 9,
-                          border: "1px solid rgba(201,168,76,0.3)",
-                          color: "#8B6914", fontFamily: "Cairo,sans-serif",
-                          fontSize: 12, fontWeight: 600, textDecoration: "none",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        تعديل
-                      </Link>
-                      <button
-                        onClick={() => setDeleteTarget(course.id)}
-                        style={{
-                          padding: "5px 14px", borderRadius: 9,
-                          border: "1px solid rgba(239,68,68,0.25)",
-                          color: "#DC2626", fontFamily: "Cairo,sans-serif",
-                          fontSize: 12, fontWeight: 600, background: "none", cursor: "pointer",
-                          transition: "all 0.15s", whiteSpace: "nowrap",
-                        }}
-                      >
-                        حذف
-                      </button>
-                    </div>
+                    <Link
+                      href={`/admin/courses/${course.id}`}
+                      style={{
+                        padding: "5px 14px", borderRadius: 9,
+                        border: "1px solid rgba(201,168,76,0.3)",
+                        color: "#8B6914", fontFamily: "Cairo,sans-serif",
+                        fontSize: 12, fontWeight: 600, textDecoration: "none",
+                      }}
+                    >
+                      تعديل
+                    </Link>
+                    <button
+                      onClick={() => setDeleteTarget(course.id)}
+                      style={{
+                        padding: "5px 14px", borderRadius: 9,
+                        border: "1px solid rgba(239,68,68,0.25)",
+                        color: "#DC2626", fontFamily: "Cairo,sans-serif",
+                        fontSize: 12, fontWeight: 600, background: "none", cursor: "pointer",
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      حذف
+                    </button>
                   </div>
                 </div>
               </div>
