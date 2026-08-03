@@ -245,6 +245,8 @@ export function ImageUploadField({ label, hint, fieldKey, value, onChange, aspec
           لينك درايف لازم يكون "مشاركة عامة — أي حد معاه اللينك يقدر يشوف"، وإلا الصورة مش هتظهر.
         </p>
       )}
+
+      <ConfirmDialog
         open={confirmOpen}
         title="حذف الصورة؟"
         description="هيتم حذف الصورة نهائيًا من التخزين ومن هذا الحقل. الإجراء ده لا يمكن التراجع عنه."
