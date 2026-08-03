@@ -28,6 +28,7 @@ const IMAGE_FIELDS = new Set([
   "loginLogo",
   "faviconImage",
   "ogImage",
+  "teacherPhoto",
 ]);
 
 export async function POST(req: NextRequest) {
