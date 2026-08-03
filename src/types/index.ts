@@ -187,6 +187,7 @@ export interface CtaButton {
 export interface SiteSettings {
   id: string; heroTitle: string; heroSubtitle: string; heroDesc: string;
   teacherName: string; teacherTitle: string; teacherBio: string;
+  teacherPhoto?: string | null;
   teacherStats: { value: string; label: string }[];
   features: { icon: string; title: string; desc: string }[];
   platformName: string; platformTagline: string; loginBgGradient: string;
