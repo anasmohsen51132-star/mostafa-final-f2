@@ -7,6 +7,7 @@ import Link from "next/link";
 import { fetchWithAuth } from "@/hooks/useAuth";
 import { useToast } from "@/store/uiStore";
 import { StaggerContainer, StaggerItem } from "@/components/layout/PageTransition";
+import { HelpNote } from "@/components/admin/HelpNote";
 
 interface LectureRow {
   id: string;
@@ -99,6 +100,8 @@ export default function AdminLecturesPage() {
           ＋ إضافة محاضرة
         </Link>
       </motion.div>
+
+      <HelpNote text="المحاضرة هي الدرس اللي بتحطه للطلاب (فيديو، ملف PDF، اختبار، أو واجب)، وممكن تربط نفس المحاضرة بأكتر من كورس. المحاضرة تفضل «مسودة 📦» ومحدش شايفها غير لما تدوس «نشر 🚀»." />
 
       {/* Search */}
       <motion.div
@@ -210,6 +213,7 @@ export default function AdminLecturesPage() {
                   <button
                     onClick={() => togglePublish.mutate({ id: lec.id, isPublished: !lec.isPublished })}
                     disabled={togglePublish.isPending}
+                    title={lec.isPublished ? "الطلاب شايفينها دلوقتي — دوس عشان تخفيها" : "لسه مسودة — دوس عشان تظهر للطلاب"}
                     style={{
                       padding: "6px 14px", borderRadius: 9,
                       border: lec.isPublished ? "1px solid rgba(120,113,108,0.3)" : "1px solid rgba(26,107,71,0.3)",
@@ -222,6 +226,7 @@ export default function AdminLecturesPage() {
                   </button>
                   <Link
                     href={`/admin/lectures/${lec.id}`}
+                    title="تعديل محتوى المحاضرة (فيديوهات، ملفات، اختبارات)"
                     style={{
                       padding: "6px 14px", borderRadius: 9,
                       border: "1px solid rgba(201,168,76,0.3)",
@@ -233,6 +238,7 @@ export default function AdminLecturesPage() {
                   </Link>
                   <button
                     onClick={() => setDeleteTarget(lec.id)}
+                    title="حذف المحاضرة نهائياً"
                     style={{
                       padding: "6px 14px", borderRadius: 9,
                       border: "1px solid rgba(239,68,68,0.25)",
@@ -338,7 +344,7 @@ export default function AdminLecturesPage() {
               <div style={{ fontSize: 48, marginBottom: 12 }}>⚠️</div>
               <h3 style={{ fontFamily: "Amiri,serif", color: "#1A1208", fontSize: 22, marginBottom: 8 }}>تأكيد الحذف</h3>
               <p style={{ fontFamily: "Cairo,sans-serif", color: "#7A6E5A", fontSize: 14, marginBottom: 24 }}>
-                سيتم حذف المحاضرة مع جميع محتوياتها (فيديوهات، ملفات، اختبارات).
+                سيتم حذف المحاضرة مع جميع محتوياتها (فيديوهات، ملفات، اختبارات) نهائياً، ولا يمكن التراجع عن هذا الإجراء بعد الحذف.
               </p>
               <div className="flex gap-3 justify-center">
                 <button
