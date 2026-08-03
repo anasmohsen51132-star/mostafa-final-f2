@@ -30,6 +30,9 @@ export function TeacherSection({ settings }: Props) {
   const teacherName  = settings?.teacherName  ?? "مستر مصطفى";
   const teacherTitle = settings?.teacherTitle ?? "خبير تدريس اللغة العربية";
   const teacherBio   = settings?.teacherBio   ?? "معلم متميز بخبرة تزيد عن خمس عشرة عاماً في تدريس اللغة العربية لجميع المراحل الدراسية، حاصل على شهادات متعددة في التدريس وعلم اللغة.";
+  // Falls back to the bundled default photo until the owner uploads a
+  // different one from لوحة التحكم → تخصيص الموقع → معلومات الأستاذ.
+  const teacherPhoto = settings?.teacherPhoto ?? "/teacher.jpg";
 
   return (
     <section
@@ -64,13 +67,21 @@ export function TeacherSection({ settings }: Props) {
               />
               {/* Main avatar */}
               <div
-                className="relative w-48 h-48 rounded-full flex items-center justify-center"
+                className="relative w-48 h-48 rounded-full flex items-center justify-center overflow-hidden"
                 style={{
                   background: "linear-gradient(135deg,rgba(201,168,76,0.3),rgba(45,158,107,0.3))",
                   border: "3px solid rgba(201,168,76,0.5)",
                 }}
               >
-                <span style={{ fontFamily: "Amiri,serif", color: "#E8C97A", fontSize: 72 }}>م</span>
+                {teacherPhoto ? (
+                  <img
+                    src={teacherPhoto}
+                    alt={teacherName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span style={{ fontFamily: "Amiri,serif", color: "#E8C97A", fontSize: 72 }}>م</span>
+                )}
               </div>
             </div>
 
