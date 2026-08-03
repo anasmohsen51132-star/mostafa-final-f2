@@ -68,8 +68,11 @@ function buildCsp(nonce: string) {
     "style-src 'self' 'unsafe-inline'",
     // Cloudinary added: the owner uses Cloudinary URLs for images like the
     // dashboard banner (siteSettings.dashboardBanner) — without this, CSP
-    // silently blocks the image from loading in the browser.
-    "img-src 'self' data: blob: https://img.youtube.com https://i.ytimg.com https://*.public.blob.vercel-storage.com https://res.cloudinary.com",
+    // silently blocks the image from loading in the browser. drive.google.com
+    // added for the same reason: ImageUploadField now accepts a pasted
+    // Google Drive share link and converts it to a drive.google.com/thumbnail
+    // URL — this is just a normal image request, not the OAuth Picker flow.
+    "img-src 'self' data: blob: https://img.youtube.com https://i.ytimg.com https://*.public.blob.vercel-storage.com https://res.cloudinary.com https://drive.google.com",
     "font-src 'self' data:",
     "frame-src https://www.youtube-nocookie.com",
     "connect-src 'self'",
