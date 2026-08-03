@@ -128,7 +128,7 @@ export default function AdminCoursesPage() {
 
                   {/* Level badges */}
                   {course.levels && course.levels.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mb-10">
+                    <div className="flex flex-wrap gap-1 mb-2">
                       {course.levels.map((l) => (
                         <span
                           key={l.academicLevel}
