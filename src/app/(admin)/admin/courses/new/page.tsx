@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { fetchWithAuth } from "@/hooks/useAuth";
 import { useToast } from "@/store/uiStore";
+import { HelpNote } from "@/components/admin/HelpNote";
 import {
   ACADEMIC_LEVEL_LABELS,
   ACADEMIC_LEVELS,
@@ -91,6 +92,8 @@ export default function NewCoursePage() {
           إضافة كورس جديد
         </h1>
       </motion.div>
+
+      <HelpNote text="اكتب اسم ووصف الكورس، واختر شكله (الأيقونة واللون)، وبعد ما تحفظه هتقدر تضيفله محاضرات من صفحة المحاضرات. الكورس بيفضل مخفي عن الطلاب لحد ما تنشره." />
 
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
