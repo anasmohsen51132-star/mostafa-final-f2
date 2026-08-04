@@ -243,23 +243,34 @@ input, textarea, select {
    PRINT STYLES — code cards
    ============================================================ */
 @media print {
-  /* BUG FIX: this used to be `body > * { display:none }` plus a rule that
-     re-showed #codes-print-grid — but `body > *` only reaches *direct*
-     children of <body>. In a Next.js app the print grid is always nested
-     many layout levels deep (RootLayout > AdminLayout > page > ... > this
-     div), so its ancestors stayed display:none and no child `display:grid`
-     can override a hidden ancestor. The grid's own CSS was technically
-     correct and still produced a blank printout. The reliable version of
-     this pattern is the reverse: explicitly mark the chrome that should
-     NOT print (.no-print, added to the Sidebar/topbar in (admin)/layout.tsx
-     and to this page's own header/toolbar/table), and let everything else
-     — including the print grid, wherever it sits in the tree — print
-     normally in place. */
+  /* BUG FIX #1 (blank page): this used to be `body > * { display:none }`
+     plus a rule that re-showed #codes-print-grid — but `body > *` only
+     reaches *direct* children of <body>. In a Next.js app the print grid
+     is always nested many layout levels deep, so its ancestors stayed
+     display:none. Fixed by marking the chrome that should NOT print
+     instead (.no-print) and letting everything else print in place. */
   .no-print                           { display: none !important; }
   #codes-print-grid                   { display: grid !important; }
   .code-card-print                    { break-inside: avoid; page-break-inside: avoid; }
   body  { background: white; direction: rtl; }
   @page { margin: 10mm; size: A4 portrait; }
+
+  /* BUG FIX #2 (cards printed plain white, no green/gold at all): browsers
+     strip background colors, gradients, and box-shadows by default when
+     printing — it's an ink-saving default, not a bug in the card's own
+     CSS. Without this, every inline `background: linear-gradient(...)`
+     on the cards silently gets dropped the moment you print/print-to-PDF,
+     which is exactly what turned the dark-green branded card into a bare
+     white box with just its border left. print-color-adjust: exact is
+     the explicit opt-out of that default. Applies to every element, since
+     Chrome/Safari only honor it when it's present on the element that
+     actually has the background — setting it once on `*` covers all of
+     them without hunting down each one individually. */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
 
   /* Recharge-card-style cut frame: a dashed border reads clearly as
      "cut along this line" (the same convention printed phone-credit and
