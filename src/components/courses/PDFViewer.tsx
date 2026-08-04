@@ -44,7 +44,7 @@ export function PDFViewer({ pdfs }: Props) {
               </p>
             </div>
             <a
-              href={pdf.fileUrl}
+              href={`/api/pdfs/${pdf.id}/view`}
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
@@ -89,7 +89,7 @@ export function PDFViewer({ pdfs }: Props) {
             </button>
           </div>
           <iframe
-            src={`${selected.fileUrl}#toolbar=0`}
+            src={`/api/pdfs/${selected.id}/view#toolbar=0`}
             title={selected.title}
             style={{ width: "100%", height: 600, border: "none", display: "block" }}
           />
