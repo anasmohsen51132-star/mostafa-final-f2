@@ -74,7 +74,13 @@ function buildCsp(nonce: string) {
     // URL — this is just a normal image request, not the OAuth Picker flow.
     "img-src 'self' data: blob: https://img.youtube.com https://i.ytimg.com https://*.public.blob.vercel-storage.com https://res.cloudinary.com https://drive.google.com",
     "font-src 'self' data:",
-    "frame-src https://www.youtube-nocookie.com",
+    // 'self' added: PDFViewer's inline <iframe> now points at our own
+    // protected /api/pdfs/[id]/view route (see SEC-002) instead of the raw
+    // public blob URL — without 'self' here, CSP silently blocked that
+    // same-origin iframe from ever loading, even though the route itself
+    // worked fine (this frame-src list has no implicit fallback to
+    // default-src once it's declared at all).
+    "frame-src 'self' https://www.youtube-nocookie.com",
     "connect-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",
