@@ -191,10 +191,13 @@ export default function AdminCodesPage() {
 
             {/* Print grid — sits outside the no-print toolbar box above, so
                 it prints on its own with no decorative background/border
-                eating into the page. */}
+                eating into the page. Cards are landscape (matches the
+                reference template's ~3:2 ratio) so 2 fit per row on A4;
+                fewer codes per sheet than a small recharge-card grid, but
+                this is the fidelity that was actually asked for. */}
             <div ref={printRef} id="codes-print-grid"
-              className="grid gap-3 mb-8"
-              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
+              className="grid gap-4 mb-8"
+              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))" }}>
               {newCodes.map((c) => {
                 const primaryCourse = c.courses?.[0]?.course;
                 const courseTitle   = c.courses?.map((cc) => cc.course.title).join("، ") ?? "";
@@ -210,67 +213,108 @@ export default function AdminCodesPage() {
 
                 return (
                   <div key={c.id} className="code-card-print" style={{
-                    position: "relative", overflow: "hidden", borderRadius: 16,
-                    background: "linear-gradient(145deg,#0D3D27,#1A6B47)",
-                    border: "2px solid #C9A84C", padding: "16px 14px 12px",
+                    position: "relative", overflow: "hidden", borderRadius: 18,
+                    background: "linear-gradient(145deg,#0D3D27 0%,#123F28 55%,#1A6B47 100%)",
+                    border: "2.5px solid #C9A84C",
                     boxShadow: "0 4px 14px rgba(13,61,39,0.25)",
-                    display: "flex", alignItems: "flex-end", gap: 8, minHeight: 190,
+                    aspectRatio: "1280 / 827",
+                    // LTR wrapper purely for flex item ORDER (text left,
+                    // photo right) — Arabic text inside still shapes RTL
+                    // normally, only the block-level layout direction
+                    // changes. Using this instead of RTL row-reverse
+                    // sidesteps browser inconsistencies mixing the two.
+                    direction: "ltr", display: "flex",
                   }}>
-                    {/* Teacher photo — background-removed cutout, so only the
-                        man himself shows standing directly on the card's own
-                        dark-green background instead of a visible photo
-                        rectangle/patch. Anchored to the bottom-left like a
-                        figure standing at the card's edge. object-fit:contain
-                        (not cover) keeps the whole figure intact, uncropped. */}
-                    <img
-                      src="/mostafa-portrait.png"
-                      alt=""
-                      style={{
-                        position: "absolute", left: -6, bottom: 0,
-                        width: "58%", height: "94%", objectFit: "contain",
-                        objectPosition: "bottom", pointerEvents: "none",
-                      }}
-                    />
+                    {/* Decorative corner flourish, top-left of the whole card */}
+                    <div style={{
+                      position: "absolute", top: -30, left: -30, width: 110, height: 110,
+                      borderRadius: "50%", border: "2px solid rgba(201,168,76,0.35)",
+                    }} />
+                    <div style={{
+                      position: "absolute", top: -10, left: -10, width: 70, height: 70,
+                      borderRadius: "50%", border: "1.5px solid rgba(201,168,76,0.3)",
+                    }} />
 
-                    {/* Text column — right side, on top of the photo via z-index */}
-                    <div style={{ position: "relative", zIndex: 1, marginRight: "auto", width: "62%", textAlign: "center" }}>
-                      <div style={{ fontFamily: "Amiri,serif", color: "#E8C97A", fontSize: 14, fontWeight: 700, marginBottom: 6, lineHeight: 1.3 }}>
+                    {/* Text column */}
+                    <div style={{
+                      position: "relative", zIndex: 1, flex: "1 1 60%",
+                      display: "flex", flexDirection: "column", alignItems: "center",
+                      justifyContent: "center", textAlign: "center", padding: "5% 4%",
+                    }}>
+                      <div style={{
+                        width: 26, height: 26, marginBottom: 4, borderRadius: "50% 50% 50% 0",
+                        background: "rgba(201,168,76,0.18)", border: "1.3px solid rgba(201,168,76,0.55)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        transform: "rotate(45deg)",
+                      }}>
+                        <span style={{ transform: "rotate(-45deg)", fontSize: 12 }}>🕌</span>
+                      </div>
+
+                      <div style={{ fontFamily: "Amiri,serif", color: "#E8C97A", fontSize: 18, fontWeight: 700, marginBottom: 6, lineHeight: 1.25 }}>
                         أكاديمية مستر مصطفى
                       </div>
 
                       {levelLabel && (
                         <div style={{
-                          display: "inline-block", padding: "2px 10px", borderRadius: 999,
-                          border: "1px solid rgba(232,201,122,0.5)", color: "#E8C97A",
-                          fontFamily: "Cairo,sans-serif", fontSize: 9, fontWeight: 700, marginBottom: 6,
+                          display: "inline-block", padding: "3px 14px", borderRadius: 999,
+                          background: "rgba(201,168,76,0.15)", border: "1px solid rgba(232,201,122,0.5)", color: "#E8C97A",
+                          fontFamily: "Cairo,sans-serif", fontSize: 10, fontWeight: 700, marginBottom: 7,
                         }}>
                           {levelLabel}
                         </div>
                       )}
 
-                      <div style={{ height: 1, background: "rgba(232,201,122,0.25)", margin: "0 0 6px" }} />
-
-                      <div style={{ fontFamily: "Cairo,sans-serif", color: "#E8C97A", fontSize: 9, marginBottom: 2, opacity: 0.85 }}>
+                      <div style={{ fontFamily: "Cairo,sans-serif", color: "#E8C97A", fontSize: 10, opacity: 0.85 }}>
                         كود الطالب
                       </div>
-                      <div style={{ fontFamily: "Cairo,sans-serif", color: "#fff", fontSize: 9, marginBottom: 6, lineHeight: 1.35 }}>
+                      <div style={{
+                        fontFamily: "Cairo,sans-serif", color: "#fff", fontSize: 10,
+                        marginBottom: 7, padding: "2px 10px", borderRadius: 999,
+                        background: "rgba(0,0,0,0.15)", border: "1px solid rgba(232,201,122,0.25)",
+                      }}>
                         كود {courseTitle}
                       </div>
 
-                      <div style={{ background: "#FAF7F0", borderRadius: 7, padding: "6px 4px", marginBottom: 6 }}>
-                        <p style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: "#1A1208", letterSpacing: "0.06em" }}>
+                      <div style={{ background: "#FAF7F0", borderRadius: 9, padding: "6% 5%", marginBottom: 6, width: "88%", border: "1px solid rgba(201,168,76,0.4)" }}>
+                        <p style={{ fontFamily: "monospace", fontSize: 16, fontWeight: 700, color: "#1A1208", letterSpacing: "0.05em" }}>
                           {c.code}
                         </p>
                       </div>
 
-                      <div style={{ fontFamily: "Cairo,sans-serif", color: "#E8C97A", fontSize: 8, opacity: 0.85 }}>
-                        {currentAcademicYear()}
+                      <div style={{ fontFamily: "Cairo,sans-serif", color: "#E8C97A", fontSize: 9, opacity: 0.85 }}>
+                        السنة الدراسية {currentAcademicYear()}
                       </div>
                       {c.expiresAt && (
-                        <p style={{ fontFamily: "Cairo,sans-serif", fontSize: 7, color: "#F5B5B5", marginTop: 2 }}>
+                        <p style={{ fontFamily: "Cairo,sans-serif", fontSize: 8, color: "#F5B5B5", marginTop: 2 }}>
                           ينتهي: {new Date(c.expiresAt).toLocaleDateString("ar-EG")}
                         </p>
                       )}
+                      <div style={{ fontFamily: "Cairo,sans-serif", color: "rgba(232,201,122,0.7)", fontSize: 8, marginTop: 3 }}>
+                        نسير على نهج العلم والإتقان
+                      </div>
+                    </div>
+
+                    {/* Photo panel — fixed-width column with a real height
+                        (100% of the card's own aspect-ratio-driven height),
+                        so object-fit has an actual box to fit into instead
+                        of a percentage of an undefined auto height — that
+                        undefined-height case is what made the photo render
+                        tiny/broken in the previous version. */}
+                    <div style={{ position: "relative", flex: "0 0 42%", height: "100%" }}>
+                      <img
+                        src="/mostafa-portrait.png"
+                        alt=""
+                        style={{
+                          position: "absolute", inset: 0, width: "100%", height: "100%",
+                          objectFit: "cover", objectPosition: "top center",
+                        }}
+                      />
+                      {/* Fade the photo's bottom into the card background so
+                          the cutout edge doesn't look like a hard sticker. */}
+                      <div style={{
+                        position: "absolute", inset: 0,
+                        background: "linear-gradient(to left, transparent 70%, #0D3D27 100%)",
+                      }} />
                     </div>
                   </div>
                 );
