@@ -6,7 +6,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchWithAuth } from "@/hooks/useAuth";
 import { useToast } from "@/store/uiStore";
 import { formatDate } from "@/lib/utils";
-import { HelpNote } from "@/components/admin/HelpNote";
 import type { AccessCode, Course } from "@/types";
 
 export default function AdminCodesPage() {
@@ -147,8 +146,6 @@ export default function AdminCodesPage() {
           </button>
         </div>
       </motion.div>
-
-      <HelpNote text="كود الوصول هو رقم/حروف بتدّيها للطالب بعد ما يدفع، وهو بيستخدمها في صفحة «استخدام كود» عنده عشان يفتح الكورس. دوس «توليد كودات» عشان تطبع مجموعة أكواد جاهزة تدّيها للطلاب." />
 
       {/* New codes print section */}
       <AnimatePresence>
@@ -363,7 +360,7 @@ export default function AdminCodesPage() {
                         style={{ border: "1.5px solid", borderColor: sel ? "#C9A84C" : "rgba(201,168,76,0.2)",
                           background: sel ? "rgba(201,168,76,0.08)" : "transparent", cursor: "pointer" }}>
                         <span style={{ fontSize: 20 }}>{course.icon}</span>
-                        <span style={{ fontFamily: "Cairo,sans-serif", color: "#1A1208", fontSize: 13, flex: 1, fontWeight: sel ? 700 : 400 }}>
+                        <span style={{ fontFamily: "Cairo,sans-serif", color: "#1A1208", fontSize: 13, flex: 1, minWidth: 0, fontWeight: sel ? 700 : 400 }}>
                           {course.title}
                         </span>
                         <div style={{ width: 18, height: 18, borderRadius: 5, border: "2px solid",
