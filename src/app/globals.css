@@ -243,28 +243,38 @@ input, textarea, select {
    PRINT STYLES — code cards
    ============================================================ */
 @media print {
-  /* Hide everything except print content */
-  body > *                            { display: none !important; }
-  #print-sheet-root,
-  #codes-print-grid                   { display: grid !important; }
+  /* BUG FIX: this used to be `body > * { display:none }` plus a rule that
+     re-showed #codes-print-grid — but `body > *` only reaches *direct*
+     children of <body>. In a Next.js app the print grid is always nested
+     many layout levels deep (RootLayout > AdminLayout > page > ... > this
+     div), so its ancestors stayed display:none and no child `display:grid`
+     can override a hidden ancestor. The grid's own CSS was technically
+     correct and still produced a blank printout. The reliable version of
+     this pattern is the reverse: explicitly mark the chrome that should
+     NOT print (.no-print, added to the Sidebar/topbar in (admin)/layout.tsx
+     and to this page's own header/toolbar/table), and let everything else
+     — including the print grid, wherever it sits in the tree — print
+     normally in place. */
   .no-print                           { display: none !important; }
+  #codes-print-grid                   { display: grid !important; }
   .code-card-print                    { break-inside: avoid; page-break-inside: avoid; }
   body  { background: white; direction: rtl; }
   @page { margin: 10mm; size: A4 portrait; }
 
   /* Recharge-card-style cut frame: a dashed border reads clearly as
      "cut along this line" (the same convention printed phone-credit and
-     gift cards use), and prints reliably in plain black regardless of the
-     card's on-screen gold/green theme colors — a light gold border can
-     come out too faint on some printers to actually see while cutting.
-     The extra gap between cards leaves room for scissors/a paper cutter
-     without nicking the next card over. */
+     gift cards use). The extra gap between cards leaves room for
+     scissors/a paper cutter without nicking the next card over. */
   #codes-print-grid {
     gap: 10mm !important;
   }
   .code-card-print {
-    border: 1.5px dashed #444 !important;
-    outline: 1px solid transparent; /* avoids double-border rendering some browsers add on top of the existing inline border */
+    /* Cards carry their own solid gold border + dark background (see the
+       JSX), so the cut-guide only needs a *lighter* dashed line — a plain
+       dark grey dash would nearly disappear against the dark-green card
+       background. */
+    outline: 1.5px dashed rgba(232,201,122,0.9) !important;
+    outline-offset: 3px;
     position: relative;
   }
 }
