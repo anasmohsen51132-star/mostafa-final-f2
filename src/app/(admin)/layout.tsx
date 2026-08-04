@@ -63,7 +63,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* lg:mr-64 provides desktop sidebar offset; mobile/tablet = full width. */}
         <div className="lg:mr-64 px-3 sm:px-4 md:px-5 py-4 sm:py-5 md:py-6">
           {/* Mobile top bar */}
-          <div className="flex lg:hidden items-center justify-between mb-5">
+          <div className="flex lg:hidden items-center justify-between mb-5 no-print">
             <button
               onClick={() => setSidebarOpen(true)}
               className="flex items-center justify-center w-10 h-10 rounded-xl"
