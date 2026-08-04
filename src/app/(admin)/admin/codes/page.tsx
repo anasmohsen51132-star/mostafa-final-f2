@@ -7,6 +7,15 @@ import { fetchWithAuth } from "@/hooks/useAuth";
 import { useToast } from "@/store/uiStore";
 import { formatDate } from "@/lib/utils";
 import type { AccessCode, Course } from "@/types";
+import { ACADEMIC_LEVEL_LABELS } from "@/types";
+
+// Egyptian academic year runs Sept→June. Sept or later this year = "this/next";
+// before Sept = "last/this" — same convention students already see elsewhere.
+function currentAcademicYear(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  return now.getMonth() >= 8 ? `${y}/${y + 1}` : `${y - 1}/${y}`;
+}
 
 export default function AdminCodesPage() {
   const toast    = useToast();
@@ -104,7 +113,7 @@ export default function AdminCodesPage() {
     <div style={{ direction: "rtl" }}>
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-        className="flex items-start justify-between mb-8 flex-wrap gap-4">
+        className="flex items-start justify-between mb-8 flex-wrap gap-4 no-print">
         <div>
           <h1 style={{ fontFamily: "Amiri,serif", color: "#1A1208", fontSize: 32, marginBottom: 4 }}>
             كودات الوصول
@@ -150,65 +159,129 @@ export default function AdminCodesPage() {
       {/* New codes print section */}
       <AnimatePresence>
         {showPrint && newCodes.length > 0 && (
-          <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-            className="rounded-2xl p-6 mb-8"
-            style={{ background: "rgba(45,158,107,0.05)", border: "1px solid rgba(45,158,107,0.25)" }}>
-            <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-              <h3 style={{ fontFamily: "Amiri,serif", color: "#1A6B47", fontSize: 20 }}>
-                ✅ تم توليد {newCodes.length} كود جديد
-              </h3>
-              <div className="flex gap-2">
-                <button onClick={handlePrint}
-                  style={{ padding: "8px 18px", borderRadius: 10,
-                    background: "linear-gradient(135deg,#C9A84C,#8B6914)",
-                    color: "#1A1208", fontFamily: "Cairo,sans-serif",
-                    fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer" }}>
-                  🖨️ طباعة الكودات
-                </button>
-                <button onClick={() => setShowPrint(false)}
-                  style={{ padding: "8px 14px", borderRadius: 10,
-                    border: "1px solid rgba(201,168,76,0.3)", color: "#8B6914",
-                    background: "none", fontFamily: "Cairo,sans-serif", fontSize: 13, cursor: "pointer" }}>
-                  إغلاق
-                </button>
+          <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+            {/* Toolbar — marked no-print. IMPORTANT: this box must stay a
+                SIBLING of the print grid below, never an ancestor of it —
+                hiding an ancestor hides every child regardless of the
+                child's own display rules, which was the root cause of the
+                original "prints blank" bug. */}
+            <div className="rounded-2xl p-6 mb-8 no-print"
+              style={{ background: "rgba(45,158,107,0.05)", border: "1px solid rgba(45,158,107,0.25)" }}>
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <h3 style={{ fontFamily: "Amiri,serif", color: "#1A6B47", fontSize: 20 }}>
+                  ✅ تم توليد {newCodes.length} كود جديد
+                </h3>
+                <div className="flex gap-2">
+                  <button onClick={handlePrint}
+                    style={{ padding: "8px 18px", borderRadius: 10,
+                      background: "linear-gradient(135deg,#C9A84C,#8B6914)",
+                      color: "#1A1208", fontFamily: "Cairo,sans-serif",
+                      fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer" }}>
+                    🖨️ طباعة الكودات
+                  </button>
+                  <button onClick={() => setShowPrint(false)}
+                    style={{ padding: "8px 14px", borderRadius: 10,
+                      border: "1px solid rgba(201,168,76,0.3)", color: "#8B6914",
+                      background: "none", fontFamily: "Cairo,sans-serif", fontSize: 13, cursor: "pointer" }}>
+                    إغلاق
+                  </button>
+                </div>
               </div>
             </div>
-            {/* Print grid */}
-            <div ref={printRef}
-              className="grid gap-3 no-print"
-              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
-              {newCodes.map((c) => (
-                <div key={c.id} className="rounded-xl p-4 text-center code-card-print"
-                  style={{ background: "#fff", border: "2px solid rgba(201,168,76,0.3)",
-                    boxShadow: "0 2px 8px rgba(26,18,8,0.06)" }}>
-                  <div style={{ fontFamily: "Amiri,serif", color: "#C9A84C", fontSize: 10, marginBottom: 5, fontWeight: 700 }}>
-                    اكاديمية مستر مصطفى
+
+            {/* Print grid — sits outside the no-print toolbar box above, so
+                it prints on its own with no decorative background/border
+                eating into the page. */}
+            <div ref={printRef} id="codes-print-grid"
+              className="grid gap-3 mb-8"
+              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
+              {newCodes.map((c) => {
+                const primaryCourse = c.courses?.[0]?.course;
+                const courseTitle   = c.courses?.map((cc) => cc.course.title).join("، ") ?? "";
+                // Level comes straight from the course being printed — never
+                // asked for separately, exactly as requested: whoever is
+                // generating codes for a course already knows/set which
+                // academic year(s) that course belongs to.
+                const levels = primaryCourse?.levels ?? [];
+                const levelLabel =
+                  levels.length === 1 ? ACADEMIC_LEVEL_LABELS[levels[0].academicLevel]
+                  : levels.length > 1 ? levels.map((l) => ACADEMIC_LEVEL_LABELS[l.academicLevel]).join(" / ")
+                  : null;
+
+                return (
+                  <div key={c.id} className="code-card-print" style={{
+                    position: "relative", overflow: "hidden", borderRadius: 16,
+                    background: "linear-gradient(145deg,#0D3D27,#1A6B47)",
+                    border: "2px solid #C9A84C", padding: "16px 14px 12px",
+                    boxShadow: "0 4px 14px rgba(13,61,39,0.25)",
+                    display: "flex", alignItems: "flex-end", gap: 8, minHeight: 190,
+                  }}>
+                    {/* Teacher photo — background-removed cutout, so only the
+                        man himself shows standing directly on the card's own
+                        dark-green background instead of a visible photo
+                        rectangle/patch. Anchored to the bottom-left like a
+                        figure standing at the card's edge. object-fit:contain
+                        (not cover) keeps the whole figure intact, uncropped. */}
+                    <img
+                      src="/mostafa-portrait.png"
+                      alt=""
+                      style={{
+                        position: "absolute", left: -6, bottom: 0,
+                        width: "58%", height: "94%", objectFit: "contain",
+                        objectPosition: "bottom", pointerEvents: "none",
+                      }}
+                    />
+
+                    {/* Text column — right side, on top of the photo via z-index */}
+                    <div style={{ position: "relative", zIndex: 1, marginRight: "auto", width: "62%", textAlign: "center" }}>
+                      <div style={{ fontFamily: "Amiri,serif", color: "#E8C97A", fontSize: 14, fontWeight: 700, marginBottom: 6, lineHeight: 1.3 }}>
+                        أكاديمية مستر مصطفى
+                      </div>
+
+                      {levelLabel && (
+                        <div style={{
+                          display: "inline-block", padding: "2px 10px", borderRadius: 999,
+                          border: "1px solid rgba(232,201,122,0.5)", color: "#E8C97A",
+                          fontFamily: "Cairo,sans-serif", fontSize: 9, fontWeight: 700, marginBottom: 6,
+                        }}>
+                          {levelLabel}
+                        </div>
+                      )}
+
+                      <div style={{ height: 1, background: "rgba(232,201,122,0.25)", margin: "0 0 6px" }} />
+
+                      <div style={{ fontFamily: "Cairo,sans-serif", color: "#E8C97A", fontSize: 9, marginBottom: 2, opacity: 0.85 }}>
+                        كود الطالب
+                      </div>
+                      <div style={{ fontFamily: "Cairo,sans-serif", color: "#fff", fontSize: 9, marginBottom: 6, lineHeight: 1.35 }}>
+                        كود {courseTitle}
+                      </div>
+
+                      <div style={{ background: "#FAF7F0", borderRadius: 7, padding: "6px 4px", marginBottom: 6 }}>
+                        <p style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: "#1A1208", letterSpacing: "0.06em" }}>
+                          {c.code}
+                        </p>
+                      </div>
+
+                      <div style={{ fontFamily: "Cairo,sans-serif", color: "#E8C97A", fontSize: 8, opacity: 0.85 }}>
+                        {currentAcademicYear()}
+                      </div>
+                      {c.expiresAt && (
+                        <p style={{ fontFamily: "Cairo,sans-serif", fontSize: 7, color: "#F5B5B5", marginTop: 2 }}>
+                          ينتهي: {new Date(c.expiresAt).toLocaleDateString("ar-EG")}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div style={{ height: 1, background: "rgba(201,168,76,0.25)", marginBottom: 6 }} />
-                  <div style={{ fontFamily: "Cairo,sans-serif", color: "#4A3F2A", fontSize: 9, marginBottom: 6, lineHeight: 1.4 }}>
-                    {c.courses?.map((cc) => cc.course.title).join("، ")}
-                  </div>
-                  <div style={{ background: "linear-gradient(135deg,#0D3D27,#1A6B47)", borderRadius: 6, padding: "6px 4px", marginBottom: 6 }}>
-                    <p style={{ fontFamily: "monospace", fontSize: 14, fontWeight: 700, color: "#E8C97A", letterSpacing: "0.1em" }}>
-                      {c.code}
-                    </p>
-                  </div>
-                  {c.expiresAt && (
-                    <p style={{ fontFamily: "Cairo,sans-serif", fontSize: 8, color: "#DC2626", marginTop: 4 }}>
-                      ينتهي: {new Date(c.expiresAt).toLocaleDateString("ar-EG")}
-                    </p>
-                  )}
-                  <p style={{ fontFamily: "Cairo,sans-serif", fontSize: 7, color: "#7A6E5A", marginTop: 4, lineHeight: 1.4 }}>
-                    يُستخدم مرة واحدة فقط
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Codes table */}
+      <div className="no-print">
       {isLoading ? (
         <div className="space-y-2">
           {[...Array(8)].map((_, i) => <div key={i} className="skeleton rounded-xl h-14" />)}
@@ -332,6 +405,8 @@ export default function AdminCodesPage() {
           </button>
         </div>
       )}
+      </div>
+      {/* end no-print table/pagination wrapper */}
       <AnimatePresence>
         {showGenerator && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
