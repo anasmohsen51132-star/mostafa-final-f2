@@ -58,7 +58,7 @@ async function setCachedOwnership(key: string, owns: boolean): Promise<void> {
  * an AccessCode that unlocks a course containing the given lecture.
  */
 export async function userOwnsLecture(userId: string, role: string, lectureId: string): Promise<boolean> {
-  if (role === "ADMIN" || role === "OWNER") return true;
+  if (role === "ADMIN" || role === "OWNER" || role === "DEVELOPER") return true;
 
   const cacheKey = `${userId}:${lectureId}`;
   const cached = await getCachedOwnership(cacheKey);
@@ -85,7 +85,7 @@ export async function userOwnsLecture(userId: string, role: string, lectureId: s
 
 /** Same check, but starting from a quizId (resolves lectureId first). */
 export async function userOwnsQuiz(userId: string, role: string, quizId: string): Promise<boolean> {
-  if (role === "ADMIN" || role === "OWNER") return true;
+  if (role === "ADMIN" || role === "OWNER" || role === "DEVELOPER") return true;
   const quiz = await prisma.quiz.findUnique({ where: { id: quizId }, select: { lectureId: true } });
   if (!quiz) return false;
   return userOwnsLecture(userId, role, quiz.lectureId);
@@ -93,7 +93,7 @@ export async function userOwnsQuiz(userId: string, role: string, quizId: string)
 
 /** Same check, but starting from a homeworkId (resolves lectureId first). */
 export async function userOwnsHomework(userId: string, role: string, homeworkId: string): Promise<boolean> {
-  if (role === "ADMIN" || role === "OWNER") return true;
+  if (role === "ADMIN" || role === "OWNER" || role === "DEVELOPER") return true;
   const hw = await prisma.homework.findUnique({ where: { id: homeworkId }, select: { lectureId: true } });
   if (!hw) return false;
   return userOwnsLecture(userId, role, hw.lectureId);
