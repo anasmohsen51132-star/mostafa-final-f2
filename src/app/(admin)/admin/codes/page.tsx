@@ -1,20 +1,118 @@
 "use client";
 // src/app/(admin)/admin/codes/page.tsx
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo, useCallback } from "react";
 import { m as motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchWithAuth } from "@/hooks/useAuth";
 import { useToast } from "@/store/uiStore";
 import { formatDate } from "@/lib/utils";
 import type { AccessCode, Course } from "@/types";
-import { ACADEMIC_LEVEL_LABELS } from "@/types";
+import {
+  toPrintCards, chunkIntoPages, currentAcademicYear, triggerPrint, generatePrintTitle,
+  CARD_LAYOUT, type PrintCard,
+} from "@/lib/print-codes";
 
-// Egyptian academic year runs Sept→June. Sept or later this year = "this/next";
-// before Sept = "last/this" — same convention students already see elsewhere.
-function currentAcademicYear(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  return now.getMonth() >= 8 ? `${y}/${y + 1}` : `${y - 1}/${y}`;
+type PrintMode = "batch" | "selected" | "single";
+
+const GOLD = "#C9A84C", GOLD_LIGHT = "#E8C97A", GREEN_DEEP = "#0D3D27", GREEN = "#1A6B47";
+
+/** Purely decorative corner ornament + faint star-lattice background,
+ *  adapted from the reviewed module's IslamicPattern.tsx: vector-only (no
+ *  raster image) so it stays crisp at 300dpi print, and every internal id
+ *  is seeded with the card's own id so a full sheet of 10 cards never
+ *  produces duplicate SVG ids in the DOM. viewBox units are 0.1mm, so 1
+ *  unit maps 1:1 to the physical 85mm x 55mm card. */
+function CardPattern({ cardId }: { cardId: string }) {
+  const patternId = `code-card-lattice-${cardId}`;
+  return (
+    <svg viewBox="0 0 850 550" preserveAspectRatio="none" aria-hidden="true"
+      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
+      <defs>
+        <pattern id={patternId} width="70" height="70" patternUnits="userSpaceOnUse">
+          <g stroke={GOLD_LIGHT} fill="none" strokeWidth="1">
+            <rect x="10" y="10" width="34" height="34" />
+            <rect x="10" y="10" width="34" height="34" transform="rotate(45 27 27)" />
+          </g>
+        </pattern>
+      </defs>
+      <rect width="850" height="550" fill={`url(#${patternId})`} opacity={0.08} />
+    </svg>
+  );
+}
+
+/** One physical 85mm x 55mm access-code card. Pure/presentational — given
+ *  already-resolved PrintCard data, doesn't know about pagination or
+ *  print mode. Sized in millimetres throughout (see CARD_LAYOUT) so the
+ *  screen preview and the printed page are numerically identical. */
+function CodeCard({ card }: { card: PrintCard }) {
+  return (
+    <div className="code-card-print" style={{
+      position: "relative", overflow: "hidden", boxSizing: "border-box",
+      width: `${CARD_LAYOUT.cardWidthMm}mm`, height: `${CARD_LAYOUT.cardHeightMm}mm`,
+      borderRadius: "3.2mm",
+      background: `radial-gradient(130% 150% at 12% -10%, ${GREEN} 0%, ${GREEN_DEEP} 55%, #000 135%)`,
+      fontFamily: "Cairo,sans-serif", color: "#FAF7F0",
+    }}>
+      <CardPattern cardId={card.id} />
+
+      <div style={{
+        position: "relative", zIndex: 1, margin: "2.6mm",
+        height: "calc(100% - 5.2mm)", boxSizing: "border-box",
+        border: `0.3mm solid ${GOLD}`, borderRadius: "2.4mm", padding: "2mm 3mm",
+        display: "flex", flexDirection: "column", justifyContent: "space-between",
+      }}>
+        {/* Header: teacher photo seal + academy name */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "1.6mm" }}>
+          <img src="/mostafa-portrait.png" alt="" style={{
+            width: "6mm", height: "6mm", borderRadius: "50%", objectFit: "cover",
+            objectPosition: "center 20%", border: `0.3mm solid ${GOLD_LIGHT}`, flexShrink: 0,
+          }} />
+          <h1 style={{
+            margin: 0, fontFamily: "Amiri,serif", fontWeight: 800, fontSize: "4mm",
+            lineHeight: 1.2, color: GOLD_LIGHT, textAlign: "center",
+          }}>
+            أكاديمية مستر مصطفى
+          </h1>
+        </div>
+
+        {/* Course + level */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "2mm", fontSize: "2.6mm", opacity: 0.92 }}>
+          <span style={{ fontWeight: 700 }}>{card.courseName || "—"}</span>
+          {card.levelLabel && (
+            <>
+              <span style={{ width: "1mm", height: "1mm", borderRadius: "50%", background: GOLD, flexShrink: 0 }} />
+              <span style={{ fontWeight: 500, opacity: 0.85 }}>{card.levelLabel}</span>
+            </>
+          )}
+        </div>
+
+        <div style={{ textAlign: "center", fontSize: "2.2mm", color: GOLD_LIGHT, opacity: 0.85 }}>
+          كود الطالب
+        </div>
+
+        {/* Code plate */}
+        <div style={{
+          background: "#FAF7F0", borderRadius: "2mm", padding: "1.6mm 3mm",
+          minHeight: "8mm", boxSizing: "border-box",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: `inset 0 0 0 0.25mm ${GOLD}`,
+        }}>
+          <span style={{
+            fontFamily: "monospace", fontWeight: 700, fontSize: "4.6mm", letterSpacing: "0.5px",
+            color: GREEN_DEEP, direction: "ltr", unicodeBidi: "isolate", whiteSpace: "nowrap",
+          }}>
+            {card.code}
+          </span>
+        </div>
+
+        {/* Footer: year + slogan */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "2mm", opacity: 0.85 }}>
+          <span style={{ fontWeight: 600 }}>{currentAcademicYear()}</span>
+          <span>نسير على نهج العلم والإتقان</span>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function AdminCodesPage() {
@@ -32,6 +130,31 @@ export default function AdminCodesPage() {
   const [isExporting,      setIsExporting]      = useState(false);
   const [page, setPage] = useState(1);
   const CODES_PAGE_SIZE = 50;
+
+  // ── Print mode (single card / a hand-picked subset / the whole batch) ──
+  // Ported from the reviewed standalone module: printing 500 codes and
+  // printing just the one a student is waiting for right now are different
+  // enough workflows to deserve their own modes, not just "print everything
+  // or nothing".
+  const [printMode,   setPrintMode]   = useState<PrintMode>("batch");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [singleId,    setSingleId]    = useState<string | undefined>(undefined);
+
+  const printCards = useMemo(() => toPrintCards(newCodes), [newCodes]);
+  const cardsToPrint = useMemo(() => {
+    if (printMode === "batch") return printCards;
+    if (printMode === "single") return printCards.filter((c) => c.id === singleId);
+    return printCards.filter((c) => selectedIds.has(c.id));
+  }, [printMode, printCards, selectedIds, singleId]);
+  const pageCount = useMemo(() => chunkIntoPages(cardsToPrint).length, [cardsToPrint]);
+
+  const toggleSelected = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }, []);
 
   const { data: codesRes, isLoading } = useQuery({
     queryKey: ["admin-codes", page],
@@ -64,6 +187,12 @@ export default function AdminCodesPage() {
         setShowPrint(true);
         setShowGenerator(false);
         setPage(1);
+        // Fresh batch → fresh print-mode state, otherwise a stale
+        // single/selected pick from a previous batch could silently
+        // carry over (or point at ids that no longer exist).
+        setPrintMode("batch");
+        setSelectedIds(new Set());
+        setSingleId(res.data.codes[0]?.id);
         qc.invalidateQueries({ queryKey: ["admin-codes"] });
         qc.invalidateQueries({ queryKey: ["admin-stats"] });
       } else {
@@ -78,7 +207,7 @@ export default function AdminCodesPage() {
     generateMutation.mutate();
   };
 
-  const handlePrint = () => window.print();
+  const handlePrint = () => triggerPrint(generatePrintTitle(cardsToPrint.length));
 
   // ── Excel export ──────────────────────────────────────────
   const handleExcelExport = async () => {
@@ -164,20 +293,27 @@ export default function AdminCodesPage() {
                 SIBLING of the print grid below, never an ancestor of it —
                 hiding an ancestor hides every child regardless of the
                 child's own display rules, which was the root cause of the
-                original "prints blank" bug. */}
+                original "prints blank" bug.
+                Mode switch (single / selected / batch) ported from the
+                reviewed module: printing the one code a student is
+                waiting for right now is a different workflow than
+                printing a batch of 500, and deserves its own mode rather
+                than "print everything or nothing". */}
             <div className="rounded-2xl p-6 mb-8 no-print"
               style={{ background: "rgba(45,158,107,0.05)", border: "1px solid rgba(45,158,107,0.25)" }}>
-              <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
                 <h3 style={{ fontFamily: "Amiri,serif", color: "#1A6B47", fontSize: 20 }}>
                   ✅ تم توليد {newCodes.length} كود جديد
                 </h3>
                 <div className="flex gap-2">
-                  <button onClick={handlePrint}
+                  <button onClick={handlePrint} disabled={cardsToPrint.length === 0}
                     style={{ padding: "8px 18px", borderRadius: 10,
                       background: "linear-gradient(135deg,#C9A84C,#8B6914)",
                       color: "#1A1208", fontFamily: "Cairo,sans-serif",
-                      fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer" }}>
-                    🖨️ طباعة الكودات
+                      fontWeight: 700, fontSize: 13, border: "none",
+                      cursor: cardsToPrint.length === 0 ? "not-allowed" : "pointer",
+                      opacity: cardsToPrint.length === 0 ? 0.5 : 1 }}>
+                    🖨️ طباعة ({cardsToPrint.length} كرت · {pageCount} ص)
                   </button>
                   <button onClick={() => setShowPrint(false)}
                     style={{ padding: "8px 14px", borderRadius: 10,
@@ -187,142 +323,104 @@ export default function AdminCodesPage() {
                   </button>
                 </div>
               </div>
-            </div>
 
-            {/* Print grid — sits outside the no-print toolbar box above, so
-                it prints on its own with no decorative background/border
-                eating into the page. Cards are landscape (matches the
-                reference template's ~3:2 ratio) so 2 fit per row on A4;
-                fewer codes per sheet than a small recharge-card grid, but
-                this is the fidelity that was actually asked for. */}
-            <div ref={printRef} id="codes-print-grid"
-              className="grid gap-4 mb-8"
-              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))" }}>
-              {newCodes.map((c) => {
-                const primaryCourse = c.courses?.[0]?.course;
-                const courseTitle   = c.courses?.map((cc) => cc.course.title).join("، ") ?? "";
-                // Level comes straight from the course being printed — never
-                // asked for separately, exactly as requested: whoever is
-                // generating codes for a course already knows/set which
-                // academic year(s) that course belongs to.
-                const levels = primaryCourse?.levels ?? [];
-                const levelLabel =
-                  levels.length === 1 ? ACADEMIC_LEVEL_LABELS[levels[0].academicLevel]
-                  : levels.length > 1 ? levels.map((l) => ACADEMIC_LEVEL_LABELS[l.academicLevel]).join(" / ")
-                  : null;
-
-                return (
-                  <div key={c.id} className="code-card-print" style={{
-                    position: "relative", overflow: "hidden", borderRadius: 18,
-                    background: "linear-gradient(145deg,#0D3D27 0%,#123F28 55%,#1A6B47 100%)",
-                    border: "2.5px solid #C9A84C",
-                    boxShadow: "0 4px 14px rgba(13,61,39,0.25)",
-                    aspectRatio: "1280 / 827",
-                    // LTR wrapper purely for flex item ORDER (text left,
-                    // photo right) — Arabic text inside still shapes RTL
-                    // normally, only the block-level layout direction
-                    // changes. Using this instead of RTL row-reverse
-                    // sidesteps browser inconsistencies mixing the two.
-                    direction: "ltr", display: "flex",
-                  }}>
-                    {/* Decorative corner flourish, top-left of the whole card */}
-                    <div style={{
-                      position: "absolute", top: -30, left: -30, width: 110, height: 110,
-                      borderRadius: "50%", border: "2px solid rgba(201,168,76,0.35)",
-                    }} />
-                    <div style={{
-                      position: "absolute", top: -10, left: -10, width: 70, height: 70,
-                      borderRadius: "50%", border: "1.5px solid rgba(201,168,76,0.3)",
-                    }} />
-
-                    {/* Text column */}
-                    <div style={{
-                      position: "relative", zIndex: 1, flex: "1 1 60%",
-                      display: "flex", flexDirection: "column", alignItems: "center",
-                      justifyContent: "center", textAlign: "center", padding: "5% 4%",
+              {/* Mode switch */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {([
+                  ["batch", "الدفعة كاملة"],
+                  ["selected", "كروت محددة"],
+                  ["single", "كرت واحد"],
+                ] as [PrintMode, string][]).map(([m, label]) => (
+                  <button key={m} onClick={() => setPrintMode(m)}
+                    style={{
+                      padding: "6px 16px", borderRadius: 999,
+                      border: `1px solid ${printMode === m ? "transparent" : "rgba(201,168,76,0.3)"}`,
+                      background: printMode === m ? "linear-gradient(135deg,#C9A84C,#8B6914)" : "none",
+                      color: printMode === m ? "#1A1208" : "#8B6914",
+                      fontFamily: "Cairo,sans-serif", fontSize: 12, fontWeight: 700, cursor: "pointer",
                     }}>
-                      <div style={{
-                        width: 26, height: 26, marginBottom: 4, borderRadius: "50% 50% 50% 0",
-                        background: "rgba(201,168,76,0.18)", border: "1.3px solid rgba(201,168,76,0.55)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        transform: "rotate(45deg)",
-                      }}>
-                        <span style={{ transform: "rotate(-45deg)", fontSize: 12 }}>🕌</span>
-                      </div>
+                    {label}
+                  </button>
+                ))}
+              </div>
 
-                      <div style={{ fontFamily: "Amiri,serif", color: "#E8C97A", fontSize: 18, fontWeight: 700, marginBottom: 6, lineHeight: 1.25 }}>
-                        أكاديمية مستر مصطفى
-                      </div>
-
-                      {levelLabel && (
-                        <div style={{
-                          display: "inline-block", padding: "3px 14px", borderRadius: 999,
-                          background: "rgba(201,168,76,0.15)", border: "1px solid rgba(232,201,122,0.5)", color: "#E8C97A",
-                          fontFamily: "Cairo,sans-serif", fontSize: 10, fontWeight: 700, marginBottom: 7,
-                        }}>
-                          {levelLabel}
-                        </div>
-                      )}
-
-                      <div style={{ fontFamily: "Cairo,sans-serif", color: "#E8C97A", fontSize: 10, opacity: 0.85 }}>
-                        كود الطالب
-                      </div>
-                      <div style={{
-                        fontFamily: "Cairo,sans-serif", color: "#fff", fontSize: 10,
-                        marginBottom: 7, padding: "2px 10px", borderRadius: 999,
-                        background: "rgba(0,0,0,0.15)", border: "1px solid rgba(232,201,122,0.25)",
-                      }}>
-                        كود {courseTitle}
-                      </div>
-
-                      <div style={{ background: "#FAF7F0", borderRadius: 9, padding: "6% 5%", marginBottom: 6, width: "88%", border: "1px solid rgba(201,168,76,0.4)" }}>
-                        <p style={{ fontFamily: "monospace", fontSize: 16, fontWeight: 700, color: "#1A1208", letterSpacing: "0.05em" }}>
-                          {c.code}
-                        </p>
-                      </div>
-
-                      <div style={{ fontFamily: "Cairo,sans-serif", color: "#E8C97A", fontSize: 9, opacity: 0.85 }}>
-                        السنة الدراسية {currentAcademicYear()}
-                      </div>
-                      {c.expiresAt && (
-                        <p style={{ fontFamily: "Cairo,sans-serif", fontSize: 8, color: "#F5B5B5", marginTop: 2 }}>
-                          ينتهي: {new Date(c.expiresAt).toLocaleDateString("ar-EG")}
-                        </p>
-                      )}
-                      <div style={{ fontFamily: "Cairo,sans-serif", color: "rgba(232,201,122,0.7)", fontSize: 8, marginTop: 3 }}>
-                        نسير على نهج العلم والإتقان
-                      </div>
-                    </div>
-
-                    {/* Photo panel — fixed-width column with a real height
-                        (100% of the card's own aspect-ratio-driven height),
-                        so object-fit has an actual box to fit into instead
-                        of a percentage of an undefined auto height — that
-                        undefined-height case is what made the photo render
-                        tiny/broken in the previous version. */}
-                    <div style={{ position: "relative", flex: "0 0 42%", height: "100%" }}>
-                      <img
-                        src="/mostafa-portrait.png"
-                        alt=""
-                        style={{
-                          position: "absolute", inset: 0, width: "100%", height: "100%",
-                          objectFit: "cover", objectPosition: "top center",
-                        }}
-                      />
-                      {/* Fade the photo's bottom into the card background so
-                          the cutout edge doesn't look like a hard sticker. */}
-                      <div style={{
-                        position: "absolute", inset: 0,
-                        background: "linear-gradient(to left, transparent 70%, #0D3D27 100%)",
-                      }} />
-                    </div>
+              {/* Selected mode — pick a subset */}
+              {printMode === "selected" && (
+                <div className="mt-3">
+                  <div className="flex items-center gap-3 mb-2">
+                    <button onClick={() => setSelectedIds(new Set(printCards.map((c) => c.id)))}
+                      style={{ fontFamily: "Cairo,sans-serif", fontSize: 12, color: "#1A6B47", background: "none", border: "none", cursor: "pointer", fontWeight: 700 }}>
+                      تحديد الكل
+                    </button>
+                    <button onClick={() => setSelectedIds(new Set())}
+                      style={{ fontFamily: "Cairo,sans-serif", fontSize: 12, color: "#7A6E5A", background: "none", border: "none", cursor: "pointer" }}>
+                      إلغاء التحديد
+                    </button>
                   </div>
-                );
-              })}
+                  <div className="flex flex-wrap gap-2" style={{ maxHeight: 160, overflowY: "auto" }}>
+                    {printCards.map((c) => (
+                      <label key={c.id} className="flex items-center gap-1.5"
+                        style={{
+                          padding: "4px 10px", borderRadius: 8, cursor: "pointer",
+                          border: `1px solid ${selectedIds.has(c.id) ? "#C9A84C" : "rgba(201,168,76,0.25)"}`,
+                          background: selectedIds.has(c.id) ? "rgba(201,168,76,0.1)" : "none",
+                        }}>
+                        <input type="checkbox" checked={selectedIds.has(c.id)} onChange={() => toggleSelected(c.id)} />
+                        <span style={{ fontFamily: "monospace", fontSize: 11, color: "#1A1208" }}>{c.code}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Single mode — pick exactly one */}
+              {printMode === "single" && (
+                <div className="mt-3">
+                  <select value={singleId ?? ""} onChange={(e) => setSingleId(e.target.value)}
+                    style={{
+                      padding: "8px 12px", borderRadius: 9, border: "1px solid rgba(201,168,76,0.3)",
+                      fontFamily: "Cairo,sans-serif", fontSize: 13, color: "#1A1208", background: "#fff",
+                    }}>
+                    {printCards.map((c) => (
+                      <option key={c.id} value={c.id}>{c.code} — {c.courseName || "بدون كورس"}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
+
+            {/* Print pages — sits outside the no-print toolbar box above, so
+                it prints on its own with no decorative background/border
+                eating into the page. Cards are chunked into explicit
+                per-page groups (CARDS_PER_PAGE = 10) rather than one
+                continuous grid left to the browser's own print
+                pagination — CSS Grid auto-breaking across printed pages
+                is exactly the kind of "browser inconsistency" that's
+                unreliable across engines; one grid per physical page with
+                an explicit break-after is deterministic everywhere. */}
+            {cardsToPrint.length > 0 ? (
+              <div ref={printRef} id="codes-print-grid">
+                {chunkIntoPages(cardsToPrint).map((pageCards, pageIndex) => (
+                  <div key={pageIndex}
+                    className="print-page"
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: `repeat(${CARD_LAYOUT.columns}, ${CARD_LAYOUT.cardWidthMm}mm)`,
+                      gap: `${CARD_LAYOUT.gapMm}mm`, justifyContent: "center", marginBottom: 24,
+                    }}>
+                    {pageCards.map((card) => <CodeCard key={card.id} card={card} />)}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="no-print" style={{ fontFamily: "Cairo,sans-serif", color: "#7A6E5A", fontSize: 13, marginBottom: 32 }}>
+                لا توجد كروت لعرضها بهذا الوضع — اختر كرتًا واحدًا على الأقل.
+              </p>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
+
 
       {/* Codes table */}
       <div className="no-print">
