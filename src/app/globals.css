@@ -252,8 +252,20 @@ input, textarea, select {
   .no-print                           { display: none !important; }
   #codes-print-grid                   { display: grid !important; }
   .code-card-print                    { break-inside: avoid; page-break-inside: avoid; }
+  /* One .print-page div per physical A4 sheet (see codes/page.tsx) — force
+     a hard break after every page except the last, so batches of any size
+     (10, 50, 500 cards → 1, 5, 50 pages) never leave a stray trailing
+     blank sheet, and never let two pages' worth of cards bleed together. */
+  .print-page                         { break-after: page; page-break-after: always; margin-bottom: 0 !important; }
+  .print-page:last-child              { break-after: auto; page-break-after: auto; }
   body  { background: white; direction: rtl; }
-  @page { margin: 10mm; size: A4 portrait; }
+  /* 5mm margin, not 10mm: the 2x5 card grid (see src/lib/print-codes.ts,
+     CARD_LAYOUT) is sized in exact millimetres to fit precisely 10 cards
+     per A4 sheet — 5 rows of 55mm cards + gaps = 285mm tall, and a 10mm
+     page margin would only leave 277mm to work with, silently pushing
+     the 5th row onto a second page. 5mm margin leaves 287mm, which fits
+     with a small safety buffer built into the card gap itself. */
+  @page { margin: 5mm; size: A4 portrait; }
 
   /* BUG FIX #2 (cards printed plain white, no green/gold at all): browsers
      strip background colors, gradients, and box-shadows by default when
@@ -272,20 +284,19 @@ input, textarea, select {
     color-adjust: exact !important;
   }
 
-  /* Recharge-card-style cut frame: a dashed border reads clearly as
-     "cut along this line" (the same convention printed phone-credit and
-     gift cards use). The extra gap between cards leaves room for
-     scissors/a paper cutter without nicking the next card over. */
-  #codes-print-grid {
-    gap: 10mm !important;
-  }
+  /* NOTE: no forced `gap` override here anymore. The grid's gap is set
+     inline from CARD_LAYOUT.gapMm (2.5mm) precisely so the 5-row page
+     math above holds — a CSS override fighting that value (the previous
+     rule forced 10mm) would blow the page budget by ~30mm and silently
+     spill the last row onto a second sheet, exactly the "no scaling
+     issues, no clipping" failure mode this layout exists to avoid. */
   .code-card-print {
     /* Cards carry their own solid gold border + dark background (see the
        JSX), so the cut-guide only needs a *lighter* dashed line — a plain
        dark grey dash would nearly disappear against the dark-green card
        background. */
-    outline: 1.5px dashed rgba(232,201,122,0.9) !important;
-    outline-offset: 3px;
+    outline: 1px dashed rgba(232,201,122,0.9) !important;
+    outline-offset: 1.5px;
     position: relative;
   }
 }
