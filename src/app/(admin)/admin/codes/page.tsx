@@ -6,7 +6,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchWithAuth } from "@/hooks/useAuth";
 import { useToast } from "@/store/uiStore";
 import { formatDate } from "@/lib/utils";
-import type { AccessCode, Course } from "@/types";
+import type { AccessCode, Course, AcademicLevel } from "@/types";
+import { ACADEMIC_LEVELS, ACADEMIC_LEVEL_LABELS } from "@/types";
 import {
   toPrintCards, chunkIntoPages, currentAcademicYear, triggerPrint, generatePrintTitle,
   CARD_LAYOUT, type PrintCard,
@@ -123,6 +124,7 @@ export default function AdminCodesPage() {
   const [showGenerator,    setShowGenerator]    = useState(false);
   const [selectedCourses,  setSelectedCourses]  = useState<string[]>([]);
   const [count,            setCount]            = useState(10);
+  const [selectedLevel,    setSelectedLevel]     = useState<AcademicLevel | "">("");
   const [expiresAt,        setExpiresAt]        = useState("");
   const [note,             setNote]             = useState("");
   const [newCodes,         setNewCodes]         = useState<AccessCode[]>([]);
@@ -140,7 +142,19 @@ export default function AdminCodesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [singleId,    setSingleId]    = useState<string | undefined>(undefined);
 
-  const printCards = useMemo(() => toPrintCards(newCodes), [newCodes]);
+  // The admin now picks the level explicitly in the generator form (see
+  // handleGenerate's validation below) rather than relying on whatever
+  // level(s) happen to be attached to the course — courses can have
+  // several levels or none, and printing 500 cards is exactly the kind
+  // of batch where "silently inferred" is the wrong default. The
+  // course-derived label from toPrintCard is kept as a harmless fallback
+  // for any older code list that predates this field.
+  const printCards = useMemo(() => {
+    const base = toPrintCards(newCodes);
+    if (!selectedLevel) return base;
+    const label = ACADEMIC_LEVEL_LABELS[selectedLevel];
+    return base.map((c) => ({ ...c, levelLabel: label }));
+  }, [newCodes, selectedLevel]);
   const cardsToPrint = useMemo(() => {
     if (printMode === "batch") return printCards;
     if (printMode === "single") return printCards.filter((c) => c.id === singleId);
@@ -203,6 +217,7 @@ export default function AdminCodesPage() {
 
   const handleGenerate = () => {
     if (selectedCourses.length === 0) { toast.error("اختر كورساً واحداً على الأقل"); return; }
+    if (!selectedLevel)               { toast.error("اختر الصف الدراسي"); return; }
     if (count < 1 || count > 500)     { toast.error("العدد يجب أن يكون بين 1 و 500"); return; }
     generateMutation.mutate();
   };
@@ -587,6 +602,31 @@ export default function AdminCodesPage() {
                           color: "#fff", fontSize: 11, flexShrink: 0 }}>
                           {sel ? "✓" : ""}
                         </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Academic level — asked explicitly now, not inferred from
+                  the course (a course can carry several levels or none). */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontFamily: "Cairo,sans-serif", color: "#4A3F2A", fontSize: 13, fontWeight: 600, marginBottom: 8, display: "block" }}>
+                  الصف الدراسي *
+                </label>
+                <div className="flex gap-2 flex-wrap">
+                  {ACADEMIC_LEVELS.map((lvl) => {
+                    const sel = selectedLevel === lvl;
+                    return (
+                      <button key={lvl} type="button" onClick={() => setSelectedLevel(lvl)}
+                        style={{
+                          flex: "1 1 30%", padding: "10px 8px", borderRadius: 10, textAlign: "center",
+                          border: "1.5px solid", borderColor: sel ? "#C9A84C" : "rgba(201,168,76,0.2)",
+                          background: sel ? "linear-gradient(135deg,#C9A84C,#8B6914)" : "transparent",
+                          color: sel ? "#1A1208" : "#4A3F2A",
+                          fontFamily: "Cairo,sans-serif", fontSize: 13, fontWeight: sel ? 700 : 400, cursor: "pointer",
+                        }}>
+                        {ACADEMIC_LEVEL_LABELS[lvl]}
                       </button>
                     );
                   })}
