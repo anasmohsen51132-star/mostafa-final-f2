@@ -76,15 +76,20 @@ function CodeCard({ card }: { card: PrintCard }) {
           </h1>
         </div>
 
-        {/* Course + level */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "2mm", fontSize: "2.6mm", opacity: 0.92 }}>
-          <span style={{ fontWeight: 700 }}>{card.courseName || "—"}</span>
+        {/* Level badge (above) + course name (below) */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1.1mm" }}>
           {card.levelLabel && (
-            <>
-              <span style={{ width: "1mm", height: "1mm", borderRadius: "50%", background: GOLD, flexShrink: 0 }} />
-              <span style={{ fontWeight: 500, opacity: 0.85 }}>{card.levelLabel}</span>
-            </>
+            <span style={{
+              display: "inline-block", padding: "0.7mm 3.2mm", borderRadius: 999,
+              background: "rgba(201,168,76,0.18)", border: `0.28mm solid ${GOLD_LIGHT}`,
+              color: GOLD_LIGHT, fontSize: "2mm", fontWeight: 700, letterSpacing: "0.3px",
+            }}>
+              {card.levelLabel}
+            </span>
           )}
+          <span style={{ fontSize: "3.2mm", fontWeight: 700, color: "#FAF7F0" }}>
+            {card.courseName || "—"}
+          </span>
         </div>
 
         <div style={{ textAlign: "center", fontSize: "2.2mm", color: GOLD_LIGHT, opacity: 0.85 }}>
